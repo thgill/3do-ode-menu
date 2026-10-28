@@ -2,8 +2,8 @@
  *
  *   OART   the menu's own format (tools/mkart.py): "OART", u16 width, u16 height, big-endian RGB555 rows.
  *          Must already be w x h. Fastest to show.
- *   PNG    any colour type, bit depths 1-16, not interlaced. Inflated with tinf (src/third, zlib licence).
- *   JPEG   baseline only (not progressive), greyscale or YCbCr. Decoded with picojpeg (src/third, public domain).
+ *   PNG    any color type, bit depths 1-16, not interlaced. Inflated with tinf (src/third, zlib license).
+ *   JPEG   baseline only (not progressive), grayscale or YCbCr. Decoded with picojpeg (src/third, public domain).
  *
  * PNG and JPEG pictures of any size are trimmed to the frame's 4:3 shape (equal amounts off both sides, as mkart.py
  * --fit crop does) and averaged down (or repeated up) to w x h. Transparent pixels are drawn over black.
@@ -102,7 +102,7 @@ static void sink_px(Sink *k, int32 x, int32 y, uint32 r, uint32 g, uint32 b)
 }
 
 /* Averages, then a light sharpen (each pixel moves an eighth of the way away from the average of its four
- * neighbours, times four: c + (4c - n) / 8), which takes the edge off the softness of shrinking to cover size. */
+ * neighbors, times four: c + (4c - n) / 8), which takes the edge off the softness of shrinking to cover size. */
 static void sink_end(Sink *k, uint16 *out, int32 stride)
 {
     int32 x, y, sx, sy, ch, c, nb, v[3];
@@ -151,8 +151,8 @@ static void sink_end(Sink *k, uint16 *out, int32 stride)
 }
 
 /* ---------------------------------------------------------------- the menu's own .img formats
- *   OAR8  "OAR8", u16 w, u16 h, u16 n, n palette colours (big-endian RGB555), then w*h one-byte indices:
- *         a picture's own 256 colours: 6.2 KB at 88x66, 8.4 KB for a 63x122 long box. What the scan, mkart.py
+ *   OAR8  "OAR8", u16 w, u16 h, u16 n, n palette colors (big-endian RGB555), then w*h one-byte indices:
+ *         a picture's own 256 colors: 6.2 KB at 88x66, 8.4 KB for a 63x122 long box. What the scan, mkart.py
  *         and the Cover Maker write. Any size up to the pane's 88x122.
  *   OART  "OART", u16 w, u16 h, then big-endian RGB555 pixels: 11.4 KB. The first format; still read. */
 
@@ -191,12 +191,12 @@ static int32 dec_oart(const uint8 *f, int32 len, uint16 *out, int32 stride, int3
     return ART_OK;
 }
 
-/* ---- the 256 colours: median cut over the picture's own colours (counted in a 32768-entry table), splitting
+/* ---- the 256 colors: median cut over the picture's own colors (counted in a 32768-entry table), splitting
  * the box with the most pixels along its widest channel at the weighted median, until there are 256 boxes; each
- * colour then becomes its box's average. A picture with 256 colours or fewer keeps them exactly. */
+ * color then becomes its box's average. A picture with 256 colors or fewer keeps them exactly. */
 
 typedef struct QBox {
-    int32 lo, hi;               /* range in the colour list */
+    int32 lo, hi;               /* range in the color list */
     int32 pixels;
 } QBox;
 

@@ -1,6 +1,6 @@
-/* lists.c - favourites, recently played and the settings, kept as small text files in the drive root.
+/* lists.c - favorites, recently played and the settings, kept as small text files in the drive root.
  *
- *   _odemenu.fav   favourites, one path per line from the drive root ("3DO/USA/Doom (USA).iso")
+ *   _odemenu.fav   favorites, one path per line from the drive root ("3DO/USA/Doom (USA).iso")
  *   _odemenu.rec   recently played, newest first
  *   _odemenu.opt   settings, "key=value" lines
  *

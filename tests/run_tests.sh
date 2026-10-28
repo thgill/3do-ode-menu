@@ -81,16 +81,16 @@ n=$(echo "$l" | grep -c .)
 first=$(echo "$l" | sed -n 1p); third=$(echo "$l" | sed -n 3p)
 [ "$n" = 3 ] && [ "$first" = "$third" ] && ! echo "$l" | grep -q "^ *$" && ok "after launches that do not boot, the menu stays in step (3 launches, back and in again)" || { bad "relaunch"; echo "$l"; }
 
-# favourites: A on a game in a subfolder, ADD TO FAVS; the list is written in the drive root through "../"
+# favorites: A on a game in a subfolder, ADD TO FAVS; the list is written in the drive root through "../"
 rm -f "$T/sd/_odemenu.cfg" "$T/disc/nvram_ODEMenu" "$T/sd/_odemenu.fav"
 printf '20 pad A\n22 pad -\n30 pad D\n32 pad -\n34 pad A\n36 pad -\n40 pad A\n42 pad -\n50 pad D\n52 pad -\n60 pad A\n62 pad -\n120 end\n' > "$T/fav.txt"
 out=$(run "$T/fav.txt")
-grep -q "^Games/Sub/Deep (USA).iso$" "$T/sd/_odemenu.fav" 2>/dev/null && ok "favourite written to the root's _odemenu.fav from a subfolder" || { bad "favourite file"; cat "$T/sd/_odemenu.fav"; echo "$out" | grep E1; }
+grep -q "^Games/Sub/Deep (USA).iso$" "$T/sd/_odemenu.fav" 2>/dev/null && ok "favorite written to the root's _odemenu.fav from a subfolder" || { bad "favorite file"; cat "$T/sd/_odemenu.fav"; echo "$out" | grep E1; }
 
-# FAVS tab from the root: shoulder R, A, A starts the favourite, going down into its folder first
+# FAVS tab from the root: shoulder R, A, A starts the favorite, going down into its folder first
 printf '20 pad r\n22 pad -\n30 pad A\n32 pad -\n40 pad A\n42 pad -\n600 end\n' > "$T/favplay.txt"
 out=$(run "$T/favplay.txt")
-echo "$out" | grep -q "C5 launch: .*Games/Sub/Deep (USA).iso" && ok "a favourite starts from the FAVS tab" || { bad "favourite start"; echo "$out" | grep -E "C5|C4|invalid"; }
+echo "$out" | grep -q "C5 launch: .*Games/Sub/Deep (USA).iso" && ok "a favorite starts from the FAVS tab" || { bad "favorite start"; echo "$out" | grep -E "C5|C4|invalid"; }
 echo "$out" | awk '/C3|C4/{c=1} /E1 open .* write/{if(c)w=1} /C5 launch/{exit} END{exit w}' && ok "no card write between building the queue and C5" || bad "card write right before launch"
 printf '20 end\n' > "$T/boot.txt"
 run "$T/boot.txt" > /dev/null
@@ -143,9 +143,9 @@ art_try "Game 2 (USA).png" "Image.new('RGB',(320,240),(255,0,0))" "r==255 and g=
 art_try "Game 2 (USA).png" "Image.new('RGB',(40,30),(0,0,255)).convert('P')" "b==255 and r==0" "scan: PNG (palette, smaller than the frame)"
 art_try "Game 2 (USA).png" "Image.new('RGBA',(400,200),(0,255,0,255))" "g==255 and r==0" "scan: PNG (RGBA, wide: trimmed)"
 art_try "Game 2 (USA).jpg" "Image.new('RGB',(320,240),(255,0,0))" "r>200 and g<60 and b<60" "scan: JPG (320x240)"
-art_try "Game 2 (USA).jpg" "Image.new('L',(1024,768),200)" "abs(r-200)<12 and r==g==b" "scan: JPG (greyscale, large: 1/8 decode)"
+art_try "Game 2 (USA).jpg" "Image.new('L',(1024,768),200)" "abs(r-200)<12 and r==g==b" "scan: JPG (grayscale, large: 1/8 decode)"
 art_try "Game 2 (USA).jpg" "Image.new('RGB',(600,450),(0,200,0)).convert('RGB')" "g>180 and r<40 and b<40" "scan: progressive JPG (600x450)" progressive
-art_try "Game 2 (USA).jpg" "Image.new('L',(97,61),90)" "abs(r-90)<10 and r==g==b" "scan: progressive JPG (greyscale, small)" progressive
+art_try "Game 2 (USA).jpg" "Image.new('L',(97,61),90)" "abs(r-90)<10 and r==g==b" "scan: progressive JPG (grayscale, small)" progressive
 # a damaged file: no picture, no crash
 rm -f "$T/sd/Games/_art/"*; head -c 3000 /dev/urandom > "$T/junk"; printf '\xff\xd8\xff\xc2' | cat - "$T/junk" > "$T/sd/Games/_art/Game 2 (USA).jpg"
 out=$(run "$T/artx.txt")
@@ -159,13 +159,13 @@ grep -q "^pane=0$" "$T/sd/_odemenu.opt" 2>/dev/null && ok "settings saved (C tog
 printf '20 pad C\n22 pad -\n40 end\n' > "$T/opt.txt"
 run "$T/opt.txt" > /dev/null
 
-# artwork of a favourite in another folder: opened from the drive root, then back into the folder
+# artwork of a favorite in another folder: opened from the drive root, then back into the folder
 mkdir -p "$T/sd/Games/Sub/_art"
 python3 -c "import struct;open('$T/sd/Games/Sub/_art/Deep (USA).img','wb').write(b'OART'+struct.pack('>HH',88,66)+b'\x03\xe0'*(88*66))"
 rm -f "$T/sd/_odemenu.cfg" "$T/disc/nvram_ODEMenu"
 printf '20 pad A\n22 pad -\n90 pad r\n92 pad -\n150 shot favart\n160 pad l\n162 pad -\n170 pad D\n172 pad -\n180 pad A\n182 pad -\n190 pad A\n192 pad -\n200 pad A\n202 pad -\n760 end\n' > "$T/favart.txt"
 out=$(run "$T/favart.txt")
-echo "$out" | grep -q "E1 open Games/Sub/_art/Deep (USA).img read -> 1" && ok "a favourite's artwork in another folder is read from the root" || { bad "favourite artwork"; echo "$out" | grep -E "E1|C0"; }
+echo "$out" | grep -q "E1 open Games/Sub/_art/Deep (USA).img read -> 1" && ok "a favorite's artwork in another folder is read from the root" || { bad "favorite artwork"; echo "$out" | grep -E "E1|C0"; }
 echo "$out" | grep -q "C5 launch: .*Games/Sub/Deep (USA).iso" && ok "after the root trip the menu is still in step (enter Sub, play)" || { bad "after root trip"; echo "$out" | grep -E "C5|invalid"; }
 
 # ---- games in their own folders
@@ -200,11 +200,11 @@ out=$(run "$T/gf2.txt")
 pane_rgb "$T/doom.ppm" "r==255 and g==0 and b==0" && ok "game folder cover shown in the info pane" || bad "game folder cover shown"
 pane_rgb "$T/wing.ppm" "b>200 and r<60" && ok "a cover named after the game file (wing.jpg)" || { bad "game-name cover"; echo "$out" | grep "E1 open Wing"; }
 
-# favourite of a game folder, started from FAVS
+# favorite of a game folder, started from FAVS
 rm -f "$T/sd/_odemenu.fav"
 keys "D A w D D A D A r A A" 30 700 > "$T/gff.txt"
 out=$(run "$T/gff.txt")
-grep -qx "Games2/Doom/" "$T/sd/_odemenu.fav" && ok "a game folder is kept in favourites as Games2/Doom/" || { bad "fav of game folder"; cat "$T/sd/_odemenu.fav"; }
+grep -qx "Games2/Doom/" "$T/sd/_odemenu.fav" && ok "a game folder is kept in favorites as Games2/Doom/" || { bad "fav of game folder"; cat "$T/sd/_odemenu.fav"; }
 echo "$out" | grep -q "C5 launch: .*Games2/Doom/doom_1994_ID_Software.cue" && ok "a game folder starts from FAVS" || { bad "game folder from FAVS"; echo "$out" | grep -E "C4|C5"; }
 rm -f "$T/sd/_odemenu.fav"
 

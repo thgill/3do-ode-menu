@@ -1,10 +1,10 @@
-/* ui.c - the tabbed menu (GAMES, FAVS, RECENT, TOOLS, OPTIONS) in the PicoPak-SMS design, SYNTHWAVE colours.
+/* ui.c - the tabbed menu (GAMES, FAVS, RECENT, TOOLS, OPTIONS) in the PicoPak-SMS design, SYNTHWAVE colors.
  *
  * Screen (40 x 30 cells of 8 px): logo on top, a tab strip, a rounded panel holding an 18-row list, a divider,
  * a footer (path on the left, pad hints on the right) and chips (position, drive, queue) below the panel.
  * GAMES, FAVS and RECENT can show an info pane on the right (C toggles it): a screenshot from _art/<name>.img/.png/.jpg
- * beside the games, the name, the image type, favourite and queue state. A on a game opens a dialog (start,
- * favourite, queue); the selection bar's colour drifts round a ten-colour ring in 180 steps.
+ * beside the games, the name, the image type, favorite and queue state. A on a game opens a dialog (start,
+ * favorite, queue); the selection bar's color drifts round a ten-color ring in 180 steps.
  */
 #include "common.h"
 #include "uiart.h"
@@ -40,7 +40,7 @@ enum { T_GAMES, T_FAVS, T_RECENT, T_TOOLS, T_OPTIONS, T_COUNT };
 #define PANEL_H     (FOOT_Y + 12 - PANEL_Y)
 #define CHIP_Y      (PANEL_Y + PANEL_H + 3)
 /* The info pane: a cover fits ART_W x ART_H (the pane's height), its shape kept. Taller than ART_TALL (box art:
- * long boxes, European cases) it fills the pane, centred, the badges on its foot; shorter (square and wide
+ * long boxes, European cases) it fills the pane, centered, the badges on its foot; shorter (square and wide
  * covers, screenshots) it sits at the top with the name under it, and the badges under that too when there
  * are ART_ROOM lines left, else on its foot. No picture: a card ART_CARD_H high. */
 #ifndef ART_W
@@ -63,7 +63,7 @@ enum { T_GAMES, T_FAVS, T_RECENT, T_TOOLS, T_OPTIONS, T_COUNT };
 static const char *tab_names[T_COUNT] = { "GAMES", "FAVS", "RECENT", "TOOLS", "OPTIONS" };
 static const int32 tab_icons[T_COUNT] = { ICON_DISC, ICON_HEART, ICON_CLOCK, ICON_WRENCH, ICON_GEAR };
 
-/* the bar's colour ring (mock_synth.py), walked in 180 steps */
+/* the bar's color ring (mock_synth.py), walked in 180 steps */
 static const uint8 ring[10][3] = {
     {255, 120, 220}, {255, 140, 190}, {255, 160, 150}, {255, 190, 120}, {255, 220, 120},
     {200, 230, 160}, {120, 230, 230}, {90, 210, 255}, {150, 170, 255}, {210, 140, 255}
@@ -114,7 +114,7 @@ static char tmp[256];
 static char tmp2[256];
 static char pathbuf[LIST_PATH_MAX + 64];
 
-#define UI_FAV      0x80            /* DirEntry.art bit: the entry is a favourite */
+#define UI_FAV      0x80            /* DirEntry.art bit: the entry is a favorite */
 #define ART_NONE    DE_NOART        /* DirEntry.art: no .img (this visit) */
 #define ART_FAIL    0x02            /* DirEntry.art: an .img that could not be shown (this visit) */
 
@@ -276,7 +276,7 @@ static void bar_color(void)
 }
 
 /* Animation runs on video fields, not on drawn frames: a frame that takes longer to draw does not slow the
- * colour or the shine down, they just move on further in the next one. */
+ * color or the shine down, they just move on further in the next one. */
 static uint32 anim_vbl;
 static int32  anim_dt;
 
@@ -526,7 +526,7 @@ static int32 art_where(const char *path, ArtWhere *w)
     return 0;
 }
 
-/* the cover as the menu's 256-colour .img (OAR8, 6.2 KB: about half the 15-bit one, and writing the card is
+/* the cover as the menu's 256-color .img (OAR8, 6.2 KB: about half the 15-bit one, and writing the card is
  * slow), in 2 KB writes */
 static void art_save(const char *name, const uint16 *pix, int32 stride, int32 w, int32 h)
 {
@@ -606,7 +606,7 @@ static void art_compose(ArtSlot *s, int32 w, int32 h)
                 p[(y + oy) * st + x + ox] = p[y * st + x];
     rows = h > ART_TALL ? ART_H : h;
     if (ox) {
-        /* the sides beside a narrow cover: its own edge colours, smoothed down the rows and darkened */
+        /* the sides beside a narrow cover: its own edge colors, smoothed down the rows and darkened */
         for (k = 0; k < 2; k++)
             for (y = 0; y < h; y++) {
                 sum[0] = sum[1] = sum[2] = 0;
@@ -744,7 +744,7 @@ static const char *opt_label(int32 i, const char **value)
 
     switch (i) {
     case 0:  *value = g_set.pane ? "ON" : "OFF"; return "INFO PANE";
-    case 1:  *value = bars[g_set.bar & 3]; return "BAR COLOUR CYCLE";
+    case 1:  *value = bars[g_set.bar & 3]; return "BAR COLOR CYCLE";
     case 2:  *value = g_set.shine ? "ON" : "OFF"; return "LOGO SHINE";
     case 3:  *value = g_set.index ? "ON" : "OFF"; return "FOLDER INDEX";
     default: *value = 0; return "ABOUT";
@@ -954,7 +954,7 @@ static void draw_list(void)
     if (n == 0 || (tab == T_GAMES && g_dir.count == 0)) {
         switch (tab) {
         case T_GAMES:  empty = g_dir.devlist ? "NO DRIVES" : "NO GAMES OR FOLDERS HERE"; break;
-        case T_FAVS:   empty = "NO FAVOURITES YET"; break;
+        case T_FAVS:   empty = "NO FAVORITES YET"; break;
         default:       empty = "NOTHING PLAYED YET"; break;
         }
         width = pane ? SPLIT - 2 : 36;
@@ -1149,7 +1149,7 @@ static void begin_frame(int32 dimmed)
 /* ---------------------------------------------------------------- footer: path, chips, pad legends
  * FOOTER_LAYOUT 1: path and chips inside the panel, legends on their own row under it
  *               2: path inside the panel, chips (left) and short legends (right) under it
- *               3: path and position inside the panel, legends centred under it */
+ *               3: path and position inside the panel, legends centered under it */
 #ifndef FOOTER_LAYOUT
 #define FOOTER_LAYOUT 2
 #endif
@@ -1288,7 +1288,7 @@ static void footer_left(int32 maxc)
             strcpy(tmp, "DRIVES");
         left = tmp;
         break;
-    case T_FAVS:   left = "FAVOURITES"; break;
+    case T_FAVS:   left = "FAVORITES"; break;
     case T_RECENT: left = "LAST PLAYED"; break;
     default:       left = "SETTINGS"; break;
     }
@@ -1759,7 +1759,7 @@ static void launch_screen(const char *what, const char *name)
 /* A launch writes nothing on the card: the ODE must start reading the game while the card is idle. The game is
  * noted in NVRAM instead (note_save) and goes into RECENT at the next menu start. Before C3/C4/C5 the launch waits
  * until the card has been left alone: SETTLE_IO fields since the last ODE command of any kind (checking the entry
- * just before counts) and SETTLE_WRITE fields since anything was written (a folder index, favourites, settings).
+ * just before counts) and SETTLE_WRITE fields since anything was written (a folder index, favorites, settings).
  * (One build read the field clock at double rate, so these waits were halved, and launches failed.) */
 #define SETTLE_IO    90
 #define SETTLE_WRITE 180
@@ -2008,13 +2008,13 @@ static void toggle_fav_path(const char *path)
 
     if (k >= 0) {
         list_remove(&g_favs, k);
-        ui_toast("Removed from favourites");
+        ui_toast("Removed from favorites");
     } else if (g_favs.n >= FAV_MAX) {
-        ui_toast("Favourites are full (64)");
+        ui_toast("Favorites are full (64)");
         return;
     } else {
         list_add_front(&g_favs, path);
-        ui_toast("Added to favourites");
+        ui_toast("Added to favorites");
     }
     lists_save(0);
     mark_favs();
@@ -2068,7 +2068,7 @@ static void game_dialog(int32 i)
     case 0: play_now(i); break;
     case 1:
         if (entry_path(i, pathbuf, LIST_PATH_MAX) < 0)
-            ui_toast("Path too long for favourites");
+            ui_toast("Path too long for favorites");
         else
             toggle_fav_path(pathbuf);
         break;
@@ -2731,12 +2731,12 @@ void ui_start(void)
     q_count = 0;
     sel[0] = 0;
     at_root = dir_go_root() == 0;
-    DIAG_STEP(0x4210, 0);                       /* grey: firmware at the drive root */
+    DIAG_STEP(0x4210, 0);                       /* gray: firmware at the drive root */
     if (!g_dir.both_drives) {
         lists_load();
         lists_drive = g_dir.drive;
     }
-    DIAG_STEP(0x5c17, 0);                       /* purple: favourites and settings read */
+    DIAG_STEP(0x5c17, 0);                       /* purple: favorites and settings read */
     load_err = dir_load(load_progress, 0);
     /* the menu always starts in the drive root; the last launch (noted in NVRAM) goes into RECENT */
     if (load_err >= 0 && !g_dir.both_drives && note_load(&drive, note_path, LIST_PATH_MAX) == 0 &&

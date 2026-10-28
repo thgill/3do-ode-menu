@@ -5,9 +5,9 @@
  * the vertical blank (so it also paces the menu, and the buffer it lands in is off screen by then) and costs the
  * cel engine nothing. Everything else is queued as a chain of cels and handed to the cel engine in one DrawCels
  * call at the end. Text is rendered into small 1-bpp cels each frame: with an
- * 8x8 face that is a byte per glyph row, cheaper than keeping cached text around. Colours are palette roles;
- * 1-bpp cels take theirs from a two-entry PLUT per role, so the selection bar's colour can change every frame.
- * A pixel value of 0 is transparent to the cel engine, so no colour here is ever 0 (black is 0x0001).
+ * 8x8 face that is a byte per glyph row, cheaper than keeping cached text around. Colors are palette roles;
+ * 1-bpp cels take theirs from a two-entry PLUT per role, so the selection bar's color can change every frame.
+ * A pixel value of 0 is transparent to the cel engine, so no color here is ever 0 (black is 0x0001).
  */
 #include "common.h"
 #define UIART_DATA
@@ -161,7 +161,7 @@ static CCB *make_sprite(int32 id)
 }
 
 #ifdef DIAG
-/* Diagnostic build: a whole-screen colour written by the CPU (no cel engine, no SPORT), then about 0.75 s.
+/* Diagnostic build: a whole-screen color written by the CPU (no cel engine, no SPORT), then about 0.75 s.
  * bars = number of white bars, to tell failures of the same stage apart. */
 static int32 diag_ready;
 
@@ -285,7 +285,7 @@ static void next_buffer(void)
 }
 
 /* Start a frame. key >= 0 names the still parts the caller would draw: if the cache holds them they are copied in
- * (returns 0); otherwise the frame starts on the background colour and the caller draws them, then calls
+ * (returns 0); otherwise the frame starts on the background color and the caller draws them, then calls
  * gfx_bg_done() to keep them (returns 1). DisplayScreen takes effect at the next vertical blank, so both ways
  * wait for one before touching the buffer, which until then may still be on screen. */
 int32 gfx_frame_begin_bg(int32 key)
@@ -422,7 +422,7 @@ void gfx_rect(int32 x, int32 y, int32 w, int32 h, int32 role)
     rect_rgb(x, y, w, h, colors[dim][role]);
 }
 
-/* the colour of pixel (i, j) of a rounded rectangle, -1 for none (PicoPak menu/art.py Canvas.rrect) */
+/* the color of pixel (i, j) of a rounded rectangle, -1 for none (PicoPak menu/art.py Canvas.rrect) */
 static int32 rr_pixel(int32 i, int32 j, int32 w, int32 h, int32 fill, int32 edge, int32 r, int32 mode)
 {
     int32 dx = i < w - 1 - i ? i : w - 1 - i;

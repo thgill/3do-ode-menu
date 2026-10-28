@@ -10,7 +10,7 @@
  * is non-zero (the refinement scans can only be read with that). A 600x450 picture needs about 100 KB. At the end
  * each block becomes N x N pixels with an N-point inverse DCT (as libjpeg's reduced-size decoding does).
  *
- * Supported: SOF2 (progressive, Huffman), 8-bit, 1 or 3 components (greyscale, YCbCr), any sampling factors,
+ * Supported: SOF2 (progressive, Huffman), 8-bit, 1 or 3 components (grayscale, YCbCr), any sampling factors,
  * restart intervals. Not: arithmetic coding, 12-bit, CMYK.
  */
 #include "common.h"
@@ -641,7 +641,7 @@ int32 jpg_progressive(const uint8 *f, int32 len, int32 want_w, int32 want_h, Art
         jp->pos += 2 + seglen;
         seglen -= 2;
         switch (m) {
-        case 0xdb:                      /* quantisation tables */
+        case 0xdb:                      /* quantization tables */
             while (seglen > 0) {
                 pq = f[at] >> 4;
                 th = f[at] & 3;

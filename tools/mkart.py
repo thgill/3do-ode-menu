@@ -10,7 +10,7 @@
 
 The menu shows <game folder>/_art/<game name>.img beside a game (or <game folder>/_cover.img): the picture
 shrunk to fit 88 x 122 with its shape kept (box art: 63 x 122 for a US long box; a 4:3 screenshot: 88 x 66),
-with its own 256 colours (15-bit each). "<game name>" is the file name without .iso/.cue/.bin, so
+with its own 256 colors (15-bit each). "<game name>" is the file name without .iso/.cue/.bin, so
 "Doom (USA).iso" uses "_art/Doom (USA).img". tools/covermaker.py (or the web page) downloads box art for a whole card.
 (The firmware hides names starting with "_", so the _art folder does not show up in the menu.)
 
@@ -35,7 +35,7 @@ PIC_EXT = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp')
 
 
 def sharpen(im):
-    """the console scan's light sharpen: each pixel moves away from its 4 neighbours' average by (4c - n) / 8"""
+    """the console scan's light sharpen: each pixel moves away from its 4 neighbors' average by (4c - n) / 8"""
     w, h = im.size
     p = im.load()
     out = im.copy()
@@ -61,7 +61,7 @@ def convert(src, dst, box=None):
         im = im.crop(box)
     out = sharpen(im.resize(fit_size(im.width, im.height), Image.BOX))
     w, h = out.size
-    # OAR8: the picture's own 256 colours (as the console's scan writes): "OAR8", w, h, n, n RGB555 colours, w*h
+    # OAR8: the picture's own 256 colors (as the console's scan writes): "OAR8", w, h, n, n RGB555 colors, w*h
     # one-byte indices. 6.2 KB at 88x66, 8.4 KB for a long box.
     out = out.point(lambda v: (v >> 3) << 3)
     q = out.quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)

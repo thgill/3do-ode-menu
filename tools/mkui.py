@@ -10,7 +10,7 @@ disc and wrench icons drawn for this menu.
 
 logo.img: "OLG1", u16 w, u16 h, then h rows of w big-endian RGB555 pixels padded to a 4-byte row, then a 1-bpp
 mask of the solid lettering (rows padded to 4 bytes) used by the optional shine. The logo is composited onto
-the menu's background colour here.
+the menu's background color here.
 """
 import argparse
 import os

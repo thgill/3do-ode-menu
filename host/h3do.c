@@ -1,6 +1,6 @@
 /* h3do.c - host implementation of the lib3do subset (rendering into a 320x240 RGB555 framebuffer),
  * scripted control pad, screenshots. Test harness only; mimics textlib/CreateBackdropCel closely enough to
- * judge layout and colours, not bit-exact.
+ * judge layout and colors, not bit-exact.
  */
 #include "h3do.h"
 

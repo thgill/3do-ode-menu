@@ -13,7 +13,7 @@ the box art on the right.
 - Folders and games sorted the way you'd expect, with `Disc 2` before `Disc 10`
 - A game kept in its own folder (`Doom/Doom.cue` + `.bin`) shows up as the game itself, no need to open the folder
 - Multi-disc games: start disc 1 and the menu offers to queue the rest
-- Favourites, recently played and a play queue
+- Favorites, recently played and a play queue
 - Big folders open quickly after the first visit
 - Hold up/down to scroll (it speeds up), L/R to switch tabs, left/right to jump by letter
 - All the original tools: NVRAM save and load, ROM and RAM dumps, ODE firmware update, Storage Manager
@@ -32,7 +32,7 @@ To go back, copy the original `boot.iso` back.
 
 | Button | What it does |
 |---|---|
-| A | Open a folder, or open the game menu (start, favourite, queue) |
+| A | Open a folder, or open the game menu (start, favorite, queue) |
 | B | Up a folder, or back to Games from the other tabs |
 | C | Show or hide the info pane |
 | P | Start the queue, or the selected game if the queue is empty |
@@ -68,7 +68,7 @@ All of these are hidden from the menu (names starting with `_`) and safe to dele
 
 - `_odemenu.idx` in each folder: the saved folder listing (Options > Folder Index turns it off)
 - `_cover.img` in a game's folder, or `_art/<game>.img` next to loose game files: the covers
-- `_odemenu.fav`, `_odemenu.rec`, `_odemenu.opt` in the root: favourites, recently played and settings
+- `_odemenu.fav`, `_odemenu.rec`, `_odemenu.opt` in the root: favorites, recently played and settings
 
 ## Known limits
 
@@ -101,12 +101,12 @@ and the fixes to the original tools.
 - Built from the reconstruction of Fixel's menu at
   [yesmorepain/fixel-3do-fz1-ode-menu-decomp](https://github.com/yesmorepain/fixel-3do-fz1-ode-menu-decomp)
 - Font: Press Start 2P (c) 2011 Cody Boisclair, SIL Open Font License (`OFL.txt` is on the disc)
-- PNG decoding: [tinf](https://github.com/jibsen/tinf) by Joergen Ibsen (zlib licence); JPG decoding:
+- PNG decoding: [tinf](https://github.com/jibsen/tinf) by Joergen Ibsen (zlib license); JPG decoding:
   [picojpeg](https://github.com/richgel999/picojpeg) by Rich Geldreich (public domain)
 - Cover pictures: the [libretro-thumbnails](https://github.com/libretro-thumbnails/The_3DO_Company_-_3DO) project
 
-## Licence
+## License
 
-The menu started from the reconstruction of Fixel's menu, which doesn't have a licence yet, so `src/` has none
+The menu started from the reconstruction of Fixel's menu, which doesn't have a license yet, so `src/` has none
 either for now (Fixel has said he means to open-source the menu). This repository doesn't include `boot.iso`,
-which contains files from Fixel's disc and the 3DO SDK. The font, tinf and picojpeg keep their own licences.
+which contains files from Fixel's disc and the 3DO SDK. The font, tinf and picojpeg keep their own licenses.

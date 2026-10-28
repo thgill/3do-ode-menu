@@ -66,7 +66,7 @@ change:
 
 These need checking before it goes on a board:
 - `ode_dir_list_filter` compares the global `g_fno` for "System Volume Information", not its argument. Keep
-  that behaviour, or fix it in the same change.
+  that behavior, or fix it in the same change.
 - `FF_FS_LOCK` is 0 in the firmware's `ffconf.h`, so an open DIR takes no lock slot. It must not be left
   open across a file create or delete in the same folder, which the reset points above cover.
 - Test on the Rev B board, together with the recovery path in `docs/update.md`.

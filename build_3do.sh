@@ -11,7 +11,7 @@ MENU_DATE=${MENU_DATE:-$(date +%Y-%m-%d)}      # the version shown in About
 CFLAGS="$EXTRA -DMENU_DATE=\"$MENU_DATE\" -O2 -zpno_check_stack -bigend -za1 -zi4 -fa -fpu none -arch 3 -apcs 3/32/nofp/swst/wide/softfp -DNDEBUG=1"
 B=${B:-build/3do}; mkdir -p $B
 OBJS=""
-# third/: tinf (zlib licence) and picojpeg (public domain), for PNG and JPG pictures; see src/third/README.third
+# third/: tinf (zlib license) and picojpeg (public domain), for PNG and JPG pictures; see src/third/README.third
 for f in main odeio odecmd dirlist input gfx ui lists tools crc rampatch artdec jpgprog third/tinflate third/picojpeg; do
     o="$B/$(basename "$f").o"
     rm -f "./$o"

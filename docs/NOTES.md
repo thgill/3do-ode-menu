@@ -46,19 +46,19 @@ reconstruction of Fixel's menu. Everything else on the disc stays as Fixel shipp
 - 320x240 laid out on PicoPak-SMS's 8-pixel grid: logo, tab strip, a rounded panel with an 18-row list, footer
   and chips. 8x8 capitals (Press Start 2P bitmaps, as on PicoPak-SMS) and PicoPak-SMS's icons, badges and pad
   buttons.
-- Tabs: **GAMES** (the card), **FAVS** (favourites), **RECENT** (last played, newest first), **TOOLS**, **OPTIONS**.
+- Tabs: **GAMES** (the card), **FAVS** (favorites), **RECENT** (last played, newest first), **TOOLS**, **OPTIONS**.
 - An **info pane** beside GAMES, FAVS and RECENT shows the selected game's screenshot, its name, the image type
-  (ISO / CUE badge), whether it is a favourite and its place in the play queue. **C** shows or hides it; without
+  (ISO / CUE badge), whether it is a favorite and its place in the play queue. **C** shows or hides it; without
   it the list is full width with type badges on every row.
 - **A on a game opens a dialog**: START GAME, ADD TO / REMOVE FROM FAVS, ADD TO QUEUE, and START / CLEAR QUEUE
   once something is queued; a game folder adds OPEN FOLDER. RECENT adds REMOVE FROM LIST.
-- The selection bar's colour drifts round a ten-colour ring in 180 steps (OPTIONS: SLOW 3 s, MED 1.5 s, FAST 1 s,
+- The selection bar's color drifts round a ten-color ring in 180 steps (OPTIONS: SLOW 3 s, MED 1.5 s, FAST 1 s,
   or OFF). OPTIONS also has an optional shine across the logo (off by default).
 - Dialogs dim everything behind them; reading a folder, dumps, NVRAM and launching show a progress box.
 
 **TOOLS** keeps every original tool and works on the folder open in GAMES (shown in the footer): rescan this
 folder, **scan card (games + art)**, clear queue, save / load NVRAM here, Storage Manager, dump System / Font /
-FMV ROM and RAM, update ODE firmware, device info. **OPTIONS**: info pane, bar colour cycle, logo shine, folder
+FMV ROM and RAM, update ODE firmware, device info. **OPTIONS**: info pane, bar color cycle, logo shine, folder
 index, and About.
 
 **Card scan.** Offered once at the first start, and in TOOLS. It visits every folder of the drive, so each
@@ -69,7 +69,7 @@ it. It needs OPTIONS > FOLDER INDEX on.
 ## Artwork
 
 While browsing, the menu opens exactly one file per game, its `.img`: the picture shrunk whole to fit
-the info pane's 88x122 with its shape kept, in its own 256 colours (a US long box 63x122, 8.2 KB; a European case
+the info pane's 88x122 with its shape kept, in its own 256 colors (a US long box 63x122, 8.2 KB; a European case
 86x122, 11 KB; a square Japanese cover 88x88, 8.2 KB; a 4:3 screenshot 88x66, 5.8 KB; the older 15-bit 88x66
 `.img` files still work):
 
@@ -77,8 +77,8 @@ the info pane's 88x122 with its shape kept, in its own 256 colours (a US long bo
 - a game file among others: `_art/<game name>.img` beside it (`Doom (USA).iso` uses `_art/Doom (USA).img`).
 
 How the pane lays it out depends only on the picture's height. Box art taller than 100 lines (long boxes,
-European cases) fills the pane, centred, with the sides beside a narrow box filled from its own edge colours,
-darkened, and the CUE / favourite / queue badges on a darkened strip along its foot (the name is in the list).
+European cases) fills the pane, centered, with the sides beside a narrow box filled from its own edge colors,
+darkened, and the CUE / favorite / queue badges on a darkened strip along its foot (the name is in the list).
 Shorter pictures (square and wide covers, screenshots) sit at the top with the name under them, a word per line;
 the badges go under the name when there are 40 lines to spare, else on the picture's foot.
 
@@ -113,10 +113,10 @@ costs about 0.08 s to look for; writing the card costs about 2.3 ms per 4 bytes,
   a whole collection. Games that already have an `.img` are skipped; B stops it.
 
 Pictures are shrunk whole to fit 88x122 (nothing is trimmed), lightly sharpened and reduced to their own 256
-colours (median cut; at this size the difference can't be seen). libretro's box art PNGs (512 pixels wide, up to
+colors (median cut; at this size the difference can't be seen). libretro's box art PNGs (512 pixels wide, up to
 1051 tall) are too big for the console's own decoder: convert them on a PC (Cover Maker, covermaker.py, mkart.py). JPG: baseline
 or progressive (progressive is decoded by the menu's own small decoder, `src/jpgprog.c`, which keeps only the
-detail a cover needs); PNG: any colour type and bit depth, not interlaced, up to about 1 MB unpacked.
+detail a cover needs); PNG: any color type and bit depth, not interlaced, up to about 1 MB unpacked.
 Files over 512 KB are skipped. A picture that can't be used is counted in the scan's summary.
 
 `.img` files can also be made one at a time: `python3 tools/mkart.py doom.png "Doom (USA).img"`.
@@ -138,7 +138,7 @@ keeps the last eight in memory, reading the ones around the selection ahead.
   good file.
 - **Update ODE** asks first. After the ODE accepts the update, the menu stops on a "turn the console off and on"
   screen, because the ODE resets itself to flash.
-- **Dumps** can be cancelled with B.
+- **Dumps** can be canceled with B.
 - **File tools at the device list** are refused (choose a drive first), because the firmware would write into a
   leftover folder.
 - `nvram.nvm` is matched without regard to case.
@@ -162,7 +162,7 @@ The hidden extras (both Konami codes, the eject-count picture, and the XPort RAM
 - **Nothing written on the card at launch.** Card writes (or the trip to the root to make them) just before C3/C4/C5
   made games hang after the 3DO logo, or start only sometimes. A launch now sends C3, C4, C5 only; the launched game
   is noted in NVRAM (`/NVRAM/ODEMenu`, 256 bytes) and goes into RECENT at the next menu start. A launch also waits
-  until 3 s have passed since the last card write (folder index, favourites, settings).
+  until 3 s have passed since the last card write (folder index, favorites, settings).
 - **The math folio must be opened** before lib3do's cel mapping calls (`CreateBackdropCel` crashed without it);
   the menu now builds its rectangle cel itself and opens the folio anyway.
 - **The boot banner is required**: a disc without `BannerScreen` goes to "insert disc". The menu disc carries its
@@ -201,9 +201,9 @@ drive when you next enter one.
   listing linear.
 - Names are shown in capitals (the face has no lower case); accented letters lose their accents and characters
   outside Latin-1 (for example Japanese) show as `?`.
-- The whole screen is redrawn every frame while the bar colour cycles. The frame starts with a VRAM fill that
+- The whole screen is redrawn every frame while the bar color cycles. The frame starts with a VRAM fill that
   runs in the vertical blank, which also paces the menu. If that assumption is wrong on hardware the cycle runs
-  faster than set; OPTIONS > BAR COLOUR CYCLE > OFF redraws only on changes.
+  faster than set; OPTIONS > BAR COLOR CYCLE > OFF redraws only on changes.
 - The layout keeps 16 lines clear at the top and bottom of the 240-line picture (TVs hide part of the edges;
   the first layout's logo started on line 2 and was cut off on CRTs). OPTIONS can't move it.
 - Up to 4,096 entries per folder (fewer if memory is short), names up to 127 characters (the firmware's limit).
@@ -230,20 +230,20 @@ The disc is packed fresh by `3dt` with the original volume label and a BILLSTUFF
 scheme `3dt` uses when it re-signs the original layout, which is how the reconstruction's modified menu disc was
 booted on an FZ-1.
 
-## Licence details
+## License details
 
-- `src/` started from a reconstruction of Fixel's menu, whose licence is still "TBD"; it is published in line with
+- `src/` started from a reconstruction of Fixel's menu, whose license is still "TBD"; it is published in line with
   Fixel's stated aim of open-sourcing the menu. Nothing here grants rights to Fixel's software or to the 3DO SDK,
-  and no licence is given for `src/` until that is settled.
+  and no license is given for `src/` until that is settled.
 - `boot.iso` is not in this repository: it is built from Fixel's original disc (3DO system files, Fixel's ODE
   driver, the 3DO SDK's Storage Tuner) with `make_disc.sh`.
 - The reconstruction's own tools are licensed for non-commercial use only.
 - The 3do-devkit ships ARM SDT and 3DO SDK material that belongs to its owners.
 - The 8x8 face is Press Start 2P (c) 2011 Cody "CodeMan38" Boisclair, SIL Open Font License 1.1, taken from
   PicoPak-SMS's extraction. The bitmaps are a Modified Version: they must not be called "Press Start" (a Reserved
-  Font Name), and the notice and licence must travel with them. `OFL.txt` is on the menu disc and About credits it.
+  Font Name), and the notice and license must travel with them. `OFL.txt` is on the menu disc and About credits it.
 - Icons, badges and pad buttons are PicoPak-SMS's own drawings (Todd's repo). The logo is Todd's.
-- PNG decoding uses tinf 1.2.1 by Joergen Ibsen (zlib licence, altered as in PicoPak-SMS); JPG decoding uses
+- PNG decoding uses tinf 1.2.1 by Joergen Ibsen (zlib license, altered as in PicoPak-SMS); JPG decoding uses
   picojpeg 1.1 by Rich Geldreich (public domain / MIT), altered only to build with Norcroft and to fix one
-  undefined evaluation order. Both are in `src/third/` with `README.third` and the tinf licence.
+  undefined evaluation order. Both are in `src/third/` with `README.third` and the tinf license.
 - Screenshots you put in `_art/` belong to the games' publishers: fine on your own card, not for sharing.

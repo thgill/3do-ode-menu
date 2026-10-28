@@ -14,7 +14,7 @@ For every game on the card, as the menu sees it, that has no cover yet:
      (--picture box|screenshot|title, default box art), then up to two fallbacks (--then, --then2; "none" to stop),
      default box art, then in-game screenshot, then title screen.
 Each picture is shrunk whole to fit 88x122 (the menu's info pane), lightly sharpened, reduced to its own 256
-colours and written as the menu's .img: <game folder>/_cover.img, or _art/<game name>.img beside a game file.
+colors and written as the menu's .img: <game folder>/_cover.img, or _art/<game name>.img beside a game file.
 
 It also writes each folder's index (_odemenu.idx) exactly as the menu would, so folders open at once on the
 console (--no-index to skip), and, for a whole card, marks the console's first-start scan as done. An index the
@@ -26,7 +26,7 @@ under another name, give a picture file from your computer, or open an image sea
 Options: --redo (remake covers that exist), --dry-run (show the plan, write nothing), --fix, --yes.
 Needs Python 3.8+ and Pillow (pip install pillow). Downloads are cached (~/.cache/fz1-covermaker).
 
-The pictures belong to the games' publishers; libretro's collection states no licence. Fine for your own card;
+The pictures belong to the games' publishers; libretro's collection states no license. Fine for your own card;
 please don't share them.
 """
 import argparse
@@ -422,7 +422,7 @@ def cover(data):
 
 
 def encode8(px, w, h):
-    """the picture's own 256 colours by median cut (as art_encode8 in the menu), as an OAR8 .img"""
+    """the picture's own 256 colors by median cut (as art_encode8 in the menu), as an OAR8 .img"""
     count = {}
     cols = []
     for c in px:

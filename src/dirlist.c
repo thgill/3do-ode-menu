@@ -348,7 +348,7 @@ static int32 scan(DirProgress progress)
         idx += got;
         if (progress && progress(g_dir.count, 0)) {
             g_dir.truncated = 1;
-            return 1;           /* cancelled: keep what we have, do not cache it */
+            return 1;           /* canceled: keep what we have, do not cache it */
         }
     }
 done:
@@ -416,7 +416,7 @@ static int32 detect_folder(int32 i)
     return 0;
 }
 
-/* every folder of the listing; 1 if cancelled (the rest stay GT_UNKNOWN and nothing is cached) */
+/* every folder of the listing; 1 if canceled (the rest stay GT_UNKNOWN and nothing is cached) */
 static int32 detect_all(DirProgress progress)
 {
     int32 i, n = 0, k = 0;
@@ -782,7 +782,7 @@ static int32 load_listing(DirProgress progress, int32 force_scan)
         return err;
     probe_calibrate();
     if (!g_dir.devlist && err == 0 && detect_all(progress))
-        err = 1;                /* cancelled: shown, not cached */
+        err = 1;                /* canceled: shown, not cached */
     if (!g_dir.devlist)
         sort_entries();
     if (err == 0 && g_dir.use_cache && g_probe_ok != 0 && !g_dir.devlist && !g_dir.truncated && g_dir.count > 0) {
@@ -997,7 +997,7 @@ static int32 enter_named(const char *name, DirProgress progress)
             return -2;
         r = dir_enter(i, progress);
     }
-    return r != 0 ? -1 : 0;     /* 1: the read was cancelled */
+    return r != 0 ? -1 : 0;     /* 1: the read was canceled */
 }
 
 /* Go to the folder of path (from the root of drive) and return the index of its last component there.

@@ -1,11 +1,11 @@
 Third-party code built into LaunchMe (decoding PNG and JPG pictures for the info pane).
 
-tinf 1.2.1 -- tiny inflate library, (c) 2003-2019 Joergen Ibsen, zlib licence (LICENSE.tinf).
+tinf 1.2.1 -- tiny inflate library, (c) 2003-2019 Joergen Ibsen, zlib license (LICENSE.tinf).
   https://github.com/jibsen/tinf, commit 57ffa1f: tinf.h, tinflate.c.
-  ALTERED (zlib licence clause 2), as for PICO PAK SMS, marked "PICO PAK change" in tinflate.c:
+  ALTERED (zlib license clause 2), as for PICO PAK SMS, marked "PICO PAK change" in tinflate.c:
   tinf_uncompress() also sets *destLen on failure, and keeps its state in a static rather than on the stack.
 
-picojpeg v1.1 -- Rich Geldreich, public domain (or MIT where public domain is not recognised).
+picojpeg v1.1 -- Rich Geldreich, public domain (or MIT where public domain is not recognized).
   https://github.com/richgel999/picojpeg, commit 8ab33a9: picojpeg.c, picojpeg.h.
   ALTERED: comments converted to C89 style, one stray ";" and one trailing enum comma removed; in convertCb/convertCr
   "*p++ = f(p[0], c)" (undefined evaluation order) rewritten as "*p = f(p[0], c); p++".

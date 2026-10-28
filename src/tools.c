@@ -1,5 +1,5 @@
 /* tools.c - the X-menu tools of the original menu (reconstruction src/ui.c), with progress shown on screen.
- * Behaviour kept: same files (nvram.nvm, sysrom.nvm, fontrom.nvm, fmvrom.nvm, ram3b.nvm) in the current folder,
+ * Behavior kept: same files (nvram.nvm, sysrom.nvm, fontrom.nvm, fmvrom.nvm, ram3b.nvm) in the current folder,
  * same ramp units and sizes, same update sequence (F0, 15 s wait, EXT_ID again), same Device info values.
  * Changed: Load NVRAM only writes the console's NVRAM after the whole 32 KB file was read without error (the
  * original wrote whatever was in its buffer even after a failed read), and nothing prints debug output.

@@ -45,14 +45,14 @@
 #define SCR_W           320
 #define SCR_H           240
 
-/* palette roles (gfx.c holds the SYNTHWAVE colours for each, and a dimmed copy for behind dialogs) */
+/* palette roles (gfx.c holds the SYNTHWAVE colors for each, and a dimmed copy for behind dialogs) */
 enum {
     P_BG, P_PANEL, P_EDGE, P_DIM, P_TEXT, P_ACCENT, P_FOLDER, P_HEART, P_ORANGE, P_GREEN, P_VIOLET,
     P_BARTEXT, P_BAR, P_COUNT
 };
 #define RGB15(r, g, b)  ((((r) >> 3) << 10) | (((g) >> 3) << 5) | ((b) >> 3))
 
-/* ---- diagnostic build (-DDIAG): whole-screen colours between startup steps ---- */
+/* ---- diagnostic build (-DDIAG): whole-screen colors between startup steps ---- */
 #ifdef DIAG
 void gfx_diag(int32 color, int32 bars);
 void gfx_stats(char *out);
@@ -113,7 +113,7 @@ typedef struct DirEntry {
     uint8  flags;
     uint8  name_len;
     uint8  queued;      /* 0, or 1..5 = position in the play queue */
-    uint8  art;         /* for the ui: picture state of this visit (DE_NOART...), favourite mark */
+    uint8  art;         /* for the ui: picture state of this visit (DE_NOART...), favorite mark */
     uint8  gtype;       /* folders: GT_UNKNOWN, GT_GAME (one game inside: shown and started as that game), GT_PLAIN */
     uint8  inner_len;
 } DirEntry;
@@ -226,7 +226,7 @@ typedef struct GfxImage {
 extern ScreenContext *g_sc;
 int32  gfx_init(void);
 void   gfx_shutdown(void);
-void   gfx_frame_begin(void);                   /* starts a frame on the background colour */
+void   gfx_frame_begin(void);                   /* starts a frame on the background color */
 int32  gfx_frame_begin_bg(int32 key);           /* starts a frame on cached still parts; 1: draw them now */
 void   gfx_bg_done(void);                       /* keep what was drawn so far as the still parts */
 void   gfx_bg_forget(void);
@@ -237,7 +237,7 @@ void   gfx_clock_init(void);                    /* measures the field clock; aft
 uint32 gfx_vbl_count(void);                     /* video fields waited for so far: the clock for animation */
 void   gfx_delay(int32 frames);
 void   gfx_set_dim(int32 on);                   /* draw what follows in the dimmed palette */
-void   gfx_set_bar(int32 rgb15);                /* the selection bar's colour this frame */
+void   gfx_set_bar(int32 rgb15);                /* the selection bar's color this frame */
 int32  gfx_color(int32 role);
 void   gfx_rect(int32 x, int32 y, int32 w, int32 h, int32 role);
 void   gfx_rrect(int32 x, int32 y, int32 w, int32 h, int32 fill, int32 edge, int32 r, int32 mode);
@@ -261,7 +261,7 @@ int32 ui_progress(const char *title, const char *msg, int32 pct);   /* draws now
 int32 ui_confirm(const char *title, const char *msg);
 void  ui_message(const char *title, const char *msg);
 
-/* ---- favourites, recently played and settings (lists.c), stored in the drive root ---- */
+/* ---- favorites, recently played and settings (lists.c), stored in the drive root ---- */
 #define LIST_PATH_MAX   200
 #define FAV_MAX         64
 #define REC_MAX         12
@@ -273,7 +273,7 @@ typedef struct PathList {
 extern PathList g_favs, g_recent;
 typedef struct Settings {
     int32 pane;         /* info pane shown */
-    int32 bar;          /* bar colour cycle: 0 off, 1 slow, 2 medium, 3 fast */
+    int32 bar;          /* bar color cycle: 0 off, 1 slow, 2 medium, 3 fast */
     int32 shine;        /* logo shine */
     int32 index;        /* folder index files */
     int32 remember;     /* start in the last folder */
