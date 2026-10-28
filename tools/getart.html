@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FZ-1 ODE Covers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<!--
+  getart.html -- cover pictures for the FZ-1 ODE menu, made in the browser.
+
+  Pick the SD card (or USB drive): the page finds every game, as the menu sees them, that has no cover yet, and for
+  each one uses a picture beside it (<game>.jpg/.png) or downloads its box art (else an in-game screenshot, else a
+  title screen; screenshots first if chosen) from
+  libretro's thumbnail collection on GitHub (libretro-thumbnails/The_3DO_Company_-_3DO). Each picture is shrunk
+  whole to fit 88x122 (the menu's info pane), lightly sharpened, reduced to its own 256 colours and written as the menu's .img (OAR8):
+  <game folder>/_cover.img, or _art/<game name>.img beside a game file. Same rules and output as tools/covermaker.py.
+
+  It also writes each folder's index (_odemenu.idx) exactly as the menu would, from the order the browser lists the
+  folder in (tests/web_index_test.sh checks it byte for byte against the menu's own), and for a whole card marks the
+  console's first-start scan as done. Games with no picture can then be given one by hand: another name in libretro's
+  collection (FIND), a picture from the computer (PICTURE, or drop one), or an image search in a new tab (WEB).
+
+  Needs a browser that can write to a folder you choose: Chrome, Edge, Opera, Vivaldi on a computer (Brave after
+  turning on brave://flags/#file-system-access-api). Not Firefox, Safari, or phones and tablets.
+  The pictures belong to the games' publishers: fine for your own card, do not redistribute them.
+-->
+<style>
+:root {
+  --bg: #080214; --panel: #240e46; --edge: #6e32aa; --dim: #a082c8; --text: #f5ebff;
+  --accent: #3ce6ff; --gold: #ffc850; --pink: #ff50aa; --orange: #ff8c50; --green: #5affb4; --bar: #ff78dc;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 24px 16px 48px; }
+main { max-width: 860px; margin: 0 auto; }
+header { text-align: center; margin-bottom: 20px; }
+header img { max-width: 100%; height: auto; width: 430px; image-rendering: auto; }
+h1 { font: 13px "Press Start 2P", monospace; color: var(--accent); letter-spacing: 1px; margin: 14px 0 0; }
+.panel { background: var(--panel); border: 2px solid var(--edge); border-radius: 10px; padding: 18px 20px; margin: 16px 0; }
+.panel h2 { font: 11px "Press Start 2P", monospace; color: var(--gold); margin: 0 0 12px; }
+p { margin: 0 0 10px; color: var(--text); }
+.muted { color: var(--dim); font-size: 13px; }
+button { font: 11px "Press Start 2P", monospace; color: #1e083c; background: var(--accent); border: 0; border-radius: 6px;
+  padding: 12px 16px; cursor: pointer; margin: 4px 8px 4px 0; }
+button.go { background: var(--bar); }
+button:disabled { background: #4a3a66; color: #8b7aa8; cursor: default; }
+label { display: inline-flex; align-items: center; gap: 8px; margin: 6px 18px 6px 0; color: var(--text); cursor: pointer; }
+input[type=checkbox], input[type=radio] { accent-color: var(--bar); width: 16px; height: 16px; }
+.opt { margin: 4px 0 2px; }
+.opt .lab { display: block; font: 9px "Press Start 2P", monospace; color: var(--gold); margin: 14px 0 2px; }
+select { font: 14px system-ui, sans-serif; background: var(--bg); color: var(--text); border: 1px solid var(--edge);
+  border-radius: 6px; padding: 6px 8px; margin-left: 4px; }
+.sep { height: 1px; background: var(--edge); margin: 14px 0 6px; opacity: .6; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 10px 0 4px; }
+.stat { background: var(--bg); border: 1px solid var(--edge); border-radius: 8px; padding: 10px 12px; }
+.stat b { display: block; font: 16px "Press Start 2P", monospace; margin-bottom: 6px; }
+.stat span { color: var(--dim); font-size: 13px; }
+.s-dl b { color: var(--accent); } .s-own b { color: var(--green); } .s-have b { color: var(--dim); } .s-miss b { color: var(--orange); }
+.bar { height: 12px; background: var(--bg); border: 1px solid var(--edge); border-radius: 6px; overflow: hidden; margin: 12px 0 6px; }
+.bar i { display: block; height: 100%; width: 0; background: var(--bar); transition: width .2s; }
+#now { min-height: 1.5em; color: var(--dim); font-size: 13px; overflow-wrap: anywhere; }
+.list { max-height: 340px; overflow: auto; background: var(--bg); border: 1px solid var(--edge); border-radius: 8px;
+  padding: 6px 10px; font-size: 13px; }
+.row { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 3px 0; border-bottom: 1px solid #1c0a36; align-items: center; }
+.row:last-child { border-bottom: 0; }
+.row .k { font: 8px "Press Start 2P", monospace; }
+.row .n { overflow-wrap: anywhere; }
+.row .n small { display: block; color: var(--dim); }
+.k.box { color: var(--bar); } .k.dl { color: var(--accent); } .k.title { color: var(--gold); } .k.own { color: var(--green); } .k.miss { color: var(--orange); }
+.k.done { color: var(--green); } .k.fail { color: var(--pink); }
+.thumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.thumbs { align-items: flex-start; }
+.thumbs canvas { image-rendering: pixelated; border: 1px solid var(--edge); border-radius: 3px; }
+.warn { border-color: var(--pink); }
+.warn h2 { color: var(--pink); }
+details summary { cursor: pointer; color: var(--accent); margin: 8px 0; }
+a { color: var(--accent); }
+.s-idx b { color: var(--gold); }
+.fixes { max-height: 640px; overflow: auto; }
+.fix { display: grid; grid-template-columns: 92px 1fr; gap: 12px; padding: 10px 4px; border-bottom: 1px solid #1c0a36; border-radius: 6px; }
+.fix:last-child { border-bottom: 0; }
+.fix canvas { justify-self: center; image-rendering: pixelated; border: 1px solid var(--edge); border-radius: 3px; background: var(--bg); }
+.fix.drop { outline: 2px dashed var(--accent); }
+.fix .n { overflow-wrap: anywhere; }
+.fix .n small { display: block; color: var(--dim); }
+.fix.ok .n { color: var(--green); }
+.fix .st { color: var(--dim); font-size: 13px; min-height: 1.2em; }
+.fix .st.err { color: var(--pink); }
+button.sm, a.sm { font: 9px "Press Start 2P", monospace; padding: 8px 10px; margin: 6px 6px 0 0; border-radius: 5px; }
+a.sm { display: inline-block; background: var(--panel); color: var(--accent); border: 1px solid var(--accent); text-decoration: none; }
+button.sm.alt { background: var(--gold); }
+.find { margin-top: 8px; }
+.find input { width: 100%; max-width: 420px; font: 14px system-ui, sans-serif; padding: 7px 9px; background: var(--bg); color: var(--text);
+  border: 1px solid var(--edge); border-radius: 6px; }
+.hits button { font: 13px/1.3 system-ui, sans-serif; background: var(--bg); color: var(--text); border: 1px solid var(--edge);
+  padding: 6px 10px; margin: 6px 6px 0 0; text-align: left; }
+.hits button:hover { border-color: var(--accent); }
+.hits button small { color: var(--gold); margin-left: 6px; }
+@media (max-width: 520px) { .row { grid-template-columns: 1fr; gap: 0; } }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <img src="data:image/png;base64,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" alt="3DO FZ-1 ODE">
+  <h1>COVER MAKER</h1>
+</header>
+
+<section class="panel warn" id="unsupported" hidden>
+  <h2>THIS BROWSER CAN'T WRITE TO THE CARD</h2>
+  <p>Open this page in <b>Chrome</b> or <b>Edge</b> (or Opera, Vivaldi) on a computer. Safari, Firefox and phone or
+  tablet browsers don't let web pages save files into a folder you pick.</p>
+  <p class="muted">In <b>Brave</b>, it's switched off: open <code>brave://flags/#file-system-access-api</code>, set it to
+  Enabled, restart Brave and open this page again.</p>
+</section>
+
+<section class="panel" id="step1">
+  <h2>1. CHOOSE THE CARD</h2>
+  <p>Put your FZ-1 ODE's microSD card (or USB drive) in this computer and choose its top folder, the one with
+  <code>boot.iso</code> in it. The browser will ask you to allow this page to view and save files there.</p>
+  <button id="pick">CHOOSE SD CARD</button>
+  <p class="muted">If the browser won't let you choose the whole card ("contains system files"), choose a folder
+  on it instead, such as the one holding your games, and run it once for each such folder.</p>
+  <p class="muted">Nothing is changed until you press MAKE COVERS. The page only ever writes the menu's own files:
+  covers (<code>_cover.img</code> inside a game's folder, <code>_art/&lt;game&gt;.img</code> beside a game file),
+  folder indexes (<code>_odemenu.idx</code>) and, for a whole card, one line in <code>_odemenu.opt</code>.</p>
+</section>
+
+<section class="panel" id="step2" hidden>
+  <h2>2. CHECK WHAT WILL HAPPEN</h2>
+  <p class="muted" id="where"></p>
+  <div class="stats">
+    <div class="stat s-dl"><b id="nDl">0</b><span>pictures to download</span></div>
+    <div class="stat s-own"><b id="nOwn">0</b><span>from your own pictures</span></div>
+    <div class="stat s-have"><b id="nHave">0</b><span>already have a cover</span></div>
+    <div class="stat s-miss"><b id="nMiss">0</b><span>no picture found</span></div>
+    <div class="stat s-idx"><b id="nIdx">0</b><span>folder indexes to write</span></div>
+  </div>
+  <div class="opt"><span class="lab">PICTURE</span>
+    <label><input type="radio" name="kind" value="Named_Boxarts" checked> Box art</label>
+    <label><input type="radio" name="kind" value="Named_Snaps"> In-game screenshot</label>
+    <label><input type="radio" name="kind" value="Named_Titles"> Title screen</label>
+  </div>
+  <div class="opt"><span class="lab" id="fbLab">IF A GAME HAS NO BOX ART</span>
+    <label>Use <select id="fb1"></select></label>
+    <label id="fb2wrap">then <select id="fb2"></select></label>
+  </div>
+  <div class="sep"></div>
+  <p>
+    <label><input type="checkbox" id="redo"> Remake covers that already exist</label><br>
+    <label><input type="checkbox" id="idxOn" checked> Make folder indexes, so folders open at once on the console</label>
+  </p>
+  <button class="go" id="make">MAKE COVERS</button>
+  <button id="again">CHOOSE ANOTHER CARD</button>
+  <details>
+    <summary>See every game</summary>
+    <div class="list" id="plan"></div>
+  </details>
+</section>
+
+<section class="panel" id="step3" hidden>
+  <h2>3. MAKING COVERS</h2>
+  <div class="bar"><i id="prog"></i></div>
+  <div id="now"></div>
+  <div class="thumbs" id="thumbs"></div>
+</section>
+
+<section class="panel" id="done" hidden>
+  <h2>DONE</h2>
+  <p id="summary"></p>
+  <p class="muted" id="idxSummary"></p>
+  <p class="muted">Eject the card safely and put it back in the ODE: the covers show in the info pane at once.</p>
+</section>
+
+<section class="panel" id="fix" hidden>
+  <h2>4. GAMES WITH NO PICTURE</h2>
+  <p class="muted"><b>FIND</b> looks through libretro's pictures for one filed under another name.
+  <b>PICTURE</b> uses a picture from this computer (or drop one onto the game).
+  <b>WEB</b> opens an image search in a new tab: save a picture you like, then use PICTURE.
+  Each cover is written to the card straight away.</p>
+  <div class="fixes" id="fixList"></div>
+  <input type="file" id="filePick" accept="image/*" hidden>
+</section>
+
+<p class="muted">Box art and screenshots come from libretro's thumbnail collection
+(<a href="https://github.com/libretro-thumbnails/The_3DO_Company_-_3DO" target="_blank" rel="noopener">libretro-thumbnails/The_3DO_Company_-_3DO</a>),
+the pictures RetroArch uses. They belong to the games' publishers: fine for your own card, please don't share them.
+Covers fit 88&times;122 (a US long box is 63&times;122) with each picture's own 256 colours, the format of the FZ-1 ODE menu.</p>
+</main>
+
+<script>
+"use strict";
+const REPO = "libretro-thumbnails/The_3DO_Company_-_3DO";
+const TREE = "https://api.github.com/repos/" + REPO + "/git/trees/master?recursive=1";
+const RAW = "https://raw.githubusercontent.com/" + REPO + "/master/";
+const KINDS = ["Named_Boxarts", "Named_Snaps", "Named_Titles"];
+const KIND_LABEL = { Named_Boxarts: "BOX ART", Named_Snaps: "SCREENSHOT", Named_Titles: "TITLE" };
+const W = 88, H = 122;             /* the most a cover can be: the menu's info pane */
+const BAD = "&*/:`<>?\\|\"";
+const $ = id => document.getElementById(id);
+
+let root = null, wholeCard = false, jobs = [], idxJobs = [], server = null;
+
+if (!window.showDirectoryPicker) {
+  $("unsupported").hidden = false;
+  $("pick").disabled = true;
+}
+
+/* ------------------------------------------------------------------ names (as tools/covermaker.py) */
+function stem(name) { return name.replace(/\.(iso|cue|bin)$/i, ""); }
+function serverName(n) { return [...n].map(c => BAD.includes(c) ? "_" : c).join(""); }
+function titleKey(n) {
+  let t = n.replace(/[(\[][^)\]]*[)\]]/g, " ").replace(/_/g, " ").toLowerCase();
+  t = t.replace(/,\s*the\b/g, " ").replace(/^\s*the\s+/, " ").replace(/[^a-z0-9]+/g, " ");
+  return t.trim().split(/\s+/).join(" ");
+}
+const REGIONS = ["usa", "europe", "japan", "world", "korea", "germany", "france", "spain", "italy", "brazil", "asia"];
+function regions(n) {
+  const out = new Set();
+  for (const m of n.matchAll(/[(\[]([^)\]]*)[)\]]/g))
+    for (const p of m[1].toLowerCase().split(/[,\s]+/)) if (REGIONS.includes(p)) out.add(p);
+  return out;
+}
+function disc(n) { const m = n.match(/\b(?:disc|disk|cd)\s*(\d+)/i); return m ? +m[1] : 0; }
+function bestMatch(kind, game) {
+  const names = server.names[kind], index = server.index[kind];
+  const exact = serverName(game);
+  if (names.has(exact)) return exact;
+  const cands = index.get(titleKey(game)) || [];
+  if (!cands.length) return null;
+  const wr = regions(game), wd = disc(game);
+  const score = c => {
+    const r = regions(c); let inter = 0, extra = 0;
+    r.forEach(x => wr.has(x) ? inter++ : extra++);
+    const bad = /\((proto|beta|demo)/i.test(c) ? 2 : 0;
+    return inter * 4 - extra + (disc(c) === wd ? 3 : 0) - bad;
+  };
+  return cands.slice().sort((a, b) => score(b) - score(a) || a.length - b.length)[0];
+}
+
+/* IDXLIB BEGIN ------------------------------------------------------ the menu's folder index (as src/dirlist.c)
+   The ODE firmware numbers a folder's entries in the order they sit on the card, skipping what its filter hides
+   (ode_dir_list_filter). The browser hands entries over in that same order on FAT32 and exFAT cards (nothing
+   promises it; the menu checks every index against the firmware and lists the folder again if it disagrees). */
+const IDX = "_odemenu.idx", IDX_MAGIC = 0x4f4d4333, NAME_MAX = 127, GF_MAX_SEEN = 32, IDX_MAX = 4096;
+const GT_GAME = 1, GT_PLAIN = 2;
+/* the firmware also skips hidden and system files; a web page can't see those marks, so these stand in */
+const SYS_NAMES = ["system volume information", "$recycle.bin", "recycler", "thumbs.db", "desktop.ini",
+                   "$windows.~bt", "$windows.~ws", "$sysreset", "found.000"];
+const utf8 = new TextEncoder();
+function ext3(b) {
+  const n = b.length;
+  return n >= 4 && b[n - 4] === 46 ? String.fromCharCode(b[n - 3], b[n - 2], b[n - 1]).toLowerCase() : null;
+}
+function isGameBytes(b) { const x = ext3(b); return b.length >= 5 && (x === "iso" || x === "cue"); }
+/* one entry as the firmware lists it (flags as in a D1 record), or null if the firmware skips it */
+function fwEntry(name, isDir) {
+  if (name[0] === "." || name[0] === "_" || SYS_NAMES.includes(name.toLowerCase())) return null;
+  const b = utf8.encode(name), x = isDir ? null : ext3(b);
+  if (x !== null && !["iso", "cue", "nvm", "ode"].includes(x)) return null;
+  return { name, bytes: b, isDir, flags: isDir ? 2 : x === "nvm" ? 9 : x === "ode" ? 0x11 : 1, gtype: 0, inner: null, innerToc: 0 };
+}
+/* the folder's one game, if the menu shows the folder as that game (detect_folder) */
+function detectGame(listed) {
+  let seen = 0, game = null;
+  for (const e of listed) {
+    if (e.isDir || ++seen > GF_MAX_SEEN) return null;
+    if (!(e.flags & 0x18) && isGameBytes(e.bytes)) { if (game) return null; game = e; }
+  }
+  return game;
+}
+function setFolder(e, sub) {        /* e: a folder entry; sub: its own listing */
+  const g = detectGame(sub);
+  if (g) { e.gtype = GT_GAME; e.inner = g.bytes.subarray(0, NAME_MAX); e.innerToc = sub.indexOf(g) + 1; }
+  else e.gtype = GT_PLAIN;
+}
+/* case-insensitive natural order on the UTF-8 bytes (name_compare) */
+function nameCompare(a, b) {
+  const A = i => i < a.length ? a[i] : 0, B = i => i < b.length ? b[i] : 0;
+  const dig = c => c >= 48 && c <= 57, low = c => c >= 65 && c <= 90 ? c + 32 : c;
+  let p = 0, q = 0;
+  for (;;) {
+    if (dig(A(p)) && dig(B(q))) {
+      while (A(p) === 48 && dig(A(p + 1))) p++;
+      while (B(q) === 48 && dig(B(q + 1))) q++;
+      let la = 0, lb = 0;
+      while (dig(A(p + la))) la++;
+      while (dig(B(q + lb))) lb++;
+      if (la !== lb) return la - lb;
+      for (let i = 0; i < la; i++) if (A(p + i) !== B(q + i)) return A(p + i) - B(q + i);
+      p += la; q += lb; continue;
+    }
+    const ca = low(A(p)), cb = low(B(q));
+    if (ca !== cb) return ca - cb;
+    if (ca === 0) return 0;
+    p++; q++;
+  }
+}
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(buf) { let c = 0xffffffff; for (const x of buf) c = CRC[(c ^ x) & 255] ^ (c >>> 8); return (~c) >>> 0; }
+/* _odemenu.idx for a folder listed in card order (folders already through setFolder), or null if the menu
+   would not write one: as dir_write_cache, sorted with plain folders first, every entry kept (shown or not) */
+function buildIndex(listed) {
+  if (!listed.length || listed.length > IDX_MAX) return null;
+  const ents = listed.map((e, i) => ({ e, toc: i + 1, nb: e.bytes.subarray(0, NAME_MAX) }));
+  const plain = x => x.e.isDir && x.e.gtype !== GT_GAME ? 1 : 0;
+  ents.sort((x, y) => (plain(y) - plain(x)) || nameCompare(x.nb, y.nb));
+  const recs = ents.map(x => {
+    const e = x.e, il = e.gtype === GT_GAME ? e.inner.length : 0, r = new Uint8Array(8 + x.nb.length + il);
+    const it = e.gtype === GT_GAME ? e.innerToc : 0;
+    r.set([e.flags, x.nb.length, x.toc >> 8, x.toc & 255, e.gtype, il, it >> 8, it & 255]);
+    r.set(x.nb, 8);
+    if (il) r.set(e.inner, 8 + x.nb.length);
+    return r;
+  });
+  let body = 0; for (const r of recs) body += r.length;
+  const out = new Uint8Array(16 + body), dv = new DataView(out.buffer);
+  let o = 16; for (const r of recs) { out.set(r, o); o += r.length; }
+  dv.setUint32(0, IDX_MAGIC); dv.setUint32(4, ents.length); dv.setUint32(8, body); dv.setUint32(12, crc32(out.subarray(16)));
+  return out;
+}
+/* the names in an index the menu wrote (or null if it isn't a current, whole one) */
+function indexNames(buf) {
+  if (buf.length < 16) return null;
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  const count = dv.getUint32(4), body = dv.getUint32(8);
+  if (dv.getUint32(0) !== IDX_MAGIC || buf.length < 16 + body || crc32(buf.subarray(16, 16 + body)) !== dv.getUint32(12)) return null;
+  const names = [];
+  for (let p = 16; p < 16 + body;) {
+    const len = buf[p + 1], il = buf[p + 5];
+    names.push(Array.from(buf.subarray(p + 8, p + 8 + len)).join(","));
+    p += 8 + len + il;
+  }
+  return names.length === count ? names.sort() : null;
+}
+/* IDXLIB END */
+
+/* ------------------------------------------------------------------ the card, as the menu sees it */
+async function exists(dir, name) {
+  try { await dir.getFileHandle(name); return true; } catch (e) { return false; }
+}
+async function findPic(dir, files, bases) {
+  for (const b of bases) for (const e of [".jpg", ".png", ".jpeg"]) {
+    const f = files.get((b + e).toLowerCase());
+    if (f) return { dir, name: f };
+  }
+  return null;
+}
+async function readBytes(dir, name) {
+  try { return new Uint8Array(await (await (await dir.getFileHandle(name)).getFile()).arrayBuffer()); } catch (e) { return null; }
+}
+/* one folder and everything below it: its games go to out (covers), its index to idx; returns its listing */
+async function walk(dir, isRoot, path, out, idx) {
+  $("now").textContent = "Looking at " + (path || "the card") + " ...";
+  const files = new Map(), listed = [], handles = new Map();
+  for await (const [name, h] of dir.entries()) {                 /* in the order they sit on the card */
+    if (h.kind === "file") files.set(name.toLowerCase(), name);
+    const e = fwEntry(name, h.kind === "directory");
+    if (e) { listed.push(e); handles.set(e, h); }
+  }
+  const at = out.length;
+  for (const e of listed.filter(x => x.isDir).sort((a, b) => nameCompare(a.bytes, b.bytes)))
+    setFolder(e, await walk(handles.get(e), false, (path ? path + "/" : "") + e.name, out, idx));
+  const mine = [], folder = path ? path.split("/").pop() : dir.name;
+  const game = isRoot ? null : detectGame(listed);
+  if (game) {
+    const g = stem(game.name);
+    mine.push({ game: g, folder, label: path || folder, dir, art: null, dst: "_cover.img",
+                have: await exists(dir, "_cover.img"), own: await findPic(dir, files, [g, folder]) });
+  } else {
+    const games = listed.filter(e => !e.isDir && !(e.flags & 0x18) && isGameBytes(e.bytes) &&
+                                     !(isRoot && e.name.toLowerCase() === "boot.iso")).map(e => e.name).sort();
+    let art = null, artFiles = new Map();
+    if (games.length) {
+      try { art = await dir.getDirectoryHandle("_art"); for await (const [n, h] of art.entries()) if (h.kind === "file") artFiles.set(n.toLowerCase(), n); }
+      catch (e) { art = null; }
+    }
+    for (const f of games) {
+      const g = stem(f);
+      mine.push({ game: g, folder: null, label: (path ? path + "/" : "") + g, dir, art: true, dst: g + ".img",
+                  have: artFiles.has((g + ".img").toLowerCase()), own: art ? await findPic(art, artFiles, [g]) : null });
+    }
+  }
+  out.splice(at, 0, ...mine);
+  const bytes = buildIndex(listed);
+  if (bytes) {
+    const old = await readBytes(dir, IDX);
+    let state = "new";
+    if (old) {
+      const on = indexNames(old);
+      if (old.length === bytes.length && old.every((v, i) => v === bytes[i])) state = "same";
+      else if (on && on.join("|") === (indexNames(bytes) || []).join("|")) state = "kept";   /* the console's, same files */
+      else state = "changed";
+    }
+    idx.push({ dir, path: path || "the card", bytes, state });
+  }
+  return listed;
+}
+
+/* ------------------------------------------------------------------ the thumbnail list */
+async function loadServer() {
+  if (server) return;
+  $("now").textContent = "Reading the list of pictures ...";
+  const r = await fetch(TREE);
+  if (!r.ok) throw new Error("GitHub said " + r.status + (r.status === 403 ? " (too many requests: try again in an hour)" : ""));
+  const j = await r.json();
+  server = { names: {}, index: {}, links: new Map() };
+  for (const k of KINDS) { server.names[k] = new Set(); server.index[k] = new Map(); }
+  for (const t of j.tree) {
+    const m = t.path.match(/^(Named_Boxarts|Named_Snaps|Named_Titles)\/(.+)\.png$/i);
+    if (!m) continue;
+    const k = KINDS.find(x => x.toLowerCase() === m[1].toLowerCase()), n = m[2];
+    server.names[k].add(n);
+    const key = titleKey(n);
+    if (!server.index[k].has(key)) server.index[k].set(key, []);
+    server.index[k].get(key).push(n);
+    if (t.mode === "120000") server.links.set(t.path, true);   /* a link to another picture */
+  }
+  server.all = [];
+  for (const k of KINDS) for (const n of [...server.names[k]].sort()) server.all.push({ kind: k, name: n, key: " " + titleKey(n) + " " });
+}
+/* libretro's pictures whose titles hold every word of q (the chosen kind first) */
+function search(q) {
+  const words = titleKey(q).split(" ").filter(Boolean);
+  if (!words.length) return [];
+  const hits = server.all.filter(x => words.every(w => x.key.includes(w)));
+  const whole = x => words.filter(w => x.key.includes(" " + w + " ")).length;
+  return hits.sort((a, b) => whole(b) - whole(a) || (rank(a.kind) - rank(b.kind)) || a.name.length - b.name.length).slice(0, 10);
+}
+
+const KIND_NAME = { Named_Boxarts: "Box art", Named_Snaps: "In-game screenshot", Named_Titles: "Title screen" };
+function primary() { return document.querySelector("input[name=kind]:checked").value; }
+/* the fallbacks offer the kinds not chosen above them, and "Nothing"; a choice that still fits is kept */
+function fillFallbacks() {
+  const p = primary();
+  $("fbLab").textContent = "IF A GAME HAS NO " + KIND_LABEL[p];
+  const fill = (sel, kinds, want) => {
+    const keep = sel.value || want;
+    sel.innerHTML = "";
+    for (const k of kinds.concat(["none"])) {
+      const o = document.createElement("option"); o.value = k; o.textContent = k === "none" ? "Nothing" : KIND_NAME[k];
+      sel.appendChild(o);
+    }
+    sel.value = kinds.includes(keep) || keep === "none" ? keep : (kinds[0] || "none");
+  };
+  const others = KINDS.filter(k => k !== p);
+  fill($("fb1"), others, others[0]);
+  const rest = others.filter(k => k !== $("fb1").value);
+  fill($("fb2"), $("fb1").value === "none" ? [] : rest, rest[0]);
+  $("fb2wrap").hidden = $("fb1").value === "none";
+}
+/* the kinds to try, in order */
+function kindOrder() {
+  const o = [primary()];
+  if ($("fb1").value !== "none") { o.push($("fb1").value); if ($("fb2").value !== "none") o.push($("fb2").value); }
+  return o;
+}
+function rank(k) { const o = kindOrder(); return o.includes(k) ? o.indexOf(k) : 9; }
+function plan() {
+  const redo = $("redo").checked;
+  let nDl = 0, nOwn = 0, nHave = 0, nMiss = 0;
+  for (const j of jobs) {
+    j.src = null;
+    if (j.have && !redo) { j.what = "have"; nHave++; continue; }
+    if (j.own) { j.what = "own"; nOwn++; continue; }
+    for (const k of kindOrder()) {
+      for (const n of j.folder && j.folder !== j.game ? [j.game, j.folder] : [j.game]) {
+        const m = bestMatch(k, n);
+        if (m) { j.src = k + "/" + m + ".png"; j.what = k === "Named_Boxarts" ? "box" : k === "Named_Snaps" ? "dl" : "title"; break; }
+      }
+      if (j.src) break;
+    }
+    if (j.src) nDl++; else { j.what = "miss"; nMiss++; }
+  }
+  const nIdx = $("idxOn").checked ? idxJobs.filter(x => x.state === "new" || x.state === "changed").length : 0;
+  $("nDl").textContent = nDl; $("nOwn").textContent = nOwn; $("nHave").textContent = nHave; $("nMiss").textContent = nMiss;
+  $("nIdx").textContent = nIdx;
+  $("make").disabled = nDl + nOwn + nIdx + nMiss === 0;
+  const tag = { box: ["box", "BOX ART"], dl: ["dl", "SCREENSHOT"], title: ["title", "TITLE"], own: ["own", "YOUR PICTURE"], have: ["", "HAS COVER"], miss: ["miss", "NOT FOUND"] };
+  $("plan").innerHTML = "";
+  for (const j of jobs) {
+    const row = document.createElement("div"); row.className = "row";
+    const [c, t] = tag[j.what];
+    row.innerHTML = '<div class="k ' + c + '">' + t + '</div><div class="n"></div>';
+    row.lastChild.textContent = j.label;
+    if (j.src && j.src.split("/")[1].slice(0, -4) !== j.game) {
+      const s = document.createElement("small"); s.textContent = "← " + j.src.split("/")[1].slice(0, -4); row.lastChild.appendChild(s);
+    }
+    $("plan").appendChild(row);
+  }
+}
+
+/* ------------------------------------------------------------------ picture -> .img (as the console's scan and mkart.py) */
+async function toBitmap(blob) {
+  try { return await createImageBitmap(blob); }
+  catch (e) {                                   /* some browsers want an <img> for odd JPEGs */
+    const url = URL.createObjectURL(blob);
+    try {
+      const img = new Image(); img.src = url; await img.decode(); return img;
+    } finally { URL.revokeObjectURL(url); }
+  }
+}
+function fitSize(sw, sh) {           /* as fit_size in the menu: the whole picture, shape kept, at most W x H */
+  return sw * H > sh * W ? [W, Math.max(1, Math.floor((sh * W + (sw >> 1)) / sw))]
+                         : [Math.max(1, Math.floor((sw * H + (sh >> 1)) / sh)), H];
+}
+function cover(bmp) {
+  /* the whole picture shrunk to fit W x H, shape kept: every source pixel adds to the cover pixel it falls in
+     (exact for any size); smaller pictures are repeated */
+  const sw = bmp.width, sh = bmp.height, [w, h] = fitSize(sw, sh);
+  const c = document.createElement("canvas"); c.width = sw; c.height = sh;
+  const g = c.getContext("2d"); g.drawImage(bmp, 0, 0);
+  const src = g.getImageData(0, 0, sw, sh).data;
+  const acc = new Float64Array(w * h * 4);
+  if (sw >= w && sh >= h) {
+    for (let y = 0; y < sh; y++) {
+      const dy = Math.min(h - 1, Math.floor(y * h / sh));
+      for (let x = 0; x < sw; x++) {
+        const dx = Math.min(w - 1, Math.floor(x * w / sw)), s = (y * sw + x) * 4, d = (dy * w + dx) * 4;
+        acc[d] += src[s]; acc[d + 1] += src[s + 1]; acc[d + 2] += src[s + 2]; acc[d + 3]++;
+      }
+    }
+  } else {
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const s = (Math.floor(y * sh / h) * sw + Math.floor(x * sw / w)) * 4, d = (y * w + x) * 4;
+      acc[d] = src[s]; acc[d + 1] = src[s + 1]; acc[d + 2] = src[s + 2]; acc[d + 3] = 1;
+    }
+  }
+  const avg = new Float64Array(w * h * 3);
+  for (let i = 0; i < w * h; i++) for (let k = 0; k < 3; k++) avg[i * 3 + k] = acc[i * 4 + k] / (acc[i * 4 + 3] || 1);
+  /* light sharpen: c + (4c - n) / 8, then 15-bit colour */
+  const px = new Uint16Array(w * h);
+  const at = (x, y, k) => avg[(Math.min(h - 1, Math.max(0, y)) * w + Math.min(w - 1, Math.max(0, x))) * 3 + k];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const v = [0, 1, 2].map(k => {
+      const c0 = at(x, y, k), n = at(x, y - 1, k) + at(x, y + 1, k) + at(x - 1, y, k) + at(x + 1, y, k);
+      return Math.max(0, Math.min(255, Math.round(c0 + (4 * c0 - n) / 8))) >> 3;
+    });
+    px[y * w + x] = (v[0] << 10) | (v[1] << 5) | v[2];
+  }
+  return { px, w, h };
+}
+function encode8(cv) {
+  const px = cv.px;
+  /* the picture's own 256 colours by median cut (as art_encode8 in the menu) */
+  const count = new Uint32Array(32768), cols = [];
+  for (const c of px) if (count[c]++ === 0) cols.push(c);
+  const ch = (c, k) => k === 0 ? (c >> 10) & 31 : k === 1 ? (c >> 5) & 31 : c & 31;
+  const boxes = [{ lo: 0, hi: cols.length, pixels: px.length }];
+  while (boxes.length < 256 && boxes.length < cols.length) {
+    let b = null;
+    for (const x of boxes) if (x.hi - x.lo > 1 && (!b || x.pixels > b.pixels)) b = x;
+    if (!b) break;
+    const lo = [31, 31, 31], hi = [0, 0, 0];
+    for (let j = b.lo; j < b.hi; j++) for (let k = 0; k < 3; k++) { const t = ch(cols[j], k); if (t < lo[k]) lo[k] = t; if (t > hi[k]) hi[k] = t; }
+    let w = 0; for (let k = 1; k < 3; k++) if (hi[k] - lo[k] > hi[w] - lo[w]) w = k;
+    const hist = new Array(32).fill(0);
+    for (let j = b.lo; j < b.hi; j++) hist[ch(cols[j], w)] += count[cols[j]];
+    let acc = 0, cut = lo[w];
+    for (; cut < hi[w]; cut++) { acc += hist[cut]; if (acc >= b.pixels / 2) break; }
+    if (cut >= hi[w]) cut = hi[w] - 1;
+    const part = cols.slice(b.lo, b.hi), a = part.filter(c => ch(c, w) <= cut), z = part.filter(c => ch(c, w) > cut);
+    for (let j = 0; j < part.length; j++) cols[b.lo + j] = j < a.length ? a[j] : z[j - a.length];
+    const nb = { lo: b.lo + a.length, hi: b.hi, pixels: 0 };
+    for (const c of z) nb.pixels += count[c];
+    b.hi = nb.lo; b.pixels -= nb.pixels; boxes.push(nb);
+  }
+  const n = boxes.length, out = new Uint8Array(10 + 2 * n + px.length), map = new Uint8Array(32768);
+  out.set([79, 65, 82, 56, cv.w >> 8, cv.w & 255, cv.h >> 8, cv.h & 255, n >> 8, n & 255]);   /* "OAR8", w, h, n */
+  boxes.forEach((b, i) => {
+    const s = [0, 0, 0]; let ws = 0;
+    for (let j = b.lo; j < b.hi; j++) { const c = cols[j], m = count[c]; for (let k = 0; k < 3; k++) s[k] += ch(c, k) * m; ws += m; map[c] = i; }
+    ws = ws || 1;
+    const v = (Math.round(s[0] / ws) << 10) | (Math.round(s[1] / ws) << 5) | Math.round(s[2] / ws);
+    out[10 + 2 * i] = v >> 8; out[11 + 2 * i] = v & 255;
+  });
+  let o = 10 + 2 * n;
+  for (const c of px) out[o++] = map[c];
+  return out;
+}
+function drawPx(c, cv) {
+  const px = cv.px; c.width = cv.w; c.height = cv.h;
+  const g = c.getContext("2d"), im = g.createImageData(cv.w, cv.h);
+  for (let i = 0; i < cv.w * cv.h; i++) {
+    const v = px[i]; im.data[i * 4] = ((v >> 10) & 31) * 255 / 31; im.data[i * 4 + 1] = ((v >> 5) & 31) * 255 / 31;
+    im.data[i * 4 + 2] = (v & 31) * 255 / 31; im.data[i * 4 + 3] = 255;
+  }
+  g.putImageData(im, 0, 0);
+}
+function thumb(px) {
+  const c = document.createElement("canvas"); drawPx(c, px);
+  const t = $("thumbs"); t.insertBefore(c, t.firstChild);
+  while (t.children.length > 24) t.removeChild(t.lastChild);
+}
+async function writeFile(dir, name, data) {
+  const w = await (await dir.getFileHandle(name, { create: true })).createWritable();
+  await w.write(data); await w.close();
+}
+async function writeCover(j, px) {
+  await writeFile(j.art ? await j.dir.getDirectoryHandle("_art", { create: true }) : j.dir, j.dst, encode8(px));
+}
+
+async function download(path) {
+  const url = RAW + path.split("/").map(encodeURIComponent).join("/");
+  let r = await fetch(url);
+  if (!r.ok) throw new Error("download failed (" + r.status + ")");
+  if (server.links.has(path)) {                    /* a link: the file holds the path of the real picture */
+    const target = (await r.text()).trim(), dir = path.split("/")[0];
+    r = await fetch(RAW + (dir + "/" + target).split("/").map(encodeURIComponent).join("/"));
+    if (!r.ok) throw new Error("download failed (" + r.status + ")");
+  }
+  return r.blob();
+}
+
+async function make() {
+  $("step2").hidden = true; $("step3").hidden = false; $("thumbs").innerHTML = "";
+  const todo = jobs.filter(j => j.what === "box" || j.what === "dl" || j.what === "title" || j.what === "own");
+  const idxTodo = $("idxOn").checked ? idxJobs.filter(x => x.state === "new" || x.state === "changed") : [];
+  const steps = todo.length + idxTodo.length || 1;
+  let made = 0, failed = [], idxMade = 0, idxFailed = 0;
+  for (let i = 0; i < todo.length; i++) {
+    const j = todo[i];
+    $("prog").style.width = (100 * i / steps) + "%";
+    $("now").textContent = (i + 1) + " of " + todo.length + ": " + j.label;
+    try {
+      let blob;
+      if (j.what === "own") blob = await (await j.own.dir.getFileHandle(j.own.name)).getFile();
+      else blob = await download(j.src);
+      const px = cover(await toBitmap(blob));
+      await writeCover(j, px);
+      thumb(px); made++;
+    } catch (e) { j.what = "miss"; j.why = e.message; failed.push(j); }
+  }
+  /* indexes last: the covers above only add names starting with "_", which the firmware skips */
+  for (let i = 0; i < idxTodo.length; i++) {
+    $("prog").style.width = (100 * (todo.length + i) / steps) + "%";
+    $("now").textContent = "Folder index " + (i + 1) + " of " + idxTodo.length + ": " + idxTodo[i].path;
+    try { await writeFile(idxTodo[i].dir, IDX, idxTodo[i].bytes); idxMade++; } catch (e) { idxFailed++; }
+  }
+  /* a whole card with every folder indexed: the console needn't offer its own scan at the first start */
+  if (wholeCard && $("idxOn").checked && !idxFailed) { try { await markScanned(); } catch (e) { /* the console just offers its scan */ } }
+  $("prog").style.width = "100%";
+  $("now").textContent = "";
+  const n = (k, one, many) => k + " " + (k === 1 ? one : many);
+  const miss = jobs.filter(j => j.what === "miss");
+  $("summary").textContent = n(made, "cover", "covers") + " made." + (failed.length ? " " + failed.length + " failed." : "") +
+                            (miss.length ? " " + n(miss.length, "game has", "games have") + " no picture yet." : "");
+  const same = idxJobs.filter(x => x.state === "same").length, kept = idxJobs.filter(x => x.state === "kept");
+  $("idxSummary").textContent = !$("idxOn").checked ? "Folder indexes: not made." :
+    "Folder indexes: " + idxMade + " written" + (idxFailed ? ", " + idxFailed + " failed" : "") +
+    (same ? ", " + same + " already right" : "") +
+    (kept.length ? ". " + n(kept.length, "index", "indexes") + " the console made " + (kept.length === 1 ? "lists" : "list") +
+     " the same files in another order, so " + (kept.length === 1 ? "it was" : "they were") + " left alone (" +
+     kept.slice(0, 3).map(x => x.path).join(", ") + (kept.length > 3 ? ", ..." : "") + ")" : "") + ".";
+  $("done").hidden = false;
+  showFixes(miss);
+}
+
+async function markScanned() {
+  let text = "";
+  try { text = await (await (await root.getFileHandle("_odemenu.opt")).getFile()).text(); } catch (e) { text = ""; }
+  if (!text.startsWith("OMO1\n")) text = "OMO1\n";
+  if (/^scanned=1\r?$/m.test(text)) return;
+  if (/^scanned=/m.test(text)) text = text.replace(/^scanned=.*$/m, "scanned=1");
+  else text += (text.endsWith("\n") ? "" : "\n") + "scanned=1\n";
+  await writeFile(root, "_odemenu.opt", utf8.encode(text));
+}
+
+/* ------------------------------------------------------------------ games with no picture */
+function noArt(c) {
+  const g = c.getContext("2d");
+  c.width = W; c.height = 66;
+  g.fillStyle = "#080214"; g.fillRect(0, 0, W, 66);
+  g.fillStyle = "#6e32aa"; g.font = "8px 'Press Start 2P', monospace"; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText("NO ART", W / 2, 33);
+}
+function showFixes(miss) {
+  const list = $("fixList"); list.innerHTML = "";
+  for (const j of miss) list.appendChild(fixRow(j));
+  $("fix").hidden = miss.length === 0;
+}
+function fixRow(j) {
+  const row = document.createElement("div"); row.className = "fix";
+  const c = document.createElement("canvas"); noArt(c);
+  const info = document.createElement("div");
+  const name = document.createElement("div"); name.className = "n"; name.textContent = j.game;
+  if (j.label !== j.game) { const s = document.createElement("small"); s.textContent = j.label; name.appendChild(s); }
+  const st = document.createElement("div"); st.className = "st"; if (j.why) { st.textContent = j.why; st.classList.add("err"); }
+  const act = document.createElement("div");
+  const bFind = document.createElement("button"); bFind.className = "sm"; bFind.textContent = "FIND";
+  const bPic = document.createElement("button"); bPic.className = "sm alt"; bPic.textContent = "PICTURE";
+  const title = j.game.replace(/[(\[][^)\]]*[)\]]/g, " ").replace(/\s+/g, " ").trim();
+  const web = document.createElement("a"); web.className = "sm"; web.textContent = "WEB"; web.target = "_blank"; web.rel = "noopener";
+  web.href = "https://www.google.com/search?tbm=isch&q=" + encodeURIComponent(title + " 3DO");
+  act.append(bFind, bPic, web);
+  const find = document.createElement("div"); find.className = "find"; find.hidden = true;
+  const q = document.createElement("input"); q.type = "search"; q.value = title; q.placeholder = "Words to look for";
+  const hits = document.createElement("div"); hits.className = "hits";
+  find.append(q, hits);
+  info.append(name, act, find, st);
+  row.append(c, info);
+
+  async function use(getBlob, from) {
+    st.className = "st"; st.textContent = "Making the cover ...";
+    try {
+      const px = cover(await toBitmap(await getBlob()));
+      await writeCover(j, px);
+      drawPx(c, px); row.classList.add("ok"); j.what = "fixed";
+      st.textContent = "Cover written, from " + from + ".";
+    } catch (e) { st.className = "st err"; st.textContent = "That didn't work: " + e.message; }
+  }
+  function showHits() {
+    hits.innerHTML = "";
+    const found = search(q.value);
+    if (!found.length) { hits.textContent = "Nothing with those words. Try fewer, or another name for the game."; return; }
+    for (const h of found) {
+      const b = document.createElement("button"); b.textContent = h.name;
+      const k = document.createElement("small"); k.textContent = KIND_LABEL[h.kind]; b.appendChild(k);
+      b.onclick = () => use(() => download(h.kind + "/" + h.name + ".png"), "\u201c" + h.name + "\u201d");
+      hits.appendChild(b);
+    }
+  }
+  let timer = 0;
+  q.oninput = () => { clearTimeout(timer); timer = setTimeout(showHits, 200); };
+  bFind.onclick = () => { find.hidden = !find.hidden; if (!find.hidden) { showHits(); q.focus(); } };
+  bPic.onclick = () => {
+    const f = $("filePick"); f.value = "";
+    f.onchange = () => { if (f.files[0]) use(async () => f.files[0], f.files[0].name); };
+    f.click();
+  };
+  row.ondragover = e => { e.preventDefault(); row.classList.add("drop"); };
+  row.ondragleave = () => row.classList.remove("drop");
+  row.ondrop = e => {
+    e.preventDefault(); row.classList.remove("drop");
+    const f = [...e.dataTransfer.files].find(x => x.type.startsWith("image/"));
+    if (f) use(async () => f, f.name);
+    else { st.className = "st err"; st.textContent = "Drop a picture file (save it from the web page first)."; }
+  };
+  return row;
+}
+
+async function pick() {
+  try { root = await window.showDirectoryPicker({ id: "fz1-card", mode: "readwrite" }); }
+  catch (e) { return; }                          /* cancelled */
+  $("step1").hidden = true; $("done").hidden = true; $("fix").hidden = true; $("step3").hidden = false; $("thumbs").innerHTML = "";
+  $("prog").style.width = "0";
+  try {
+    wholeCard = await exists(root, "boot.iso");
+    jobs = []; idxJobs = [];
+    await walk(root, wholeCard, "", jobs, idxJobs);
+    $("where").textContent = wholeCard ? "The whole card (" + root.name + ")." : "The folder \u201c" + root.name + "\u201d and everything in it.";
+    await loadServer();
+    $("step3").hidden = true; $("step2").hidden = false;
+    plan();
+  } catch (e) {
+    $("step3").hidden = true; $("step1").hidden = false;
+    alert("Something went wrong: " + e.message);
+  }
+}
+
+$("pick").onclick = pick;
+$("again").onclick = () => { $("step2").hidden = true; pick(); };
+$("redo").onchange = plan;
+$("idxOn").onchange = plan;
+for (const r of document.querySelectorAll("input[name=kind]")) r.onchange = () => { fillFallbacks(); plan(); };
+$("fb1").onchange = () => { fillFallbacks(); plan(); };
+$("fb2").onchange = plan;
+fillFallbacks();
+$("make").onclick = make;
+</script>
+</body>
+</html>

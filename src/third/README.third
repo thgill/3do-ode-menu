@@ -1,0 +1,14 @@
+Third-party code built into LaunchMe (decoding PNG and JPG pictures for the info pane).
+
+tinf 1.2.1 -- tiny inflate library, (c) 2003-2019 Joergen Ibsen, zlib licence (LICENSE.tinf).
+  https://github.com/jibsen/tinf, commit 57ffa1f: tinf.h, tinflate.c.
+  ALTERED (zlib licence clause 2), as for PICO PAK SMS, marked "PICO PAK change" in tinflate.c:
+  tinf_uncompress() also sets *destLen on failure, and keeps its state in a static rather than on the stack.
+
+picojpeg v1.1 -- Rich Geldreich, public domain (or MIT where public domain is not recognised).
+  https://github.com/richgel999/picojpeg, commit 8ab33a9: picojpeg.c, picojpeg.h.
+  ALTERED: comments converted to C89 style, one stray ";" and one trailing enum comma removed; in convertCb/convertCr
+  "*p++ = f(p[0], c)" (undefined evaluation order) rewritten as "*p = f(p[0], c); p++".
+
+Not third-party: src/jpgprog.c (progressive JPEG at reduced size) was written for this menu; it follows the
+JPEG standard (ITU T.81) and the structure of libjpeg's progressive Huffman decoder, without copying its code.

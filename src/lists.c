@@ -1,0 +1,310 @@
+/* lists.c - favourites, recently played and the settings, kept as small text files in the drive root.
+ *
+ *   _odemenu.fav   favourites, one path per line from the drive root ("3DO/USA/Doom (USA).iso")
+ *   _odemenu.rec   recently played, newest first
+ *   _odemenu.opt   settings, "key=value" lines
+ *
+ * The firmware opens files relative to its current folder, so the menu takes it up to the root for these
+ * (dir_root_begin) and back down after. On the device list (both drives fitted) there is no drive to write to:
+ * changes wait until the menu is inside a drive again.
+ */
+#include "common.h"
+
+#define FAV_FILE "_odemenu.fav"
+#define REC_FILE "_odemenu.rec"
+#define OPT_FILE "_odemenu.opt"
+#define FILE_MAX (FAV_MAX * LIST_PATH_MAX + 2 * ODE_XFER)
+
+PathList g_favs, g_recent;
+Settings g_set;
+
+static char fav_store[FAV_MAX][LIST_PATH_MAX];
+static char rec_store[REC_MAX][LIST_PATH_MAX];
+static char fbuf[FILE_MAX + 1];
+
+void lists_init(void)
+{
+    g_favs.p = fav_store;
+    g_favs.max = FAV_MAX;
+    g_favs.file = FAV_FILE;
+    g_recent.p = rec_store;
+    g_recent.max = REC_MAX;
+    g_recent.file = REC_FILE;
+    g_favs.n = g_recent.n = 0;
+    g_set.pane = 1;
+    g_set.bar = 1;
+    g_set.shine = 0;
+    g_set.index = 1;
+    g_set.remember = 1;
+    g_set.scanned = 0;
+}
+
+const char *path_base(const char *path)
+{
+    const char *b = path, *p;
+
+    for (p = path; *p; p++)
+        if (*p == '/')
+            b = p + 1;
+    return b;
+}
+
+int32 list_split(const char *path, char comps[][DIR_NAME_MAX], int32 maxc)
+{
+    int32 n = 0, k = 0;
+    const char *p;
+
+    for (p = path;; p++) {
+        if (*p == '/' || *p == 0) {
+            if (k > 0) {
+                if (n >= maxc)
+                    return -1;
+                comps[n][k] = 0;
+                n++;
+            }
+            k = 0;
+            if (*p == 0)
+                break;
+        } else if (n < maxc && k < DIR_NAME_MAX - 1) {
+            comps[n][k++] = *p;
+        }
+    }
+    return n;
+}
+
+int32 list_path_of(int32 i, char *out, int32 max)
+{
+    int32 d;
+
+    out[0] = 0;
+    for (d = 0; d < g_dir.depth; d++) {
+        if ((int32)(strlen(out) + strlen(g_dir.path[d]) + 2) >= max)
+            return -1;
+        strcat(out, g_dir.path[d]);
+        strcat(out, "/");
+    }
+    if (i < 0)
+        return 0;
+    if ((int32)(strlen(out) + strlen(dir_name(i)) + 1) >= max)
+        return -1;
+    strcat(out, dir_name(i));
+    return 0;
+}
+
+int32 list_find(PathList *l, const char *path)
+{
+    int32 i;
+
+    for (i = 0; i < l->n; i++)
+        if (strcmp(l->p[i], path) == 0)
+            return i;
+    return -1;
+}
+
+void list_remove(PathList *l, int32 i)
+{
+    if (i < 0 || i >= l->n)
+        return;
+    memmove(l->p[i], l->p[i + 1], (l->n - i - 1) * LIST_PATH_MAX);
+    l->n--;
+    l->dirty = 1;
+}
+
+void list_add_front(PathList *l, const char *path)
+{
+    int32 i = list_find(l, path);
+
+    if ((int32)strlen(path) >= LIST_PATH_MAX)
+        return;
+    if (i >= 0)
+        list_remove(l, i);
+    if (l->n >= l->max)
+        l->n = l->max - 1;
+    memmove(l->p[1], l->p[0], l->n * LIST_PATH_MAX);
+    strcpy(l->p[0], path);
+    l->n++;
+    l->dirty = 1;
+}
+
+/* ------------------------------------------------------------------ files */
+
+static int32 read_file(const char *name, char *buf, int32 max)
+{
+    uint32 got;
+    int32 n = 0;
+
+    if (ode_file_open(name, 0) < 0)
+        return -1;
+    while (n + ODE_XFER <= max) {
+        if (ode_file_read((uint8 *)buf + n, ODE_XFER, &got) < 0 || got == 0)
+            break;
+        n += got;
+        if (got < ODE_XFER)
+            break;
+    }
+    ode_file_close();
+    buf[n] = 0;
+    return n;
+}
+
+static int32 write_file(const char *name, const char *buf, int32 len)
+{
+    int32 off, n, err = 0;
+
+    if (ode_file_open(name, 1) < 0)
+        return -1;
+    for (off = 0; off < len && err == 0; off += n) {
+        n = len - off > ODE_XFER ? ODE_XFER : len - off;
+        err = ode_file_write((const uint8 *)buf + off, n);
+    }
+    if (ode_file_close() < 0 && err == 0)
+        err = -1;
+    return err;
+}
+
+static void parse_list(PathList *l, char *buf)
+{
+    char *p = buf, *e;
+
+    l->n = 0;
+    l->dirty = 0;
+    if (strncmp(p, "OML1\n", 5) != 0)
+        return;
+    p += 5;
+    while (*p && l->n < l->max) {
+        for (e = p; *e && *e != '\n' && *e != '\r'; e++)
+            ;
+        if (e > p && e - p < LIST_PATH_MAX) {
+            memcpy(l->p[l->n], p, e - p);
+            l->p[l->n][e - p] = 0;
+            l->n++;
+        }
+        while (*e == '\n' || *e == '\r')
+            e++;
+        p = e;
+    }
+}
+
+static int32 opt_value(const char *buf, const char *key, int32 def, int32 maxv)
+{
+    const char *p = buf;
+    int32 n = strlen(key), v;
+
+    while (*p) {
+        if (strncmp(p, key, n) == 0 && p[n] == '=') {
+            v = p[n + 1] - '0';
+            return (v >= 0 && v <= maxv) ? v : def;
+        }
+        while (*p && *p != '\n')
+            p++;
+        while (*p == '\n' || *p == '\r')
+            p++;
+    }
+    return def;
+}
+
+void lists_load(void)
+{
+    if (dir_root_begin() < 0)
+        return;
+    if (read_file(FAV_FILE, fbuf, FILE_MAX) > 0)
+        parse_list(&g_favs, fbuf);
+    else
+        g_favs.n = 0;
+    if (read_file(REC_FILE, fbuf, FILE_MAX) > 0)
+        parse_list(&g_recent, fbuf);
+    else
+        g_recent.n = 0;
+    if (read_file(OPT_FILE, fbuf, FILE_MAX) > 0 && strncmp(fbuf, "OMO1\n", 5) == 0) {
+        g_set.pane = opt_value(fbuf, "pane", 1, 1);
+        g_set.bar = opt_value(fbuf, "bar", 1, 3);
+        g_set.shine = opt_value(fbuf, "shine", 0, 1);
+        g_set.index = opt_value(fbuf, "index", 1, 1);
+        g_set.remember = opt_value(fbuf, "remember", 1, 1);
+        g_set.scanned = opt_value(fbuf, "scanned", 0, 1);
+    }
+    dir_root_end();
+    g_dir.use_cache = g_set.index;
+    g_favs.dirty = g_recent.dirty = g_set.dirty = 0;
+}
+
+static int32 save_list(PathList *l)
+{
+    int32 i, n = 5;
+
+    strcpy(fbuf, "OML1\n");
+    for (i = 0; i < l->n; i++) {
+        strcpy(fbuf + n, l->p[i]);
+        n += strlen(l->p[i]);
+        fbuf[n++] = '\n';
+    }
+    return write_file(l->file, fbuf, n);
+}
+
+void lists_save(int32 at_root)
+{
+    if (!g_favs.dirty && !g_recent.dirty && !g_set.dirty)
+        return;
+    if (!at_root && dir_root_begin() < 0)
+        return;                 /* device list: keep the changes for later */
+    if (g_favs.dirty && save_list(&g_favs) == 0)
+        g_favs.dirty = 0;
+    if (g_recent.dirty && save_list(&g_recent) == 0)
+        g_recent.dirty = 0;
+    if (g_set.dirty) {
+        sprintf(fbuf, "OMO1\npane=%d\nbar=%d\nshine=%d\nindex=%d\nremember=%d\nscanned=%d\n", (int)g_set.pane,
+                (int)g_set.bar, (int)g_set.shine, (int)g_set.index, (int)g_set.remember, (int)g_set.scanned);
+        if (write_file(OPT_FILE, fbuf, strlen(fbuf)) == 0)
+            g_set.dirty = 0;
+    }
+    if (!at_root)
+        dir_root_end();
+}
+
+/* ------------------------------------------------------------------ the last launch, in the console's NVRAM
+ * Writing to the card just before a launch made games fail to start (the card is still busy when the ODE starts
+ * reading the game), so a launch writes only a 256-byte note to NVRAM: the drive and the game's path. The next
+ * menu start adds it to RECENT and goes back to it. */
+
+#define NOTE_FILE "/NVRAM/ODEMenu"
+#define NOTE_SIZE 256
+
+int32 note_save(int32 drive, const char *path)
+{
+    static char note[NOTE_SIZE];
+
+    if ((int32)strlen(path) > NOTE_SIZE - 16)
+        return -1;
+    memset(note, 0, NOTE_SIZE);
+    sprintf(note, "ONT1\n%d\n%s\n", (int)drive, path);
+    return SaveFile(NOTE_FILE, note, NOTE_SIZE, 0);
+}
+
+int32 note_load(int32 *drive, char *path, int32 max)
+{
+    int32 size = 0, n;
+    char *p, *e;
+    char *buf = (char *)LoadFile(NOTE_FILE, &size, MEMTYPE_ANY);
+
+    path[0] = 0;
+    if (buf == 0)
+        return -1;
+    n = -1;
+    if (size >= 8 && strncmp(buf, "ONT1\n", 5) == 0) {
+        buf[size - 1] = 0;
+        p = buf + 5;
+        *drive = *p - '0';
+        p = strchr(p, '\n');
+        if (p) {
+            p++;
+            e = strchr(p, '\n');
+            if (e && e - p > 0 && e - p < max) {
+                memcpy(path, p, e - p);
+                path[e - p] = 0;
+                n = 0;
+            }
+        }
+    }
+    UnloadFile(buf);
+    return n;
+}

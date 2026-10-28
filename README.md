@@ -1,1 +1,285 @@
-# 3do-fz1-ode-menu
+# FZ-1 ODE menu, revised interface
+
+The version is the build date, shown in OPTIONS > ABOUT.
+
+A rewrite of the 3DO-side menu (`LaunchMe`) on Fixel's FZ-1 ODE menu disc (`boot.iso`, release V5), starting
+from the byte-exact reconstruction at <https://github.com/yesmorepain/fixel-3do-fz1-ode-menu-decomp>. The ODE driver,
+music player, Storage Manager, and everything else on the disc stay exactly as Fixel shipped them.
+
+**Status:** built, signed, and tested on a PC against a simulator that follows the firmware reconstruction (42
+scripted tests). It was also reviewed against the firmware, driver and lib3do sources. **Runs on an FZ-1 with the ODE**
+(browsing, folders, game launch tested on hardware).
+
+UI2 replaces the whole interface with a tabbed design after Todd's PicoPak-SMS menu, in a SYNTHWAVE palette,
+with his "3DO FZ-1 ODE" logo. The engine underneath (folder index, sorting, resume, ODE commands, tools) is the
+one from UI1.
+
+## What changed
+
+**Browsing**
+- Folders are sorted: folders first, then images, in natural order (`Disc 2` before `Disc 10`).
+- Holding a direction scrolls, and it speeds up the longer you hold it. The old menu needed one press per row.
+- **L / R** page up and down. **Left / Right** jump to the previous or next starting letter.
+- **B** goes up a folder, and the cursor lands back on the folder you came from.
+- The footer shows where you are (`/3DO/USA/`); chips under the panel show the position (`8/114`), the drive
+  and the queue. Long names scroll on the selected row.
+- With two drives, the top level shows *SD card* and *USB drive*.
+- The menu always starts in the drive root; the last game played is at the top of RECENT.
+- **A game in its own folder is the game.** A folder holding exactly one `.iso` or `.cue` (the `.bin` files don't
+  count) and no folders is listed, sorted and started as that game, and goes into FAVS, RECENT and the queue like
+  one. Its dialog adds OPEN FOLDER, for anything else kept with it. Folders with more games, or with folders in
+  them, open as before. The menu looks inside each folder once (on the first visit, or during the card scan) and
+  keeps the answer in the folder index.
+- **Games on several discs.** Starting disc 1 of a game whose discs sit side by side (`Name (Disc 1)`,
+  `Name (Disc 2)`..., as files or as game folders; "Disk" and "CD1" work too) offers START WITH ALL DISCS, which
+  queues the other discs behind it, or DISC 1 ONLY.
+- Files the menu has no use for (the firmware lists any file whose extension isn't three letters, like `.jpeg`)
+  are not shown.
+
+**Speed**
+- The firmware lists folders slowly. For every entry the menu asks for, it reopens the folder and walks it from
+  the start. A page near the end of a 1,500-file folder costs about 21,000 directory reads.
+- The new menu reads a folder once and saves the sorted listing in a hidden `_odemenu.idx` file in that folder.
+  The firmware hides names starting with `_`, so the file never shows in the menu. The next visit loads that
+  file with the fast sequential file commands and checks it against the card with a few probes.
+- Simulated cost for a 1,500-file folder: about **3,800** directory reads on a return visit, against about
+  **1,130,000** to page through it in the stock menu. A 114-file folder costs a few hundred reads on return.
+- Safety: before anything is queued, launched or entered, the menu re-checks that entry's position on the card.
+  If the card changed behind the index, it rescans and carries on with the same name. It never acts on a stale
+  position.
+- No debug output on every ODE transfer. The ODE commands reuse their I/O requests instead of creating and
+  deleting one per command.
+
+**Look (UI2)**
+- 320x240 laid out on PicoPak-SMS's 8-pixel grid: logo, tab strip, a rounded panel with an 18-row list, footer
+  and chips. 8x8 capitals (Press Start 2P bitmaps, as on PicoPak-SMS) and PicoPak-SMS's icons, badges and pad
+  buttons.
+- Tabs: **GAMES** (the card), **FAVS** (favourites), **RECENT** (last played, newest first), **TOOLS**, **OPTIONS**.
+- An **info pane** beside GAMES, FAVS and RECENT shows the selected game's screenshot, its name, the image type
+  (ISO / CUE badge), whether it is a favourite and its place in the play queue. **C** shows or hides it; without
+  it the list is full width with type badges on every row.
+- **A on a game opens a dialog**: START GAME, ADD TO / REMOVE FROM FAVS, ADD TO QUEUE, and START / CLEAR QUEUE
+  once something is queued; a game folder adds OPEN FOLDER. RECENT adds REMOVE FROM LIST.
+- The selection bar's colour drifts round a ten-colour ring in 180 steps (OPTIONS: SLOW 3 s, MED 1.5 s, FAST 1 s,
+  or OFF). OPTIONS also has an optional shine across the logo (off by default).
+- Dialogs dim everything behind them; reading a folder, dumps, NVRAM and launching show a progress box.
+
+**Controls**
+
+| Button | Action |
+|---|---|
+| A | Open a folder; on a game, the game dialog; in TOOLS run, in OPTIONS change |
+| B | Up a folder (GAMES); back to GAMES from the other tabs; close a dialog |
+| C | Info pane on / off |
+| P | Start the queue (or the selected game if the queue is empty) |
+| L / R (shoulders) | Previous / next tab |
+| Up / Down | Move (holding speeds up) |
+| Left / Right | GAMES: previous / next starting letter. OPTIONS: change the value |
+
+**TOOLS** keeps every original tool and works on the folder open in GAMES (shown in the footer): rescan this
+folder, **scan card (games + art)**, clear queue, save / load NVRAM here, Storage Manager, dump System / Font /
+FMV ROM and RAM, update ODE firmware, device info. **OPTIONS**: info pane, bar colour cycle, logo shine, folder
+index, and About.
+
+**Card scan.** Offered once at the first start, and in TOOLS. It visits every folder of the drive, so each
+folder's index knows which of its folders are games, and gets every cover picture it finds ready as an `.img`.
+Folders already indexed and covers already made are skipped, so running it again only does what's new. B stops
+it. It needs OPTIONS > FOLDER INDEX on.
+
+**Artwork.** While browsing, the menu opens exactly one file per game, its `.img`: the picture shrunk whole to fit
+the info pane's 88x122 with its shape kept, in its own 256 colours (a US long box 63x122, 8.2 KB; a European case
+86x122, 11 KB; a square Japanese cover 88x88, 8.2 KB; a 4:3 screenshot 88x66, 5.8 KB; the older 15-bit 88x66
+`.img` files still work):
+
+- a game in its own folder (`3DO/Doom/`): `Doom/_cover.img`;
+- a game file among others: `_art/<game name>.img` beside it (`Doom (USA).iso` uses `_art/Doom (USA).img`).
+
+How the pane lays it out depends only on the picture's height. Box art taller than 100 lines (long boxes,
+European cases) fills the pane, centred, with the sides beside a narrow box filled from its own edge colours,
+darkened, and the CUE / favourite / queue badges on a darkened strip along its foot (the name is in the list).
+Shorter pictures (square and wide covers, screenshots) sit at the top with the name under them, a word per line;
+the badges go under the name when there are 40 lines to spare, else on the picture's foot.
+
+No `.img`: NO ART. Nothing is decoded or written while browsing. (Measured on an FZ-1: a file that isn't there
+costs about 0.08 s to look for; writing the card costs about 2.3 ms per 4 bytes, because the firmware only takes
+4 bytes per command, so one 6.2 KB `.img` takes about 3.5 s to save.)
+
+**Making the `.img` files**, from a `.jpg` or `.png` named after the game file (`Doom/doom_1994.jpg` beside
+`doom_1994.cue`, or `_art/Doom (USA).png`) or, in a game folder, after the folder (`Doom/Doom.jpg`):
+
+- **Downloaded, no install:** open `tools/getart.html` (the FZ-1 ODE Cover Maker) in Chrome or Edge on a PC,
+  choose the SD card, check the plan and press MAKE COVERS. It does what `covermaker.py` does below, inside the
+  browser, using libretro's GitHub copy of the thumbnails. If the browser won't let you choose the whole card,
+  choose the folder holding your games instead. Firefox, Safari and phones can't write to a folder, so they can't run it; Brave can once `brave://flags/#file-system-access-api` is turned on.
+  It also writes every folder's index, the same bytes the console's SCAN CARD writes, so no folder needs its slow
+  first listing (the index numbers entries in the order the browser lists them, which on FAT32/exFAT is the order
+  the firmware uses; if a card disagrees, the menu notices and lists that folder itself, as with any stale index).
+  An index the console already made is left alone. Games it finds no picture for get FIND (another name in
+  libretro's collection), PICTURE (a file from the PC, or drop one) and WEB (an image search in a new tab).
+- **Downloaded, any computer with Python (Firefox/Safari users):** `python3 tools/covermaker.py` asks for the card
+  (drag it onto the window), shows the plan and asks before writing. It does everything the web page does: your
+  own pictures first, then libretro's (`--picture box|screenshot|title`, fallbacks `--then`, `--then2`, "none" to
+  stop; default box art, then screenshot, then title screen), the folder indexes (byte for byte the console's;
+  `--no-index` to skip) and the first-start mark. `--dry-run` shows the plan only, `--redo` remakes covers,
+  `--yes` asks nothing, and `--fix` goes through the games with no picture: search under another name, give a
+  picture file, or open an image search in the browser. Needs Python 3.8+ and Pillow (`pip install pillow`);
+  downloads are cached. The pictures belong to the publishers: fine for your own card, don't redistribute them.
+- **On a PC (recommended for many games):** `python3 tools/mkart.py --card /path/to/sd` does the whole card in
+  seconds and keeps `.img` files that already exist (`--force` remakes them). Needs Python 3 and Pillow.
+- **On the console:** TOOLS > SCAN CARD (also offered at the first start). It decodes each picture on the
+  console and saves the `.img`: expect about 5 seconds per cover, so it suits a few new games better than
+  a whole collection. Games that already have an `.img` are skipped; B stops it.
+
+Pictures are shrunk whole to fit 88x122 (nothing is trimmed), lightly sharpened and reduced to their own 256
+colours (median cut; at this size the difference can't be seen). libretro's box art PNGs (512 pixels wide, up to
+1051 tall) are too big for the console's own decoder: convert them on a PC (Cover Maker, covermaker.py, mkart.py). JPG: baseline
+or progressive (progressive is decoded by the menu's own small decoder, `src/jpgprog.c`, which keeps only the
+detail a cover needs); PNG: any colour type and bit depth, not interlaced, up to about 1 MB unpacked.
+Files over 512 KB are skipped. A picture that can't be used is counted in the scan's summary.
+
+`.img` files can also be made one at a time: `python3 tools/mkart.py doom.png "Doom (USA).img"`.
+
+A game without a picture shows a disc. The menu reads the picture once the selection rests (about 0.2 s) and
+keeps the last four in memory.
+
+Changes to the tools carried over from UI1:
+- **Load NVRAM** asks first. It then reads the whole file and checks it:
+  - the file must be exactly 32 KB;
+  - it must start with an Opera volume label.
+
+  Only then does it unmount NVRAM and write it. The original wrote its buffer even after a failed read.
+- **Save NVRAM** asks before overwriting an existing `nvram.nvm`, and refuses to save console memory that isn't a
+  formatted NVRAM.
+- **Device errors now count.** The original never saw errors from the `ramp` device: it returned the address of
+  its error variable instead of the error. Now a failed ROM or NVRAM read or write is reported, not saved as a
+  good file.
+- **Update ODE** asks first. After the ODE accepts the update, the menu stops on a "turn the console off and on"
+  screen, because the ODE resets itself to flash.
+- **Dumps** can be cancelled with B.
+- **File tools at the device list** are refused (choose a drive first), because the firmware would write into a
+  leftover folder.
+- `nvram.nvm` is matched without regard to case.
+
+**Firmware folder handling.** The firmware's "up" command is not clamped at the drive root: one "up" too many
+empties its path, and file access stays broken until power-off. The menu therefore:
+- sends exactly as many "up" commands as it went down (a game folder is entered just before its launch and left
+  again if the game doesn't start);
+- at startup, when the firmware was left in a folder (for example by a console reset while browsing), searches
+  upward only if it knows the root holds `boot.iso`. Otherwise it stays put, as the stock menu did.
+
+The hidden extras (both Konami codes, the eject-count picture, and the XPort RAM patch) are kept unchanged.
+
+## Hardware findings (FZ-1, October 2026)
+
+- **Two copies of the menu.** `AppStartup` runs `$boot/LaunchMe`, and the system starts it again after the script,
+  so two copies ran side by side. With the stock menu that is invisible; with an animated menu the display jumps
+  between both copies' screens. The menu now registers a named message port and every copy but the first quits.
+- **One IOReq per ODE command**, as in the stock menu. A reused IOReq stays "in progress" in the ode driver and the
+  next command fails with ER_IONotDone (seen as "could not open this folder").
+- **Nothing written on the card at launch.** Card writes (or the trip to the root to make them) just before C3/C4/C5
+  made games hang after the 3DO logo, or start only sometimes. A launch now sends C3, C4, C5 only; the launched game
+  is noted in NVRAM (`/NVRAM/ODEMenu`, 256 bytes) and goes into RECENT at the next menu start. A launch also waits
+  until 3 s have passed since the last card write (folder index, favourites, settings).
+- **The math folio must be opened** before lib3do's cel mapping calls (`CreateBackdropCel` crashed without it);
+  the menu now builds its rectangle cel itself and opens the folio anyway.
+- **The boot banner is required**: a disc without `BannerScreen` goes to "insert disc". The menu disc carries its
+  own banner (`tools/mkbanner.py`).
+- **Frames wait for the vertical blank** before drawing, so the buffer being drawn is never the one on screen.
+- **Key repeat runs on video fields**, so holding a direction scrolls at the same speed whatever the frame rate.
+- **`gf_VBLNumber` is not a field count.** The graphics interrupt forces its lowest bit to match the video field,
+  so on the 3DO's progressive picture it goes up by 2 per field. Everything timed by it ran at double speed,
+  including the launch's settle wait (1.5 s instead of 3 s), and games stopped booting. At start the menu
+  now measures its step over 8 waited fields and divides by it.
+- **Clones may answer a one-entry listing differently.** A tester with a clone ODE (which runs Fixel's stock menu
+  fine) got "That item is no longer on the card" for every game: the menu checks an entry with a one-entry D1
+  before acting on it, which the stock menu never does. The menu now tries that once at startup (counts 1, 2 and
+  14) and, if no answer matches the listing, works without it: no folder index, entries trusted from a fresh
+  read of the folder. TOOLS > DEVICE INFO shows the result on its last line.
+- **Writing the card is slow**: the firmware takes data from the 3DO only 4 bytes per command (E6), about
+  2.3 ms each, so writes run at about 1.7 KB/s (a 8.4 KB folder index took 4.9 s). Reading is fast (2 KB per
+  command); a file that isn't there costs about 0.08 s to look for. So the menu writes as little as it can, and
+  never while browsing.
+- **The launch waits for an idle card**: 1.5 s since the last ODE command of any kind and 3 s since the last write.
+- The ODE's access LED blinks while the menu is idle because the 3DO polls its drive; the menu itself sends no
+  commands when idle.
+
+## Install
+
+1. Keep a copy of the original V5 `boot.iso`.
+2. Copy `out/boot.iso` to the root of the microSD card (or USB drive), replacing the old one.
+
+To go back, put the original `boot.iso` back.
+
+**Files the menu writes on your card** (all hidden from the menu, all safe to delete):
+- `_odemenu.idx` in each folder you open (turn off with OPTIONS > FOLDER INDEX). Indexes from earlier builds are
+  rebuilt once, because they don't know about game folders.
+- `_cover.img` in game folders, and `_art/<game name>.img` beside `_art` pictures: covers ready to show.
+- In the drive root: `_odemenu.fav` (favourites), `_odemenu.rec` (recently played) and `_odemenu.opt`
+  (settings). They are plain text, one path per line; a game folder is written with a `/` at the end.
+
+To read or write the root files from inside a folder, the menu takes the firmware up to the root and back
+down, the same way it does around a launch. It doesn't use `../` paths, because FatFs can't follow `..` on exFAT
+cards. With two drives, each drive keeps its own files. Changes you make on the device list are written to their
+drive when you next enter one.
+
+## Known limits
+
+- **First visits to huge folders are still slow.** Listing a folder once costs the firmware N×N/2 directory reads.
+  Subfolders of a few hundred games are fine. B stops a long scan and shows what was read so far. The firmware
+  fix is to keep the directory open between consecutive entries in `dir_get_nth_entry`; that would make every
+  listing linear.
+- Names are shown in capitals (the face has no lower case); accented letters lose their accents and characters
+  outside Latin-1 (for example Japanese) show as `?`.
+- The whole screen is redrawn every frame while the bar colour cycles. The frame starts with a VRAM fill that
+  runs in the vertical blank, which also paces the menu. If that assumption is wrong on hardware the cycle runs
+  faster than set; OPTIONS > BAR COLOUR CYCLE > OFF redraws only on changes.
+- The layout keeps 16 lines clear at the top and bottom of the 240-line picture (TVs hide part of the edges;
+  the first layout's logo started on line 2 and was cut off on CRTs). OPTIONS can't move it.
+- Up to 4,096 entries per folder (fewer if memory is short), names up to 127 characters (the firmware's limit).
+- PAL consoles get the same 320×240 layout as the original.
+
+## Building
+
+| Path | What |
+|---|---|
+| `src/` | The menu. `crc.c` and `rampatch.c` are unchanged from the reconstruction |
+| `tools/mkui.py` | Builds `src/uiart.h` (face, icons, micro letters) from PicoPak-SMS's `menu/` and `assets_gen/logo.img` from the logo PNG |
+| `tools/mkart.py` | PC tool: pictures -> `.img` covers (one, a folder, or the whole card) |
+| `tools/getart.html` | Cover Maker web page: covers and folder indexes in Chrome/Edge, nothing to install |
+| `tests/web_index_test.sh` | checks the web page's and covermaker.py's folder indexes byte for byte against the menu's own |
+| `tools/covermaker.py` | the Cover Maker in Python, for any computer: covers and folder indexes |
+| `build_3do.sh` | Compile and link with the 3do-devkit (`DEVKIT=/path/to/3do-devkit`) |
+| `make_disc.sh` | Original `boot.iso` + new files -> new signed `boot.iso` (uses `3dt`) |
+| `host/`, `tests/run_tests.sh` | PC harness: the real menu code against a lib3do stand-in and a firmware simulator, with screenshots |
+| `docs/firmware-listing-proposal.md` | Untested proposal: make the firmware's folder listing linear |
+| `tools/elf32run.c` | Runs the devkit's 32-bit Linux `armcc`/`armlink` on a 64-bit system without 32-bit libraries |
+
+```sh
+python3 tools/mkui.py --picopak PicoPak-SMS/menu --logo logo.png   # only when the art changes; needs Pillow
+DEVKIT=~/3do-devkit ./build_3do.sh                   # -> build/3do/LaunchMe
+./make_disc.sh original/boot.iso out/boot.iso        # -> signed disc image
+host/build_host.sh && tests/run_tests.sh             # PC tests
+```
+
+The compile flags follow the devkit's release settings (`-O2 -zpno_check_stack`, APCS 3/32/nofp/swst/wide/softfp).
+The disc is packed fresh by `3dt` with the original volume label and a BILLSTUFF ROM tag. That is the same signing
+scheme `3dt` uses when it re-signs the original layout, which is how the reconstruction's modified menu disc was
+booted on an FZ-1.
+
+## Licence notes
+
+- `src/` started from a reconstruction of Fixel's menu, whose licence is still "TBD"; it is published in line with
+  Fixel's stated aim of open-sourcing the menu. Nothing here grants rights to Fixel's software or to the 3DO SDK,
+  and no licence is given for `src/` until that is settled.
+- `boot.iso` is not in this repository: it is built from Fixel's original disc (3DO system files, Fixel's ODE
+  driver, the 3DO SDK's Storage Tuner) with `make_disc.sh`.
+- The reconstruction's own tools are licensed for non-commercial use only.
+- The 3do-devkit ships ARM SDT and 3DO SDK material that belongs to its owners.
+- The 8x8 face is Press Start 2P (c) 2011 Cody "CodeMan38" Boisclair, SIL Open Font License 1.1, taken from
+  PicoPak-SMS's extraction. The bitmaps are a Modified Version: they must not be called "Press Start" (a Reserved
+  Font Name), and the notice and licence must travel with them. `OFL.txt` is on the menu disc and About credits it.
+- Icons, badges and pad buttons are PicoPak-SMS's own drawings (Todd's repo). The logo is Todd's.
+- PNG decoding uses tinf 1.2.1 by Joergen Ibsen (zlib licence, altered as in PicoPak-SMS); JPG decoding uses
+  picojpeg 1.1 by Rich Geldreich (public domain / MIT), altered only to build with Norcroft and to fix one
+  undefined evaluation order. Both are in `src/third/` with `README.third` and the tinf licence.
+- Screenshots you put in `_art/` belong to the games' publishers: fine on your own card, not for sharing.

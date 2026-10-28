@@ -1,0 +1,7 @@
+# build output and disc images (boot.iso holds files from Fixel's disc and the 3DO SDK: not for this repository)
+build/
+out/
+*.iso
+__pycache__/
+*.pyc
+*.o
