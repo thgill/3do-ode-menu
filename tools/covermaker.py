@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """covermaker.py -- the FZ-1 ODE Cover Maker, for any computer with Python (no browser needed).
 
-Does what the Cover Maker web page (getart.html) does, for people whose browser can't run it (Firefox, Safari):
+Does what the Cover Maker web page (covermaker.html) does, for people whose browser can't run it (Firefox, Safari):
 
   python3 covermaker.py                      asks for the card, shows the plan, asks before writing anything
   python3 covermaker.py /Volumes/FZ1         the same, for that card (or a folder on it)
@@ -58,7 +58,7 @@ W, H = 88, 122                     # the most a cover can be: the menu's info pa
 BAD = '&*/:`<>?\\|"'               # characters libretro's names replace with "_"
 
 
-# ------------------------------------------------------------------ names (as getart.html)
+# ------------------------------------------------------------------ names (as covermaker.html)
 
 def stem(name):
     return re.sub(r'\.(iso|cue|bin)$', '', name, flags=re.I)

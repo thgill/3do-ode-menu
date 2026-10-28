@@ -1,5 +1,5 @@
 #!/bin/sh
-# The Cover Maker page's folder indexes (tools/getart.html, IDXLIB) against the ones the menu itself writes.
+# The Cover Maker page's folder indexes (tools/covermaker.html, IDXLIB) against the ones the menu itself writes.
 # A card is indexed by the menu (TOOLS > SCAN CARD, with the firmware simulator); the page's code then indexes the
 # same card from the order the file system lists it in, and every index must come out byte for byte the same.
 # Then the menu runs on the page's indexes alone: it must use them (no folder listings) and start the right game.
@@ -53,7 +53,7 @@ for d, dirs, files in os.walk(root):
     out[os.path.relpath(d, root)] = [[n, os.path.isdir(os.path.join(d, n))] for n in os.listdir(d)]
 print(json.dumps(out))
 PY
-sed -n '/IDXLIB BEGIN/,/IDXLIB END/p' tools/getart.html | sed '1s/^/\/\* /' > "$T/idxlib.js"
+sed -n '/IDXLIB BEGIN/,/IDXLIB END/p' tools/covermaker.html | sed '1s/^/\/\* /' > "$T/idxlib.js"
 cat >> "$T/idxlib.js" <<'JS'
 const fs = require("fs"), path = require("path");
 const [order, sd] = [JSON.parse(fs.readFileSync(process.argv[2], "utf8")), process.argv[3]];
