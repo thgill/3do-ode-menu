@@ -9,6 +9,8 @@ to check them all; if yours has trouble, see [Clones](#clones).
 Tabs across the top, a game list on the left and an info pane with the box art on the right. The menu's design and
 artwork are mine and not for reuse in other projects; see [NOTICE.md](NOTICE.md).
 
+<p align="center"><img src="docs/images/games.png" width="640" alt="The Games tab, with Doom's box art in the info pane"></p>
+
 ## Features
 
 - Tabs for **Games**, **Favs**, **Recent**, **Tools** and **Options**
@@ -22,6 +24,23 @@ artwork are mine and not for reuse in other projects; see [NOTICE.md](NOTICE.md)
 - All the original tools: NVRAM save and load, ROM and RAM dumps, ODE firmware update, Storage Manager
 
 The version is the build date, shown under Options > About.
+
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="docs/images/game-menu.png" width="400" alt="Game menu"><br>Press A on a game: start it, favorite it or queue it</td>
+    <td><img src="docs/images/multi-disc.png" width="400" alt="Multi-disc offer"><br>Start disc 1 of a multi-disc game and the menu offers the rest</td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/favorites.png" width="400" alt="Favorites tab"><br>Favorites</td>
+    <td><img src="docs/images/recent.png" width="400" alt="Recent tab"><br>Recently played</td>
+  </tr>
+  <tr>
+    <td><img src="docs/images/tools.png" width="400" alt="Tools tab"><br>Tools</td>
+    <td><img src="docs/images/options.png" width="400" alt="Options tab"><br>Options</td>
+  </tr>
+</table>
 
 ## Install
 
@@ -62,6 +81,13 @@ you browse (that's what keeps it quick), so the covers have to be made first. Pi
   is slow at this (about 5 seconds a cover), so it's best for a few new games.
 
 Both Cover Makers also save a folder index in each folder, so even the first visit on the console is quick.
+
+<table>
+  <tr>
+    <td><img src="docs/images/covermaker-choice.png" width="400" alt="Cover Maker: choosing the picture"><br>Choose box art, screenshots or title screens, and what to use when a game has none</td>
+    <td><img src="docs/images/covermaker-done.png" width="400" alt="Cover Maker: finished"><br>The covers it made, and the games it couldn't match</td>
+  </tr>
+</table>
 
 The pictures belong to the games' publishers. Fine for your own card, but please don't share them.
 
@@ -129,4 +155,4 @@ harness and simulator.
 
 `boot.iso` isn't in this repository: it contains files from Fixel's disc and the 3DO SDK. The font (Press Start 2P,
 SIL Open Font License), tinf (zlib) and picojpeg (public domain) keep their own licenses. Cover pictures the tools
-download belong to the games' publishers.
+download, and the box art in the screenshots in `docs/images/`, belong to the games' publishers.
