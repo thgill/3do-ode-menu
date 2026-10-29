@@ -311,6 +311,7 @@ int32 note_clear(void);
 #define TRACE_N 24
 #ifdef LAUNCH_TRACE
 extern uint8 g_trace[TRACE_N][12];
+extern char  g_trace_pick[48];
 extern int32 g_trace_n;
 void  ode_trace(const uint8 *cmd, const uint8 *reply, int32 replylen, int32 err);
 #endif

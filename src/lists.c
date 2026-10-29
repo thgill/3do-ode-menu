@@ -339,6 +339,7 @@ int32 note_load(int32 *drive, char *path, int32 max)
 #ifdef LAUNCH_TRACE
 uint8 g_trace[TRACE_N][12];
 int32 g_trace_n;
+char  g_trace_pick[48];                 /* which file a game folder's start picked, for the log */
 
 /* every ODE command and the start of its answer (odeio.c), the last TRACE_N kept */
 void ode_trace(const uint8 *cmd, const uint8 *reply, int32 replylen, int32 err)
@@ -359,7 +360,7 @@ void ode_trace(const uint8 *cmd, const uint8 *reply, int32 replylen, int32 err)
 int32 trace_save(void)
 {
 #ifdef LAUNCH_TRACE
-    static uint8 buf[8 + TRACE_N * 12];
+    static uint8 buf[8 + TRACE_N * 12 + 48];
     int32 n = g_trace_n < TRACE_N ? g_trace_n : TRACE_N, k, first = g_trace_n - n;
 
     memcpy(buf, "OTR1", 4);
@@ -367,6 +368,9 @@ int32 trace_save(void)
     buf[5] = buf[6] = buf[7] = 0;
     for (k = 0; k < n; k++)
         memcpy(buf + 8 + k * 12, g_trace[(first + k) % TRACE_N], 12);
+    memset(buf + 8 + TRACE_N * 12, 0, 48);
+    memcpy(buf + 8 + TRACE_N * 12, g_trace_pick, 47);
+    g_trace_pick[0] = 0;
     return SaveFile(TRACE_FILE, buf, sizeof(buf), 0);
 #else
     return 0;
@@ -393,6 +397,10 @@ int32 trace_lines(char lines[][40], int32 max)
             sprintf(lines[k], "%02X %02X%02X%02X%02X %02X%02X >%02X%02X%02X%02X%s", t[0], t[1], t[2], t[3], t[4], t[5],
                     t[6], t[7], t[8], t[9], t[10], t[11] ? " ERR" : "");
         }
+        if (n > 0 && n < max && size >= 8 + TRACE_N * 12 + 48 && b[8 + TRACE_N * 12]) {
+            sprintf(lines[n], "%.39s", (char *)b + 8 + TRACE_N * 12);
+            n++;                        /* the file a game folder's start picked */
+        }
     }
     UnloadFile(b);
     return n;
@@ -410,9 +418,9 @@ int32 trace_lines(char lines[][40], int32 max)
 int32 trace_log(const char *game)
 {
 #ifdef LAUNCH_TRACE
-    static char lines[TRACE_N][40];
-    static uint8 empty[8 + TRACE_N * 12];
-    int32 n = trace_lines(lines, TRACE_N), k, len;
+    static char lines[TRACE_N + 1][40];
+    static uint8 empty[8 + TRACE_N * 12 + 48];
+    int32 n = trace_lines(lines, TRACE_N + 1), k, len;
     char *e, *cut;
 
     if (n < 0)

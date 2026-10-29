@@ -1934,55 +1934,74 @@ static int32 offer_discs(int32 i)
 
 static void open_folder(int32 i);
 
+static int32 launch_direct;          /* set while a game folder's game is started from its fresh listing */
+
 static void play_now(int32 i)
 {
     char nm[DIR_NAME_MAX];
     int32 r, folder;
     uint32 toc;
 
-    if (!check_entry(&i))
-        return;
-    if (offer_discs(i))
-        return;
+    if (!launch_direct) {
+        if (!check_entry(&i))
+            return;
+        if (offer_discs(i))
+            return;
+    }
     strcpy(nm, dir_name(i));
     stem(nm, tmp2, sizeof(tmp2));
     folder = dir_is_game_folder(i);
     toc = g_dir.ent[i].toc_id;
-    if (folder) {
-        /* A game folder's game is started exactly as if you opened the folder and picked the file: the folder is
-         * opened and read as usual, and the game started from its listing. (Started any other way, a clone ODE
-         * reset into a black screen with one game; picking the file worked.) RECENT still gets the folder. */
+    if (folder && !launch_direct) {
+        /* A game folder's game is started the way the stock menu starts a game you picked in its folder: the
+         * folder is opened and listed, and C3, C4 and C5 follow at once, with no other ODE command and no wait in
+         * between (a clone left a game on a black screen when the menu read cover files or waited there). The
+         * wait for an idle card comes before the folder is opened. RECENT still gets the folder. */
         static char fpath[LIST_PATH_MAX];
         char inner[DIR_NAME_MAX];
-        int32 depth = g_dir.depth, j;
+        int32 depth = g_dir.depth, j, how = 0;
 
         strcpy(inner, dir_inner(i));
         if (entry_path(i, fpath, LIST_PATH_MAX) < 0)
             fpath[0] = 0;
+        launch_note = fpath[0] ? fpath : 0;
+        before_launch("STARTING GAME", tmp2, i);
         g_dir_no_write = 1;             /* no card write just before a launch: the folder's index waits */
         open_folder(i);
         g_dir_no_write = 0;
-        if (g_dir.depth != depth + 1)
+        if (g_dir.depth != depth + 1) {
+            launch_note = 0;
             return;                     /* it could not be opened (open_folder said so) */
+        }
         j = dir_find(inner);
         if (j < 0)
             for (r = 0; r < g_dir.count; r++)
                 if (dir_is_game(r)) {
                     j = r;              /* renamed since: the folder's game */
+                    how = 1;
                     break;
                 }
         if (j < 0) {
+            launch_note = 0;
             cant_start();
             return;
         }
+#ifdef LAUNCH_TRACE
+        sprintf(g_trace_pick, "PICK %.24s %s/%d", dir_name(j), how ? "1ST" : "OK", (int)g_dir.count);
+#endif
         cur[T_GAMES] = j + has_up();
         dirty = 1;
-        launch_note = fpath[0] ? fpath : 0;
+        launch_direct = 1;
         play_now(j);
+        launch_direct = 0;
         launch_note = 0;
         return;
     }
-    before_launch("STARTING GAME", tmp2, i);
+    if (!launch_direct)
+        before_launch("STARTING GAME", tmp2, i);
+#ifdef LAUNCH_TRACE
+    trace_save();                       /* before C3: C3, C4 and C5 go out together */
+#endif
     ode_c3_queue_clear();
     q_count = 0;
     r = ode_c4_queue_add(toc);
@@ -1991,9 +2010,6 @@ static void play_now(int32 i)
         cant_start();
         return;
     }
-#ifdef LAUNCH_TRACE
-    trace_save();
-#endif
     ode_c5_launch();
     stem(nm, tmp, sizeof(tmp));
     launch_screen("STARTING GAME", tmp);
