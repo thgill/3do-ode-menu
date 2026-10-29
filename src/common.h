@@ -80,7 +80,8 @@ Item   run_fscheck(void);
 /* a ".." entry: Fixel's firmware lists it as 0xffffffff; a clone was seen to put a drive number in the top byte
  * of every id (0x01000005 for entry 5, 0x01ffffff for ".."), and to ignore C0 0xffffffff */
 #define TOC_IS_UP(t)    (((t) & 0x00ffffffu) == 0x00ffffffu)
-extern uint32 g_toc_up;  /* the id that takes the firmware up a folder, as its own ".." entry gives it */
+extern uint32 g_toc_up;
+extern int32  g_dir_no_write;  /* no folder index written while set (opening a game folder to start it) */  /* the id that takes the firmware up a folder, as its own ".." entry gives it */
 #define TF_FILE         0x01
 #define TF_DIR          0x02
 #define TF_NVM          0x08
@@ -306,6 +307,7 @@ void  ode_trace(const uint8 *cmd, const uint8 *reply, int32 replylen, int32 err)
 #endif
 int32 trace_save(void);                          /* LAUNCH_TRACE builds: the last commands, to NVRAM */
 int32 trace_lines(char lines[][40], int32 max);  /* the saved trace, oldest first; 0 if none */
+int32 trace_log(const char *game);               /* LAUNCH_TRACE builds: the saved trace into _odemenu.log */
 
 /* ---- tools (tools.c), the X-menu actions of the original menu ---- */
 void  tool_storage_manager(void);

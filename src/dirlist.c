@@ -21,6 +21,7 @@
 #define GF_MAX_SEEN  32             /* a folder with more entries than this is never a game folder */
 
 DirState g_dir;
+int32    g_dir_no_write;            /* set while a game folder is opened to start its game: nothing is written */
 uint32   g_toc_up = TOC_UP;
 static int32 up_learned;            /* g_toc_up has been seen in a listing */
 #define TOC_PREFIX  (g_toc_up == TOC_UP ? 0u : g_toc_up & 0xff000000u)     /* 0 on Fixel's firmware; the drive byte on the clone */
@@ -861,7 +862,8 @@ static int32 load_listing(DirProgress progress, int32 force_scan)
         err = 1;                /* canceled: shown, not cached */
     if (!g_dir.devlist)
         sort_entries();
-    if (err == 0 && g_dir.use_cache && g_probe_ok != 0 && !g_dir.devlist && !g_dir.truncated && g_dir.count > 0) {
+    if (err == 0 && g_dir.use_cache && g_probe_ok != 0 && !g_dir.devlist && !g_dir.truncated && g_dir.count > 0 &&
+        !g_dir_no_write) {
         if (progress)
             progress(0, 2);
         dir_write_cache();

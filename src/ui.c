@@ -1942,7 +1942,9 @@ static void play_now(int32 i)
         strcpy(inner, dir_inner(i));
         if (entry_path(i, fpath, LIST_PATH_MAX) < 0)
             fpath[0] = 0;
+        g_dir_no_write = 1;             /* no card write just before a launch: the folder's index waits */
         open_folder(i);
+        g_dir_no_write = 0;
         if (g_dir.depth != depth + 1)
             return;                     /* it could not be opened (open_folder said so) */
         j = dir_find(inner);
@@ -2815,6 +2817,8 @@ void ui_start(void)
             lists_save(0);
         }
         note_clear();               /* taken: it must not come back after it is removed from RECENT */
+        if (at_root)
+            trace_log(note_path);
     }
     DIAG_STEP(0x7e1c, 0);                       /* pink: folder listed; next is the first menu frame */
     sync_lists();

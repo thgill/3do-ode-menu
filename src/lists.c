@@ -402,3 +402,43 @@ int32 trace_lines(char lines[][40], int32 max)
     return 0;
 #endif
 }
+
+/* LAUNCH_TRACE builds: at the start after a launch, that launch's trace goes into _odemenu.log in the drive root
+ * (newest last, the oldest dropped when it grows), so a tester only has to send one file */
+#define LOG_FILE "_odemenu.log"
+
+int32 trace_log(const char *game)
+{
+#ifdef LAUNCH_TRACE
+    static char lines[TRACE_N][40];
+    static uint8 empty[8 + TRACE_N * 12];
+    int32 n = trace_lines(lines, TRACE_N), k, len;
+    char *e, *cut;
+
+    if (n <= 0)
+        return 0;
+    len = read_file(LOG_FILE, fbuf, FILE_MAX);
+    if (len < 0 || strncmp(fbuf, "ODE LOG\n", 8) != 0) {
+        strcpy(fbuf, "ODE LOG\n");
+        len = 8;
+    }
+    fbuf[len] = 0;
+    e = strstr(fbuf, LIST_END "\n");
+    if (e)
+        len = e - fbuf;                 /* (what a clone returns after it is old data) */
+    while (len > FILE_MAX - 2048 && (cut = strstr(fbuf + 9, "\n== ")) != 0) {
+        memmove(fbuf + 8, cut + 1, len - (cut + 1 - fbuf) + 1);
+        len -= cut + 1 - (fbuf + 8);
+    }
+    len += sprintf(fbuf + len, "== %.200s (MENU %s)\n%s\n", game[0] ? game : "(QUEUE)", MENU_VERSION, g_probe_info);
+    for (k = 0; k < n; k++)
+        len += sprintf(fbuf + len, "%s\n", lines[k]);
+    len += sprintf(fbuf + len, "%s\n", LIST_END);
+    write_file(LOG_FILE, fbuf, len);
+    memcpy(empty, "OTR1", 4);           /* logged: the trace is emptied */
+    return SaveFile("/NVRAM/ODETrace", empty, sizeof(empty), 0);
+#else
+    (void)game;
+    return 0;
+#endif
+}
