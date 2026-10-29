@@ -164,6 +164,10 @@ static int32 write_file(const char *name, const char *buf, int32 len)
     return err;
 }
 
+/* the last line of a list file: a clone was seen to answer reads past the end of a file with old data (an
+ * earlier version of the same list among it), so the end is written into the file itself */
+#define LIST_END "-END-"
+
 static void parse_list(PathList *l, char *buf)
 {
     char *p = buf, *e;
@@ -177,8 +181,8 @@ static void parse_list(PathList *l, char *buf)
     while (*p && l->n < l->max) {
         for (e = p; *e && *e != '\n' && *e != '\r'; e++)
             ;
-        if (strncmp(p, "OM", 2) == 0)
-            break;                      /* the file again (a clone's end of file): the list is complete */
+        if (strncmp(p, "OM", 2) == 0 || (e - p == (int32)strlen(LIST_END) && strncmp(p, LIST_END, e - p) == 0))
+            break;                      /* its end mark, or the file again (a clone's end of file) */
         if (e > p && e - p < LIST_PATH_MAX) {
             memcpy(l->p[l->n], p, e - p);
             l->p[l->n][e - p] = 0;
@@ -246,6 +250,8 @@ static int32 save_list(PathList *l)
         n += strlen(l->p[i]);
         fbuf[n++] = '\n';
     }
+    strcpy(fbuf + n, LIST_END "\n");   /* where the list ends, whatever a read returns after it */
+    n += strlen(LIST_END) + 1;
     return write_file(l->file, fbuf, n);
 }
 
