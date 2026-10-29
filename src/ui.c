@@ -137,6 +137,20 @@ static int32 entry_path(int32 i, char *out, int32 max)
     return 0;
 }
 
+/* the noted game's top folder or file is in the root listing (the card may have been changed since) */
+static int32 note_on_card(const char *path)
+{
+    char top[DIR_NAME_MAX];
+    int32 n = 0;
+
+    while (path[n] && path[n] != '/' && n < DIR_NAME_MAX - 1) {
+        top[n] = path[n];
+        n++;
+    }
+    top[n] = 0;
+    return n > 0 && dir_find(top) >= 0;
+}
+
 static int32 path_is_folder(const char *path)
 {
     int32 n = strlen(path);
@@ -2814,15 +2828,19 @@ void ui_start(void)
     DIAG_STEP(0x5c17, 0);                       /* purple: favorites and settings read */
     load_err = dir_load(load_progress, 0);
     /* the menu always starts in the drive root; the last launch (noted in NVRAM) goes into RECENT */
+    note_path[0] = 0;
     if (load_err >= 0 && !g_dir.both_drives && note_load(&drive, note_path, LIST_PATH_MAX) == 0) {
-        if (drive == g_dir.drive && (g_recent.n == 0 || strcmp(g_recent.p[0], note_path) != 0)) {
+        if (drive == g_dir.drive && (g_recent.n == 0 || strcmp(g_recent.p[0], note_path) != 0) &&
+            (!at_root || note_on_card(note_path))) {
             list_add_front(&g_recent, note_path);
             lists_save(0);
         }
         note_clear();               /* taken: it must not come back after it is removed from RECENT */
-        if (at_root)
-            trace_log(note_path);
     }
+#ifdef LAUNCH_TRACE
+    if (load_err >= 0 && at_root && !g_dir.both_drives)
+        trace_log(note_path);       /* every start is logged, with or without a launch before it */
+#endif
     DIAG_STEP(0x7e1c, 0);                       /* pink: folder listed; next is the first menu frame */
     sync_lists();
     after_load(sel);

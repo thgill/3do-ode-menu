@@ -415,8 +415,8 @@ int32 trace_log(const char *game)
     int32 n = trace_lines(lines, TRACE_N), k, len;
     char *e, *cut;
 
-    if (n <= 0)
-        return 0;
+    if (n < 0)
+        n = 0;
     len = read_file(LOG_FILE, fbuf, FILE_MAX);
     if (len < 0 || strncmp(fbuf, "ODE LOG\n", 8) != 0) {
         strcpy(fbuf, "ODE LOG\n");
@@ -430,13 +430,23 @@ int32 trace_log(const char *game)
         memmove(fbuf + 8, cut + 1, len - (cut + 1 - fbuf) + 1);
         len -= cut + 1 - (fbuf + 8);
     }
-    len += sprintf(fbuf + len, "== %.200s (MENU %s)\n%s\n", game[0] ? game : "(QUEUE)", MENU_VERSION, g_probe_info);
+    if (n == 0 && !game[0])
+        len += sprintf(fbuf + len, "== START, NO LAUNCH BEFORE IT (MENU %s)\n", MENU_VERSION);
+    else
+        len += sprintf(fbuf + len, "== %.200s (MENU %s)\n%s\n", game[0] ? game : "(QUEUE)", MENU_VERSION, g_probe_info);
+    if (n == 0 && game[0])
+        len += sprintf(fbuf + len, "NO TRACE IN NVRAM (NVRAM FULL?)\n");
     for (k = 0; k < n; k++)
         len += sprintf(fbuf + len, "%s\n", lines[k]);
+    /* logged: the trace is emptied. This also makes the NVRAM file now if there was none, so the save just before
+     * a launch only has to overwrite it; if NVRAM is too full for it, the log says so. */
+    memcpy(empty, "OTR1", 4);
+    k = SaveFile(TRACE_FILE, empty, sizeof(empty), 0);
+    if (k < 0)
+        len += sprintf(fbuf + len, "CAN'T SAVE THE TRACE IN NVRAM (FULL?)\n");
     len += sprintf(fbuf + len, "%s\n", LIST_END);
     write_file(LOG_FILE, fbuf, len);
-    memcpy(empty, "OTR1", 4);           /* logged: the trace is emptied */
-    return SaveFile("/NVRAM/ODETrace", empty, sizeof(empty), 0);
+    return k;
 #else
     (void)game;
     return 0;

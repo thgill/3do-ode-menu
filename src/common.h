@@ -42,7 +42,11 @@
 #ifndef MENU_DATE
 #define MENU_DATE       "DEV BUILD"
 #endif
+#ifdef LAUNCH_TRACE
+#define MENU_VERSION    MENU_DATE " TEST"   /* the launch-logging build shows it in About */
+#else
 #define MENU_VERSION    MENU_DATE
+#endif
 
 /* ---- screen (320 x 240, laid out on a 40 x 30 grid of 8-pixel cells, PicoPak-SMS style) ---- */
 #define SCR_W           320
