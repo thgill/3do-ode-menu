@@ -1553,7 +1553,7 @@ static void progress_frame(const char *title, const char *msg, int32 pct, int32 
     }
     if (stop) {
         gfx_button(bx + (bw - 50) / 2, by + 50, 'B', P_HEART);
-        gfx_text(bx + (bw - 50) / 2 + 10, by + 50, "STOP", 0, P_TEXT);
+        gfx_text(bx + (bw - 50) / 2 + 10, by + 50, stop == 2 ? "BACK" : "STOP", 0, P_TEXT);
     }
     gfx_frame_end();
     prog_tick++;
@@ -1721,6 +1721,12 @@ static void launch_screen(const char *what, const char *name)
         progress_frame(what, nm, f * 100 / LAUNCH_WAIT, 0);
         input_poll(0);
     }
+    /* Still here: some games take longer to come up (or the console is still resetting). Send the ODE nothing
+     * until asked: a command now (the way back out of a game folder) could reach the ODE while it starts the
+     * game, which left a game on a black screen. B gives up and goes back to the menu. */
+    input_flush();
+    while (!(input_poll(0) & BTN_B))
+        progress_frame(what, nm, 100, 2);
     input_flush();
     dirty = 1;
 }

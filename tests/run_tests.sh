@@ -72,8 +72,8 @@ printf '20 pad A\n22 pad -\n30 pad A\n32 pad -\n600 end\n' > "$T/flash.txt"
 out=$(run "$T/flash.txt" --start "Games/Sub" --source 4)
 echo "$out" | grep -q "C5 launch: .*Games/Sub/Deep (USA).iso" && ok "unknown boot source: stays in the current folder, no overshoot" || { bad "unknown boot source"; echo "$out" | grep -E "C5|invalid"; }
 
-# a launch that does not boot: the menu must still be in a valid folder afterwards (B, then play another)
-printf '20 pad A\n22 pad -\n30 pad D\n32 pad -\n34 pad D\n36 pad -\n40 pad A\n42 pad -\n50 pad A\n52 pad -\n700 pad D\n702 pad -\n710 pad A\n712 pad -\n720 pad A\n722 pad -\n1400 pad B\n1402 pad -\n1410 pad A\n1412 pad -\n1420 pad D\n1422 pad -\n1424 pad D\n1426 pad -\n1430 pad A\n1432 pad -\n1440 pad A\n1442 pad -\n2200 end\n' > "$T/relaunch.txt"
+# a launch that does not boot: the menu waits for B, and must then still be in a valid folder (B, then play another)
+printf '20 pad A\n22 pad -\n30 pad D\n32 pad -\n34 pad D\n36 pad -\n40 pad A\n42 pad -\n50 pad A\n52 pad -\n620 pad B\n622 pad -\n700 pad D\n702 pad -\n710 pad A\n712 pad -\n720 pad A\n722 pad -\n1330 pad B\n1332 pad -\n1400 pad B\n1402 pad -\n1410 pad A\n1412 pad -\n1420 pad D\n1422 pad -\n1424 pad D\n1426 pad -\n1430 pad A\n1432 pad -\n1440 pad A\n1442 pad -\n2200 end\n' > "$T/relaunch.txt"
 rm -f "$T/sd/_odemenu.cfg" "$T/disc/nvram_ODEMenu"
 out=$(run "$T/relaunch.txt")
 l=$(echo "$out" | grep "C5 launch" | sed 's/.*C5 launch: //')
