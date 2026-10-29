@@ -1,10 +1,13 @@
-Scope: this license covers everything in this repository except:
+Scope: this license covers everything in this repository except the following, which are all rights reserved
+by Todd Gill / Retro Frog and may not be copied, ported or adapted into other projects without his permission
+(see NOTICE.md):
 
-- src/ (the menu itself). It started from a reconstruction of Fixel's menu, whose license is still to be
-  decided, so src/ has no license until that is settled. The third-party code in src/third/ and the font
-  bitmaps in src/uiart.h keep their own licenses (see src/third/README.third and assets_gen/OFL.txt).
-- The 3DO ODE logo and boot banner (assets_src/logo.png, assets_gen/logo.img, assets_gen/BannerScreen),
-  which remain Todd Gill's; all rights reserved.
+- The menu's design: its layout, look and behavior, as shown by the menu and described in the docs.
+- src/ (the menu itself). It also started from a reconstruction of Fixel's menu, whose license is still to be
+  decided. The third-party code in src/third/ keeps its own license (see src/third/README.third), and the font
+  bitmaps in src/uiart.h keep theirs (assets_gen/OFL.txt).
+- The menu's artwork and the tool that draws it: tools/mkui.py, src/uiart.h (icons, badges, buttons), the
+  3DO ODE logo and boot banner (assets_src/, assets_gen/).
 
 It grants no rights to Fixel's software, to the 3DO SDK, or to the cover pictures the tools download (those
 belong to the games' publishers).

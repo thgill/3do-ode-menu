@@ -6,8 +6,8 @@ one and everything else (the ODE driver, Storage Manager, firmware updates) work
 It works with Fixel's ODE and has been tested on one clone. Most clones should work too, but there are too many
 to check them all; if yours has trouble, see [Clones](#clones).
 
-The look is borrowed from my PicoPak SMS menu: tabs across the top, a game list on the left and an info pane with
-the box art on the right.
+Tabs across the top, a game list on the left and an info pane with the box art on the right. The menu's design and
+artwork are mine and not for reuse in other projects; see [NOTICE.md](NOTICE.md).
 
 ## Features
 
@@ -99,7 +99,7 @@ DEVKIT=~/3do-devkit ./build_3do.sh                   # -> build/3do/LaunchMe
 host/build_host.sh && tests/run_tests.sh             # tests on a PC, with a simulated ODE
 ```
 
-`tools/mkui.py` rebuilds the font, icons and menu logo from PicoPak SMS's art and `assets_src/logo.png`, and
+`tools/mkui.py` rebuilds the font, icons and menu logo (it needs the author's art sources), and
 `tools/mkbanner.py` the boot banner (only needed when the art changes).
 [docs/NOTES.md](docs/NOTES.md) has the technical notes: how the folder index works, what was learned on hardware,
 and the fixes to the original tools.
@@ -117,15 +117,16 @@ and the fixes to the original tools.
 
 ## License
 
-The tools, tests and docs are MIT licensed (see [LICENSE](LICENSE)). That includes both Cover Makers, `mkart.py`,
-the asset tools and the PC test harness.
+The tools, tests and docs are MIT licensed (see [LICENSE](LICENSE)): both Cover Makers, `mkart.py`, the PC test
+harness and simulator.
 
-Not covered:
+**All rights reserved, not for reuse in other projects without permission** (see [NOTICE.md](NOTICE.md)):
 
-- `src/`, the menu itself. It started from the reconstruction of Fixel's menu, which doesn't have a license yet,
-  so `src/` has none either for now (Fixel has said he means to open-source the menu).
-- The 3DO ODE logo and boot banner, which stay mine.
-- `boot.iso`, which isn't in this repository: it contains files from Fixel's disc and the 3DO SDK.
+- the menu's design: its layout, look and behavior;
+- `src/`, the menu itself (it also started from the reconstruction of Fixel's menu, which doesn't have a license
+  yet; Fixel has said he means to open-source the menu);
+- the artwork: icons, badges, buttons, the 3DO ODE logo and boot banner, and `tools/mkui.py`, which draws them.
 
-The font (Press Start 2P, SIL Open Font License), tinf (zlib) and picojpeg (public domain) keep their own licenses.
-Cover pictures the tools download belong to the games' publishers.
+`boot.iso` isn't in this repository: it contains files from Fixel's disc and the 3DO SDK. The font (Press Start 2P,
+SIL Open Font License), tinf (zlib) and picojpeg (public domain) keep their own licenses. Cover pictures the tools
+download belong to the games' publishers.
