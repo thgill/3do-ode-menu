@@ -184,6 +184,10 @@ static int32 d1_record(const uint8 *buf, int32 pos, uint32 *flags, uint32 *toc, 
         g_toc_up = *toc;
         up_learned = 1;
     }            /* learnt from every listing: the clone's ".." carries its drive number */
+    else if (!up_learned && (*toc & 0xff000000u) != 0) {
+        g_toc_up = (*toc & 0xff000000u) | 0x00ffffffu;
+        up_learned = 1;
+    }            /* a drive root has no "..": the clone's entry numbers carry the same drive byte */
     if (pos + 12 > ODE_XFER)
         return -1;
     n = get32(buf + pos + 8);
@@ -660,7 +664,7 @@ static int32 read_cache(DirProgress progress)
         goto out;
     have = got - 16;
     if (have > body)
-        goto out;
+        have = body;                    /* (a clone answers a read past the end with old data: the header's size counts) */
     memcpy(buf, iobuf + 16, have);
     while (have < body) {
         if (ode_file_read(iobuf, ODE_XFER, &got) < 0 || got == 0)
@@ -848,7 +852,18 @@ static int32 load_listing(DirProgress progress, int32 force_scan)
         if (read_cache(progress) == 0) {
             if (progress)
                 progress(0, 1);
-            if (cache_matches()) {
+            if (g_probe_ok == -1) {
+                /* first listing of this session: measure the D1 answers on the saved first entry, so a clone that
+                 * answers one entry late can still use its index; if that fails the folder is read as usual and
+                 * measured on the fresh listing */
+                probe_calibrate();
+                if (g_probe_ok != 1) {
+                    g_probe_ok = -1;
+                    d1_off = 0;
+                    probe_count = 1;
+                }
+            }
+            if (g_probe_ok == 1 && cache_matches()) {
                 g_dir.devlist = 0;
                 g_dir.from_cache = 1;
                 probe_calibrate();      /* (the index's checks just passed, so this will too: it is for DEVICE INFO) */
