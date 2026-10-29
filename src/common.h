@@ -1,4 +1,4 @@
-/* common.h - shared declarations for the revised FZ-1 ODE menu (LaunchMe).
+/* common.h - shared declarations for the 3DO ODE menu (LaunchMe).
  *
  * Builds two ways:
  *   - for the 3DO with the 3do-devkit (ARM SDT 2.51 + Portfolio 2.5 libraries)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""mkart.py -- make the info pane's pictures for the FZ-1 ODE menu.
+"""mkart.py -- make the info pane's pictures for the 3DO ODE menu.
 
   mkart.py --card <SD card>     the whole card at once, as the console's card scan would (seconds instead of
                                 minutes: the console writes the card slowly). For every game in its own folder

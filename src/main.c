@@ -11,7 +11,7 @@ extern void kprintf(const char *fmt, ...);
 /* AppStartup runs $boot/LaunchMe, and the system then starts $boot/LaunchMe again after the script, so two copies
  * of the menu can end up running side by side, each drawing its own screens and talking to the ODE. Only one may
  * stay: each copy registers a named message port, and every copy but the oldest leaves. */
-#define INSTANCE_PORT "FZ1ODEMenu"
+#define INSTANCE_PORT "3DOODEMenu"
 
 static int32 another_copy_runs(void)
 {

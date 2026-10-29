@@ -1,6 +1,6 @@
-# FZ-1 ODE Menu
+# 3DO ODE Menu
 
-A new menu for Fixel's 3DO FZ-1 ODE. It's a replacement `boot.iso`: copy it to your card in place of the stock
+A new menu for 3DO optical drive emulators: Fixel's FZ-1 ODE and most clones. It's a replacement `boot.iso`: copy it to your card in place of the stock
 one and everything else (the ODE driver, Storage Manager, firmware updates) works as before.
 
 It works with Fixel's ODE and has been tested on one clone. Most clones should work too, but there are too many
@@ -99,7 +99,8 @@ DEVKIT=~/3do-devkit ./build_3do.sh                   # -> build/3do/LaunchMe
 host/build_host.sh && tests/run_tests.sh             # tests on a PC, with a simulated ODE
 ```
 
-`tools/mkui.py` rebuilds the font, icons and logo from PicoPak SMS's art (only needed when the art changes).
+`tools/mkui.py` rebuilds the font, icons and menu logo from PicoPak SMS's art and `assets_src/logo.png`, and
+`tools/mkbanner.py` the boot banner (only needed when the art changes).
 [docs/NOTES.md](docs/NOTES.md) has the technical notes: how the folder index works, what was learned on hardware,
 and the fixes to the original tools.
 

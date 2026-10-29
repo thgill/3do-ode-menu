@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""covermaker.py -- the FZ-1 ODE Cover Maker, for any computer with Python (no browser needed).
+"""covermaker.py -- the 3DO ODE Cover Maker, for any computer with Python (no browser needed).
 
 Does what the Cover Maker web page (covermaker.html) does, for people whose browser can't run it (Firefox, Safari):
 
   python3 covermaker.py                      asks for the card, shows the plan, asks before writing anything
-  python3 covermaker.py /Volumes/FZ1         the same, for that card (or a folder on it)
+  python3 covermaker.py /Volumes/ODE         the same, for that card (or a folder on it)
   python3 covermaker.py E:\\ --yes            no questions: make everything
 
 For every game on the card, as the menu sees it, that has no cover yet:
@@ -24,7 +24,7 @@ Games with no picture are listed at the end; --fix goes through them one by one:
 under another name, give a picture file from your computer, or open an image search in your web browser.
 
 Options: --redo (remake covers that exist), --dry-run (show the plan, write nothing), --fix, --yes.
-Needs Python 3.8+ and Pillow (pip install pillow). Downloads are cached (~/.cache/fz1-covermaker).
+Needs Python 3.8+ and Pillow (pip install pillow). Downloads are cached (~/.cache/3do-ode-covermaker).
 
 The pictures belong to the games' publishers; libretro's collection states no license. Fine for your own card;
 please don't share them.
@@ -48,9 +48,9 @@ except ImportError:
              '    python3 -m pip install pillow\n\n(on Windows: py -m pip install pillow) and run this again.')
 
 REPO = 'libretro-thumbnails/The_3DO_Company_-_3DO'
-TREE = os.environ.get('FZ1_TREE_URL', 'https://api.github.com/repos/' + REPO + '/git/trees/master?recursive=1')
-RAW = os.environ.get('FZ1_RAW_URL', 'https://raw.githubusercontent.com/' + REPO + '/master/')
-AGENT = 'fz1-ode-covermaker/1.0'
+TREE = os.environ.get('ODE_TREE_URL', 'https://api.github.com/repos/' + REPO + '/git/trees/master?recursive=1')
+RAW = os.environ.get('ODE_RAW_URL', 'https://raw.githubusercontent.com/' + REPO + '/master/')
+AGENT = '3do-ode-covermaker/1.0'
 KINDS = ('Named_Boxarts', 'Named_Snaps', 'Named_Titles')
 KIND_ARG = {'box': 'Named_Boxarts', 'screenshot': 'Named_Snaps', 'title': 'Named_Titles', 'none': None}
 KIND_LABEL = {'Named_Boxarts': 'box art', 'Named_Snaps': 'screenshot', 'Named_Titles': 'title screen'}
@@ -321,7 +321,7 @@ def walk(folder, is_root, rel, jobs, idx):
 # ------------------------------------------------------------------ libretro's pictures
 
 def cache_dir():
-    d = os.path.join(os.path.expanduser('~'), '.cache', 'fz1-covermaker')
+    d = os.path.join(os.path.expanduser('~'), '.cache', '3do-ode-covermaker')
     os.makedirs(d, exist_ok=True)
     return d
 
@@ -340,7 +340,7 @@ def fetch(url, timeout=30):
 
 def load_server():
     path = os.path.join(cache_dir(), 'tree.json')
-    if os.path.exists(path) and time.time() - os.path.getmtime(path) < 86400 and 'FZ1_TREE_URL' not in os.environ:
+    if os.path.exists(path) and time.time() - os.path.getmtime(path) < 86400 and 'ODE_TREE_URL' not in os.environ:
         tree = json.load(open(path, encoding='utf-8'))
     else:
         try:
@@ -581,7 +581,7 @@ def main():
 
     card = a.card
     if not card:
-        print('FZ-1 ODE Cover Maker\n')
+        print('3DO ODE Cover Maker\n')
         card = input('Drag the SD card (or its folder) onto this window, or type its path, then press Enter:\n> ')
         card = card.strip().strip('"').strip("'").replace('\\ ', ' ')
     card = os.path.expanduser(card)

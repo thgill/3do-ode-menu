@@ -88,7 +88,7 @@ costs about 0.08 s to look for; writing the card costs about 2.3 ms per 4 bytes,
 **Making the `.img` files**, from a `.jpg` or `.png` named after the game file (`Doom/doom_1994.jpg` beside
 `doom_1994.cue`, or `_art/Doom (USA).png`) or, in a game folder, after the folder (`Doom/Doom.jpg`):
 
-- **Downloaded, no install:** open `tools/covermaker.html` (the FZ-1 ODE Cover Maker) in Chrome or Edge on a PC,
+- **Downloaded, no install:** open `tools/covermaker.html` (the 3DO ODE Cover Maker) in Chrome or Edge on a PC,
   choose the SD card, check the plan and press MAKE COVERS. It does what `covermaker.py` does below, inside the
   browser, using libretro's GitHub copy of the thumbnails. If the browser won't let you choose the whole card,
   choose the folder holding your games instead. Firefox, Safari and phones can't write to a folder, so they can't run it; Brave can once `brave://flags/#file-system-access-api` is turned on.

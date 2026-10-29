@@ -2464,7 +2464,7 @@ static void about(void)
 {
     Dialog d;
 
-    dialog_init(&d, "FZ-1 ODE MENU " MENU_VERSION);
+    dialog_init(&d, "3DO ODE MENU " MENU_VERSION);
     strcpy(d.lines[0], "MENU: TODD GILL / RETRO FROG");
     strcpy(d.lines[1], "FZ-1 ODE HARDWARE: FIXEL");
     strcpy(d.lines[2], "FONT: PRESS START 2P (C) 2011");
