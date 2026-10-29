@@ -117,6 +117,15 @@ and the fixes to the original tools.
 
 ## License
 
-The menu started from the reconstruction of Fixel's menu, which doesn't have a license yet, so `src/` has none
-either for now (Fixel has said he means to open-source the menu). This repository doesn't include `boot.iso`,
-which contains files from Fixel's disc and the 3DO SDK. The font, tinf and picojpeg keep their own licenses.
+The tools, tests and docs are MIT licensed (see [LICENSE](LICENSE)). That includes both Cover Makers, `mkart.py`,
+the asset tools and the PC test harness.
+
+Not covered:
+
+- `src/`, the menu itself. It started from the reconstruction of Fixel's menu, which doesn't have a license yet,
+  so `src/` has none either for now (Fixel has said he means to open-source the menu).
+- The 3DO ODE logo and boot banner, which stay mine.
+- `boot.iso`, which isn't in this repository: it contains files from Fixel's disc and the 3DO SDK.
+
+The font (Press Start 2P, SIL Open Font License), tinf (zlib) and picojpeg (public domain) keep their own licenses.
+Cover pictures the tools download belong to the games' publishers.
