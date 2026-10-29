@@ -177,6 +177,11 @@ The hidden extras (both Konami codes, the eject-count picture, and the XPort RAM
   before acting on it, which the stock menu never does. The menu now tries that once at startup (counts 1, 2 and
   14) and, if no answer matches the listing, works without it: no folder index, entries trusted from a fresh
   read of the folder. TOOLS > DEVICE INFO shows the result on its last line.
+  The same tester's clone (seen with ODE TEST) puts a drive number in the top byte of every entry id
+  (`0x01000005` for entry 5, `0x01ffffff` for `..`) and ignores the "up" id `0xffffffff` that Fixel's firmware
+  uses. The menu now takes the "up" id from the folder's own `..` entry, treats any id ending in `ffffff` as `..`,
+  asks D1 for the entry's position (the id's low bits), and stores only the entry number in the folder index,
+  putting the drive byte back when it reads it. The simulator's `FWSIM_CLONE=4` behaves like that clone.
   TOOLS > ODE TEST shows the raw answers to the commands the menu relies on (into a folder and back up, into a
   game folder, a queue entry that is cleared again, single-entry listings), for a photo when a clone misbehaves.
 - **Writing the card is slow**: the firmware takes data from the 3DO only 4 bytes per command (E6), about

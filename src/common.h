@@ -77,6 +77,10 @@ Item   run_fscheck(void);
 /* ---- ODE commands (odecmd.c) ---- */
 #define ODE_XFER        0x800
 #define TOC_UP          0xffffffff
+/* a ".." entry: Fixel's firmware lists it as 0xffffffff; a clone was seen to put a drive number in the top byte
+ * of every id (0x01000005 for entry 5, 0x01ffffff for ".."), and to ignore C0 0xffffffff */
+#define TOC_IS_UP(t)    (((t) & 0x00ffffffu) == 0x00ffffffu)
+extern uint32 g_toc_up;  /* the id that takes the firmware up a folder, as its own ".." entry gives it */
 #define TF_FILE         0x01
 #define TF_DIR          0x02
 #define TF_NVM          0x08
@@ -109,7 +113,7 @@ typedef struct DirEntry {
     uint32 toc_id;
     uint32 name_off;
     uint32 inner_off;   /* a game folder: its game file's name, in the pool */
-    uint16 inner_toc;   /* and that file's entry number inside the folder */
+    uint32 inner_toc;   /* and that file's entry id inside the folder */
     uint8  flags;
     uint8  name_len;
     uint8  queued;      /* 0, or 1..5 = position in the play queue */

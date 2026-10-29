@@ -1668,10 +1668,10 @@ static void sync_lists(void)
     if (g_dir.devlist || g_dir.drive == lists_drive)
         return;
     if (pending && lists_drive > 0 && g_dir.depth == 0) {
-        ode_c0_change_dir(TOC_UP);
+        ode_c0_change_dir(g_toc_up);
         ode_c0_change_dir(lists_drive);
         lists_save(1);
-        ode_c0_change_dir(TOC_UP);
+        ode_c0_change_dir(g_toc_up);
         ode_c0_change_dir(g_dir.drive);
     }
     keep = g_set;

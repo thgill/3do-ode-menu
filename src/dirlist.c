@@ -21,6 +21,10 @@
 #define GF_MAX_SEEN  32             /* a folder with more entries than this is never a game folder */
 
 DirState g_dir;
+uint32   g_toc_up = TOC_UP;
+static int32 up_learned;            /* g_toc_up has been seen in a listing */
+#define TOC_PREFIX  (g_toc_up == TOC_UP ? 0u : g_toc_up & 0xff000000u)     /* 0 on Fixel's firmware; the drive byte on the clone */
+static void learn_up(void);
 char     g_dir_err[96];            /* what went wrong last, for the error message */
 static uint8 d1buf[ODE_XFER];
 static uint8 iobuf[ODE_XFER];
@@ -131,11 +135,11 @@ static int32 add_entry(uint32 flags, uint32 toc, const char *name, int32 len)
 /* a game folder's game file name, kept in the pool after the entries' names */
 static int32 set_inner(DirEntry *e, const char *name, int32 len, uint32 toc)
 {
-    if (len < 1 || len > DIR_NAME_MAX - 1 || toc > 0xffff || g_dir.pool_used + len + 1 > g_dir.pool_bytes)
+    if (len < 1 || len > DIR_NAME_MAX - 1 || g_dir.pool_used + len + 1 > g_dir.pool_bytes)
         return -1;
     e->inner_off = g_dir.pool_used;
     e->inner_len = (uint8)len;
-    e->inner_toc = (uint16)toc;
+    e->inner_toc = toc;
     memcpy(g_dir.pool + g_dir.pool_used, name, len);
     g_dir.pool[g_dir.pool_used + len] = 0;
     g_dir.pool_used += len + 1;
@@ -175,6 +179,10 @@ static int32 d1_record(const uint8 *buf, int32 pos, uint32 *flags, uint32 *toc, 
     *toc = get32(buf + pos + 4);
     if (*flags == 0xffffffff)
         return 0;
+    if (TOC_IS_UP(*toc)) {
+        g_toc_up = *toc;
+        up_learned = 1;
+    }            /* learnt from every listing: the clone's ".." carries its drive number */
     if (pos + 12 > ODE_XFER)
         return -1;
     n = get32(buf + pos + 8);
@@ -202,7 +210,7 @@ static int32 probe_n(uint32 idx, int32 count, uint32 *flags, uint32 *toc, char *
     const char *nm;
     int32 len, r;
 
-    r = ode_d1_list(idx, count, d1buf);
+    r = ode_d1_list(idx & 0x00ffffff, count, d1buf);    /* the listing position (a clone's ids carry a drive) */
     if (r < 0)
         return r;
     r = d1_record(d1buf, 0, flags, toc, &nm, &len);
@@ -330,9 +338,9 @@ static int32 scan(DirProgress progress)
                 goto done;
             if (sz < 0)
                 break;
-            if (idx == 0 && got == 0 && name[0] == '/' && toc != TOC_UP)
+            if (idx == 0 && got == 0 && name[0] == '/' && !TOC_IS_UP(toc))
                 g_dir.devlist = 1;
-            if (toc != TOC_UP && add_entry(flags, toc, name, len) < 0)
+            if (!TOC_IS_UP(toc) && add_entry(flags, toc, name, len) < 0)
                 goto done;
             pos += sz;
             got++;
@@ -387,7 +395,7 @@ static int32 detect_folder(int32 i)
                 break;
             pos += sz;
             got++;
-            if (toc == TOC_UP)
+            if (TOC_IS_UP(toc))
                 continue;
             seen++;
             if ((flags & TF_DIR) || seen > GF_MAX_SEEN) {
@@ -410,7 +418,7 @@ static int32 detect_folder(int32 i)
             break;
         idx += got;
     }
-    ode_c0_change_dir(TOC_UP);
+    ode_c0_change_dir(g_toc_up);
     if (done && !plain && games == 1 && set_inner(e, gname, glen, gtoc) == 0)
         e->gtype = GT_GAME;
     return 0;
@@ -479,7 +487,7 @@ int32 dir_game_enter(int32 i, uint32 *toc)
         *toc = e->inner_toc;
         return 0;
     }
-    ode_c0_change_dir(TOC_UP);
+    ode_c0_change_dir(g_toc_up);
     detect_folder(i);
     if (e->gtype != GT_GAME)
         return -2;
@@ -491,7 +499,7 @@ int32 dir_game_enter(int32 i, uint32 *toc)
 
 void dir_game_leave(void)
 {
-    ode_c0_change_dir(TOC_UP);
+    ode_c0_change_dir(g_toc_up);
 }
 
 /* ------------------------------------------------------------------ index file */
@@ -504,7 +512,7 @@ static int32 serialize(int32 i, uint8 *out)
 
     out[0] = e->flags;
     out[1] = e->name_len;
-    out[2] = (uint8)(e->toc_id >> 8);
+    out[2] = (uint8)(e->toc_id >> 8);     /* the entry number; a clone's drive byte is put back on reading */
     out[3] = (uint8)e->toc_id;
     out[4] = e->gtype;
     out[5] = (uint8)il;
@@ -525,7 +533,9 @@ int32 dir_write_cache(void)
         return -1;
     total = g_dir.count + g_dir.hidden;         /* the index keeps every entry, shown or not */
     for (i = 0; i < total; i++) {
-        if (g_dir.ent[i].toc_id > 0xffff)
+        if ((g_dir.ent[i].toc_id & 0x00ffffff) > 0xffff || (g_dir.ent[i].toc_id & 0xff000000) != TOC_PREFIX ||
+            (g_dir.ent[i].gtype == GT_GAME && ((g_dir.ent[i].inner_toc & 0x00ffffff) > 0xffff ||
+                                               (g_dir.ent[i].inner_toc & 0xff000000) != TOC_PREFIX)))
             return -1;
         n = serialize(i, rec);
         crc = crc32_update(crc, rec, n);
@@ -606,12 +616,12 @@ static int32 read_cache(DirProgress progress)
         ilen = buf[pos + 5];
         if (pos + REC_HEAD + len + ilen > (int32)body || len == 0)
             goto out;
-        if (add_entry(buf[pos], ((uint32)buf[pos + 2] << 8) | buf[pos + 3], (const char *)buf + pos + REC_HEAD, len) < 0)
+        if (add_entry(buf[pos], TOC_PREFIX | ((uint32)buf[pos + 2] << 8) | buf[pos + 3], (const char *)buf + pos + REC_HEAD, len) < 0)
             goto out;
         e = &g_dir.ent[g_dir.count - 1];
         e->gtype = buf[pos + 4] & 0x0f;   /* (one build kept a "no picture" mark in bit 5: ignored) */
         if (e->gtype == GT_GAME && set_inner(e, (const char *)buf + pos + REC_HEAD + len, ilen,
-                                             ((uint32)buf[pos + 6] << 8) | buf[pos + 7]) < 0)
+                                             TOC_PREFIX | ((uint32)buf[pos + 6] << 8) | buf[pos + 7]) < 0)
             e->gtype = GT_UNKNOWN;
         pos += REC_HEAD + len + ilen;
     }
@@ -659,17 +669,17 @@ static int32 cache_matches(void)
     int32 i;
 
     for (i = 0; i < g_dir.count; i++)
-        if (g_dir.ent[i].toc_id < 1 || g_dir.ent[i].toc_id > n)
+        if (g_dir.ent[i].toc_id < (TOC_PREFIX | 1) || g_dir.ent[i].toc_id > (TOC_PREFIX | n))
             return 0;               /* ids must be exactly 1..n */
     if (n == 0)
         return probe(1, &flags, name) == 0;
-    if (!check_one(n))
+    if (!check_one(TOC_PREFIX | n))
         return 0;
-    if (probe(n + 1, &flags, name) != 0)
+    if (probe(TOC_PREFIX | (n + 1), &flags, name) != 0)
         return 0;
-    if (n > 1 && !check_one(1))
+    if (n > 1 && !check_one(TOC_PREFIX | 1))
         return 0;
-    if (n > 2 && !check_one(n / 2 + 1))
+    if (n > 2 && !check_one(TOC_PREFIX | (n / 2 + 1)))
         return 0;
     return 1;
 }
@@ -764,6 +774,8 @@ static int32 load_listing(DirProgress progress, int32 force_scan)
     int32 at_devlist = g_dir.both_drives && g_dir.drive == 0;
 
     if (!force_scan && g_dir.use_cache && g_probe_ok != 0 && !at_devlist) {
+        if (!up_learned)
+            learn_up();                 /* the drive byte the index's entry numbers need (a clone) */
         if (progress)
             progress(0, 3);
         if (read_cache(progress) == 0) {
@@ -867,12 +879,12 @@ int32 dir_back(DirProgress progress, char *came_from)
     if (g_dir.depth == 0) {
         if (!g_dir.both_drives)
             return 2;
-        ode_c0_change_dir(TOC_UP);
+        ode_c0_change_dir(g_toc_up);
         strcpy(came_from, g_dir.drive == 2 ? "/usb" : "/sd");
         g_dir.drive = 0;
         return dir_load(progress, 0);
     }
-    ode_c0_change_dir(TOC_UP);
+    ode_c0_change_dir(g_toc_up);
     g_dir.depth--;
     strcpy(came_from, g_dir.path[g_dir.depth]);
     return dir_load(progress, 0);
@@ -892,6 +904,17 @@ static int32 at_boot_root(void)
  * 2; the firmware swaps the two after a double click, and with a single drive either one means this drive), so
  * that drive's root holds boot.iso. It then goes up one level at a time until boot.iso opens. Without that
  * knowledge it stays where it is, as the stock menu did. */
+/* this folder's ".." id, from the first entry of its listing (see TOC_IS_UP) */
+static void learn_up(void)
+{
+    uint32 flags, toc;
+    const char *nm;
+    int32 len;
+
+    if (ode_d1_list(0, 1, d1buf) >= 0)
+        d1_record(d1buf, 0, &flags, &toc, &nm, &len);
+}
+
 int32 dir_go_root(void)
 {
     int32 i;
@@ -906,7 +929,8 @@ int32 dir_go_root(void)
     if (((ode_ext_b1() >> 4) & 3) == 0)
         return -1;
     for (i = 0; i < DIR_MAX_DEPTH; i++) {
-        ode_c0_change_dir(TOC_UP);
+        learn_up();
+        ode_c0_change_dir(g_toc_up);
         if (at_boot_root())
             return 0;
     }
@@ -942,7 +966,7 @@ int32 dir_root_begin(void)
     if (g_dir.devlist)
         return -1;
     for (i = 0; i < g_dir.depth; i++)
-        ode_c0_change_dir(TOC_UP);
+        ode_c0_change_dir(g_toc_up);
     return 0;
 }
 
@@ -954,7 +978,7 @@ void dir_root_end(void)
 static void go_up(int32 levels)
 {
     while (levels-- > 0 && g_dir.depth > 0) {
-        ode_c0_change_dir(TOC_UP);
+        ode_c0_change_dir(g_toc_up);
         g_dir.depth--;
     }
 }
@@ -976,7 +1000,7 @@ int32 dir_to_devlist(DirProgress progress)
     if (g_dir.devlist)
         return 0;
     go_up(g_dir.depth);
-    ode_c0_change_dir(TOC_UP);
+    ode_c0_change_dir(g_toc_up);
     g_dir.drive = 0;
     return dir_load(progress, 0);
 }
@@ -1122,7 +1146,7 @@ int32 dir_resume(DirProgress progress, char *selected)
             ode_c0_change_dir(drive);
             if (read_resume(resume_lines, &n) == 0)
                 break;
-            ode_c0_change_dir(TOC_UP);
+            ode_c0_change_dir(g_toc_up);
             n = 0;
         }
         if (n == 0) {
@@ -1184,7 +1208,7 @@ static void t_list(char *out, int32 *cnt, uint32 *ftoc, char *fname)
         sz = d1_record(d1buf, pos, &flags, &toc, &nm, &len);
         if (sz <= 0)
             break;
-        if (!got1 && toc != TOC_UP) {
+        if (!got1 && !TOC_IS_UP(toc)) {
             got1 = 1;
             *ftoc = toc;
             if (len > 8) len = 8;
@@ -1236,7 +1260,7 @@ int32 dir_ode_test(char lines[][40], int32 max)
         t_list(lb, &c1, &t1, n1);
         sprintf(l, "C0 #%u %.8s: %d", (unsigned)g_dir.ent[f].toc_id, dir_name(f), (int)r); t_line(lines, &k, max, l);
         sprintf(l, " IN: %s", lb); t_line(lines, &k, max, l);
-        r = ode_c0_change_dir(TOC_UP);
+        r = ode_c0_change_dir(g_toc_up);
         t_list(lb, &c2, &t2, n2);
         sprintf(l, "UP %d: %s %s", (int)r, (c2 == c0 && t2 == t0 && strcmp(n2, n0) == 0) ? "SAME" : "DIFF", lb); t_line(lines, &k, max, l);
     } else {
@@ -1256,7 +1280,7 @@ int32 dir_ode_test(char lines[][40], int32 max)
         r = ode_cmd(cmd, reply, 4);
         ode_c3_queue_clear();
         sprintf(l, "C4 #%u: %d  %02X %02X %02X %02X", (unsigned)toc, (int)r, reply[0], reply[1], reply[2], reply[3]); t_line(lines, &k, max, l);
-        r = ode_c0_change_dir(TOC_UP);
+        r = ode_c0_change_dir(g_toc_up);
         t_list(lb, &c2, &t2, n2);
         sprintf(l, "UP %d: %s %s", (int)r, (c2 == c0 && t2 == t0 && strcmp(n2, n0) == 0) ? "SAME" : "DIFF", lb); t_line(lines, &k, max, l);
     } else {

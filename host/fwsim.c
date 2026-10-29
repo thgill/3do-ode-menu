@@ -158,6 +158,13 @@ void fwsim_start_in(const char *rel)
     toc_dir = 1;
 }
 
+/* FWSIM_CLONE=4: a clone seen on hardware: ids carry the drive in the top byte, ".." is 0x01ffffff, and C0
+ * ignores ids without it (0xffffffff included) */
+static int32 clone4(void)
+{
+    return getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) == 4;
+}
+
 static void change_dir(uint32 id)
 {
     char name[256];
@@ -218,6 +225,8 @@ static void d1(const uint8 *cmd, uint8 *data)
         if (read_dir(idx, &te) <= 0)
             break;
         tocbuf[pos] = te.flags >> 24; tocbuf[pos + 1] = te.flags >> 16; tocbuf[pos + 2] = te.flags >> 8; tocbuf[pos + 3] = te.flags;
+        if (clone4())
+            te.toc = te.toc == 0xffffffff ? 0x01ffffff : (0x01000000 | te.toc);
         tocbuf[pos + 4] = te.toc >> 24; tocbuf[pos + 5] = te.toc >> 16; tocbuf[pos + 6] = te.toc >> 8; tocbuf[pos + 7] = te.toc;
         if (te.flags == 0xffffffff)
             break;
@@ -254,13 +263,28 @@ int32 host_fw_cmd(const uint8 *cmd, uint8 *reply, int32 n, uint8 *data, int32 le
         break;
     case 0xc0:
         v = ((uint32)cmd[1] << 24) | (cmd[2] << 16) | (cmd[3] << 8) | cmd[4];
+        if (clone4()) {             /* only its own ids: 0x01000000 + entry, 0x01ffffff for ".." */
+            if (v == 0x01ffffff)
+                v = 0xffffffff;
+            else if ((v >> 24) == 1)
+                v &= 0x00ffffff;
+            else
+                break;
+        }
         change_dir(v);
+        if (getenv("FWSIM_TRACE"))
+            host_log("C0 %08x -> %s\n", (unsigned)v, cur);
         break;
     case 0xc3:
         qn = 0;
         break;
     case 0xc4:
         v = ((uint32)cmd[1] << 24) | (cmd[2] << 16) | (cmd[3] << 8) | cmd[4];
+        if (clone4()) {
+            if ((v >> 24) != 1)
+                break;
+            v &= 0x00ffffff;
+        }
         if (read_dir(v, &te) > 0 && te.flags != 0xffffffff) {
             reply[1] = 1;
             if (!(te.flags & 2) && qn < 5) {
