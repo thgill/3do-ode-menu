@@ -77,7 +77,7 @@ echo "$out" | grep -q "C5 launch: .*Games/Sub/Deep (USA).iso" && ok "unknown boo
 fi
 
 # a launch that does not boot: the menu waits for B, and must then still be in a valid folder (B, then play another)
-printf '20 pad A\n22 pad -\n30 pad D\n32 pad -\n34 pad D\n36 pad -\n40 pad A\n42 pad -\n50 pad A\n52 pad -\n620 pad B\n622 pad -\n700 pad D\n702 pad -\n710 pad A\n712 pad -\n720 pad A\n722 pad -\n1330 pad B\n1332 pad -\n1400 pad B\n1402 pad -\n1410 pad A\n1412 pad -\n1420 pad D\n1422 pad -\n1424 pad D\n1426 pad -\n1430 pad A\n1432 pad -\n1440 pad A\n1442 pad -\n2200 end\n' > "$T/relaunch.txt"
+printf '20 pad A\n22 pad -\n30 pad D\n32 pad -\n34 pad D\n36 pad -\n40 pad A\n42 pad -\n50 pad A\n52 pad -\n820 pad B\n822 pad -\n900 pad D\n902 pad -\n910 pad A\n912 pad -\n920 pad A\n922 pad -\n1730 pad B\n1732 pad -\n1800 pad B\n1802 pad -\n1810 pad A\n1812 pad -\n1820 pad D\n1822 pad -\n1824 pad D\n1826 pad -\n1830 pad A\n1832 pad -\n1840 pad A\n1842 pad -\n3000 end\n' > "$T/relaunch.txt"
 rm -f "$T/sd/_odemenu.cfg" "$T/disc/nvram_ODEMenu"
 out=$(run "$T/relaunch.txt")
 l=$(echo "$out" | grep "C5 launch" | sed 's/.*C5 launch: //')

@@ -1783,6 +1783,23 @@ static void launch_screen(const char *what, const char *name)
 #define SETTLE_IO    90
 #define SETTLE_WRITE 180
 
+/* The stock menu starts a game from the page it has listed, and a person takes a moment to press the button: so
+ * between the last listing and C3/C4/C5 the menu waits PICK_PAUSE fields with no ODE command (a clone started a
+ * game less reliably when C3 followed the listing at once). */
+#define PICK_PAUSE 60
+
+static void pick_pause(const char *what, const char *name)
+{
+    char nm[DIR_NAME_MAX];
+
+    strncpy(nm, name, sizeof(nm) - 1);
+    nm[sizeof(nm) - 1] = 0;
+    while ((int32)(gfx_vbl_count() - g_ode_io_vbl) < PICK_PAUSE) {
+        progress_frame(what, nm, -1, 0);
+        input_poll(0);
+    }
+}
+
 static const char *launch_note;      /* set while a game folder's game is started from inside it: RECENT keeps the folder */
 
 static void before_launch(const char *what, const char *name, int32 entry)
@@ -2016,6 +2033,7 @@ static void play_now(int32 i)
 #endif
     if (!launch_direct)
         dir_list_entry(toc);            /* (a game folder's start has just listed the folder) */
+    pick_pause("STARTING GAME", tmp2);
     ode_c3_queue_clear();
     q_count = 0;
     r = ode_c4_queue_add(toc);
