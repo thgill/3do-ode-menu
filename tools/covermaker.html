@@ -340,10 +340,15 @@ function indexNames(buf) {
 async function exists(dir, name) {
   try { await dir.getFileHandle(name); return true; } catch (e) { return false; }
 }
+/* a file with something in it: a clone ODE (SataTo3DO-based) makes an empty file whenever the menu looks for one,
+   so an empty cover or picture counts as none */
+async function hasData(dir, name) {
+  try { return (await (await dir.getFileHandle(name)).getFile()).size > 0; } catch (e) { return false; }
+}
 async function findPic(dir, files, bases) {
   for (const b of bases) for (const e of [".jpg", ".png", ".jpeg"]) {
     const f = files.get((b + e).toLowerCase());
-    if (f) return { dir, name: f };
+    if (f && await hasData(dir, f)) return { dir, name: f };
   }
   return null;
 }
@@ -367,7 +372,7 @@ async function walk(dir, isRoot, path, out, idx) {
   if (game) {
     const g = stem(game.name);
     mine.push({ game: g, folder, label: path || folder, dir, art: null, dst: "_cover.img",
-                have: await exists(dir, "_cover.img"), own: await findPic(dir, files, [g, folder]) });
+                have: await hasData(dir, "_cover.img"), own: await findPic(dir, files, [g, folder]) });
   } else {
     const games = listed.filter(e => !e.isDir && !(e.flags & 0x18) && isGameBytes(e.bytes) &&
                                      !(isRoot && e.name.toLowerCase() === "boot.iso")).map(e => e.name).sort();
@@ -379,7 +384,7 @@ async function walk(dir, isRoot, path, out, idx) {
     for (const f of games) {
       const g = stem(f);
       mine.push({ game: g, folder: null, label: (path ? path + "/" : "") + g, dir, art: true, dst: g + ".img",
-                  have: artFiles.has((g + ".img").toLowerCase()), own: art ? await findPic(art, artFiles, [g]) : null });
+                  have: artFiles.has((g + ".img").toLowerCase()) && await hasData(art, artFiles.get((g + ".img").toLowerCase())), own: art ? await findPic(art, artFiles, [g]) : null });
     }
   }
   out.splice(at, 0, ...mine);

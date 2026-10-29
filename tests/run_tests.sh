@@ -125,6 +125,8 @@ for k in sys.argv[1].split():
     out.append('%d pad %s'%(f,k)); out.append('%d pad -'%(f+2)); f+=$2
 out.append('%d end'%(f+$3))
 print('\n'.join(out))" "$1"; }
+# clone modes (FWSIM_CLONE 4-7): the card scan indexes folders but looks for no pictures (it would leave empty files)
+case "${FWSIM_CLONE:-0}" in 4|5|6|7) CLONE=1 ;; *) CLONE= ;; esac
 SCAN="r r r D A D A w w w w w w w w w w w w w w w w w w w w A l l l"     # TOOLS > SCAN CARD > YES, wait, close, back
 rm -f "$T/sd/Games/_art/"*
 python3 -c "from PIL import Image; Image.new('RGB',(320,240),(255,0,0)).save('$T/sd/Games/_art/Game 2 (USA).png')"
@@ -138,6 +140,10 @@ art_try() {   # $1 file to write (made by PIL), $2 PIL command, $3 test on r,g,b
     rm -f "$T/disc/nvram_ODEMenu"
     keys "$SCAN w A w D D D w w w w sartx" 30 30 > "$T/artx.txt"
     out=$(run "$T/artx.txt")
+    if [ -n "$CLONE" ]; then
+        [ ! -s "$T/sd/Games/_art/Game 2 (USA).img" ] && ! echo "$out" | grep -q "E1 open _art/Game 2 (USA).png" && ok "$4 (clone: not looked for)" || { bad "$4"; echo "$out" | grep "E1 open _art"; }
+        return
+    fi
     pane_rgb "$T/artx.ppm" "$3" && head -c 4 "$T/sd/Games/_art/Game 2 (USA).img" 2>/dev/null | grep -q OAR8 && ok "$4" || { bad "$4"; echo "$out" | grep "E1 open _art"; }
 }
 art_try "Game 2 (USA).png" "Image.new('RGB',(320,240),(255,0,0))" "r==255 and g==0 and b==0" "scan: PNG -> .img (RGB 320x240)"
@@ -150,7 +156,7 @@ art_try "Game 2 (USA).jpg" "Image.new('L',(97,61),90)" "abs(r-90)<10 and r==g==b
 # a damaged file: no picture, no crash
 rm -f "$T/sd/Games/_art/"*; head -c 3000 /dev/urandom > "$T/junk"; printf '\xff\xd8\xff\xc2' | cat - "$T/junk" > "$T/sd/Games/_art/Game 2 (USA).jpg"
 out=$(run "$T/artx.txt")
-echo "$out" | grep -q "script end" && [ ! -f "$T/sd/Games/_art/Game 2 (USA).img" ] && ok "scan: a damaged JPG: no crash, no .img" || bad "damaged JPG"
+echo "$out" | grep -q "script end" && [ ! -s "$T/sd/Games/_art/Game 2 (USA).img" ] && ok "scan: a damaged JPG: no crash, no .img" || bad "damaged JPG"
 rm -f "$T/sd/Games/_art/"*
 
 # settings: C hides the info pane and the choice is kept in the root's _odemenu.opt
@@ -183,7 +189,8 @@ keys "D A w sg2 D D w w w w sdoom A A" 30 700 > "$T/gf.txt"
 out=$(run "$T/gf.txt")
 echo "$out" | grep -q "C5 launch: .*Games2/Doom/doom_1994_ID_Software.cue" && ok "a game folder starts its game (Games2/Doom)" || { bad "game folder start"; echo "$out" | grep -E "C0|C4|C5"; }
 grep -q "^Games2/Doom/$" "$T/disc/nvram_ODEMenu" && ok "a game folder's launch goes into RECENT as the folder" || { bad "game folder RECENT note"; cat "$T/disc/nvram_ODEMenu"; }
-[ ! -f "$G/Doom/_cover.img" ] && ok "browsing a game folder makes no _cover.img" || bad "browsing wrote _cover.img"
+# (a SataTo3DO-based clone creates any file the menu opens, so an empty one is fine there)
+[ ! -s "$G/Doom/_cover.img" ] && ok "browsing a game folder makes no _cover.img" || bad "browsing wrote _cover.img"
 python3 -c "
 d=open('$T/g2.ppm','rb').read().split(b'\n',3)[3]
 # 5 rows expected (.., Multi, Nested, Doom, Wing): row 6 (y=96) must be empty panel, row 5 (y=88) text
@@ -198,9 +205,14 @@ echo "$out" | awk '/C0/{c++} END{exit 0}'
 # after the card scan: Doom's picture (named after the game file) and Wing's (wing.jpg) are covers
 keys "$SCAN w D A w D D w w w w sdoom D w w w w swing" 30 30 > "$T/gf2.txt"
 out=$(run "$T/gf2.txt")
+if [ -n "$CLONE" ]; then
+    [ ! -s "$G/Doom/_cover.img" ] && ! echo "$out" | grep -q "E1 open .*\.\(png\|jpg\)" && ok "clone: the scan opens no pictures (no empty .jpg/.png left behind)" || { bad "clone scan pictures"; echo "$out" | grep "E1 open"; }
+    pane_rgb "$T/doom.ppm" "not (r==255 and g==0 and b==0)" && ok "clone: no cover made by the console" || bad "clone cover"
+else
 [ -f "$G/Doom/_cover.img" ] && ok "scan: doom_1994_ID_Software.png kept as Doom/_cover.img" || { bad "_cover.img"; echo "$out" | grep "E1 open Doom"; }
 pane_rgb "$T/doom.ppm" "r==255 and g==0 and b==0" && ok "game folder cover shown in the info pane" || bad "game folder cover shown"
 pane_rgb "$T/wing.ppm" "b>200 and r<60" && ok "a cover named after the game file (wing.jpg)" || { bad "game-name cover"; echo "$out" | grep "E1 open Wing"; }
+fi
 
 # favorite of a game folder, started from FAVS
 rm -f "$T/sd/_odemenu.fav"
@@ -227,7 +239,11 @@ rm -f "$G/Wing/_cover.img" "$G/_odemenu.idx" "$T/sd/Games3/_odemenu.idx"
 mkdir -p "$T/sd/Games3/Night (Disc 1)"; python3 -c "from PIL import Image; Image.new('RGB',(64,48),(0,255,0)).save('$T/sd/Games3/Night (Disc 1)/Night (Disc 1).jpg')"
 keys "$SCAN" 30 30 > "$T/scan.txt"
 out=$(run "$T/scan.txt")
+if [ -n "$CLONE" ]; then
+    [ -s "$T/sd/Games3/_odemenu.idx" ] && ok "clone: the card scan indexes every folder" || { bad "card scan"; ls -la "$T/sd/Games3"; }
+else
 [ -f "$G/Wing/_cover.img" ] && [ -f "$T/sd/Games3/_odemenu.idx" ] && [ -f "$T/sd/Games3/Night (Disc 1)/_cover.img" ] && ok "the card scan indexes every folder and makes covers (game or folder name)" || { bad "card scan"; echo "$out" | grep -E "E1 open .*(cover|idx|Night)"; ls "$G/Wing"; }
+fi
 
 # first start on a card without settings: the scan is offered once, and the offer is remembered
 mv "$T/sd/_odemenu.opt" "$T/opt.keep"

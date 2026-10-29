@@ -266,21 +266,25 @@ static void probe_calibrate(void)
 
     if (g_probe_ok != -1 || g_dir.devlist || g_dir.count == 0)
         return;
+    /* the entry with the highest number: the first one answers the same with or without the shift (D1 index 0 is
+     * the first entry either way), so it can not tell them apart */
     e = &g_dir.ent[0];
+    for (k = 1; k < g_dir.count; k++)
+        if ((g_dir.ent[k].toc_id & 0x00ffffff) > (e->toc_id & 0x00ffffff))
+            e = &g_dir.ent[k];
     for (off = 0; off < 2; off++) {
         d1_off = off;
         for (k = 0; k < 3; k++) {
             name[0] = 0;
             r = probe_n(e->toc_id, counts[k], &flags, &toc, name);
-            if (r == 1 && toc == e->toc_id && (flags & 0xff) == e->flags && strcmp(name, dir_name(0)) == 0) {
+            if (r == 1 && toc == e->toc_id && (flags & 0xff) == e->flags &&
+                strcmp(name, g_dir.pool + e->name_off) == 0) {
                 probe_count = counts[k];
                 g_probe_ok = 1;
                 sprintf(g_probe_info, "D1 CHECK OK (COUNT %d%s)", (int)counts[k], off ? ", SHIFTED" : "");
                 return;
             }
         }
-        if (off == 0 && !(r == 1 && (toc & 0x00ffffff) == (e->toc_id & 0x00ffffff) + 1))
-            break;                      /* not the clone's one-late answer: no point trying the shift */
     }
     d1_off = 0;
     g_probe_ok = 0;
@@ -803,6 +807,9 @@ static int32 is_hidden(int32 i)
 
     if (g_dir.depth == 0 && is_menu_disc(i))
         return 1;
+    if (dir_name(i)[0] == '_')
+        return 1;                   /* the menu's own files and folders (_art): Fixel's firmware hides them, a clone
+                                     * (SataTo3DO-based) lists folders whatever their name */
     return !(e->flags & TF_DIR) && !(e->flags & (TF_NVM | TF_ODE)) && !name_is_game_n(dir_name(i), e->name_len);
 }
 
@@ -886,6 +893,23 @@ static int32 load_listing(DirProgress progress, int32 force_scan)
         dir_write_cache();
     }
     return err;
+}
+
+/* List the entry with id toc on its own just before it is queued: a clone (SataTo3DO-based) takes C4 only for an
+ * entry of its last listing, and the stock menu always queues from the page it has just listed. */
+/* the ODE numbers its entries with a drive byte: a clone based on SataTo3DO (opening a file there creates it) */
+int32 dir_is_clone(void)
+{
+    return TOC_PREFIX != 0;
+}
+
+void dir_list_entry(uint32 toc)
+{
+    uint32 flags;
+    char name[DIR_NAME_MAX];
+
+    if (g_probe_ok == 1)
+        probe(toc, &flags, name);
 }
 
 int32 dir_verify(int32 i)
@@ -1025,6 +1049,23 @@ static int32 name_eq_nocase(const char *a, const char *b, int32 n)
     return 1;
 }
 
+/* the first page of this folder's listing numbers its entries with a drive byte (a clone already set up) */
+static int32 listing_has_drive_byte(void)
+{
+    uint32 flags, toc;
+    const char *nm;
+    int32 len, r, pos = 0;
+
+    if (ode_d1_list(0, 14, d1buf) < 0)
+        return 0;
+    while ((r = d1_record(d1buf, pos, &flags, &toc, &nm, &len)) > 0) {
+        if (!TOC_IS_UP(toc) && (toc & 0xff000000u) != 0)
+            return 1;               /* (".." is 0xffffffff on Fixel's firmware: not a drive byte) */
+        pos += r;
+    }
+    return 0;
+}
+
 /* Where the firmware is now, from the first pages of its listing (D1 from index 0, 14 at a time, as the stock menu
  * lists): returns 1 if boot.iso is listed (the drive root), 0 if not; *up gets the ".." id, or 0 if there is none. */
 static int32 where_am_i(uint32 *up)
@@ -1059,11 +1100,17 @@ int32 dir_go_root(void)
     int32 i;
     uint32 up;
 
-    ode_c0_change_dir(0);           /* as the stock menu starts (main.c): a clone numbers its entries only after it */
     g_dir.depth = 0;
     g_dir.drive = g_dir.both_drives ? 0 : ode_drives();
-    if (g_dir.both_drives)
-        return 0;                   /* the device list */
+    if (g_dir.both_drives) {
+        ode_c0_change_dir(0);       /* the device list */
+        return 0;
+    }
+    /* C0 0 as the stock menu starts (main.c): a clone numbers its entries with its drive byte only after it. But a
+     * clone that already does (the console was reset, not switched off) takes a second C0 0 as "open the drive
+     * again" and numbers everything with drive 0 from then on, so no game starts: then it is not sent. */
+    if (!listing_has_drive_byte())
+        ode_c0_change_dir(0);
     /* One drive: the firmware may still be in a folder (an earlier session, or a console reset after a game was
      * started from its folder). The menu goes up only through the ".." the listing shows, the way you would in
      * the stock menu, until boot.iso is listed (the drive root) or there is no ".." left. (Opening boot.iso to

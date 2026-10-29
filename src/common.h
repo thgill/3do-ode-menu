@@ -102,7 +102,8 @@ int32  ode_c0_change_dir(uint32 id);
 int32  ode_c3_queue_clear(void);
 int32  ode_c4_queue_add(uint32 toc_id);         /* 0 added, -1 error, -2 not added (full) */
 int32  ode_c5_launch(void);
-int32  ode_d1_list(uint32 index, uint32 count, uint8 *buf);   /* 2 KB into buf */
+int32  ode_d1_list(uint32 index, uint32 count, uint8 *buf);
+uint32 ode_c0_current(void);   /* 2 KB into buf */
 int32  ode_file_open(const char *name, int32 write);
 int32  ode_file_write(const uint8 *buf, uint32 len);           /* <= 2 KB per call */
 int32  ode_file_read(uint8 *buf, uint32 len, uint32 *got);     /* <= 2 KB per call */
@@ -167,6 +168,8 @@ int32       dir_go_root(void);
 int32       dir_verify(int32 i);               /* 1 = the entry is still at its index */
 int32       dir_find(const char *name);
 int32       dir_has_menu_disc(void);
+void        dir_list_entry(uint32 toc);
+int32       dir_is_clone(void);
 extern int32 g_boot_open;
 void        dir_path_string(char *out, int32 max);
 int32       dir_write_cache(void);

@@ -26,8 +26,20 @@ static uint8  tocbuf[0x800 + 512];
 long fw_readdir_steps, fw_cmds, fw_d1, fw_e6, fw_bytes_written, fw_d1_overflow, fw_dotdot;
 char fw_launched[2048];
 
+void fwsim_sata_setup(const char *sd);
+void fwsim_sata_start_in(const char *rel);
+int32 fwsim_sata_cmd(const uint8 *cmd, uint8 *reply, int32 n, uint8 *data, int32 len);
+
+/* FWSIM_CLONE=7: the SataTo3DO-based clone (fwsim_sata.c) */
+static int32 sata(void)
+{
+    return getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) == 7;
+}
+
 void fwsim_setup(const char *sd, const char *usb)
 {
+    if (sata())
+        fwsim_sata_setup(sd);
     strcpy(roots[0], sd ? sd : "");
     strcpy(roots[1], usb ? usb : "");
     boot_device = (sd ? 1 : 0) | (usb ? 2 : 0);
@@ -148,6 +160,10 @@ static void cd_up(void)
 
 void fwsim_start_in(const char *rel)
 {
+    if (sata()) {
+        fwsim_sata_start_in(rel);
+        return;
+    }
     char *p, buf[1024];
     strcat(cur, "/");
     strcat(cur, rel);
@@ -164,7 +180,7 @@ static int32 clone_selected;         /* clone: C0 0 seen (the stock menu sends i
 
 static int32 clone4(void)
 {
-    return getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) >= 4;
+    return getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) >= 4 && atoi(getenv("FWSIM_CLONE")) <= 6;
 }
 
 static void change_dir(uint32 id)
@@ -256,6 +272,8 @@ int32 host_fw_cmd(const uint8 *cmd, uint8 *reply, int32 n, uint8 *data, int32 le
     int32 dp;
     TE te;
 
+    if (sata())
+        return fwsim_sata_cmd(cmd, reply, n, data, len);
     fw_cmds++;
     memset(reply, 0, n);
     reply[0] = cmd[0];

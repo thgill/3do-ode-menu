@@ -252,11 +252,20 @@ def index_names(buf):
 
 # ------------------------------------------------------------------ the card, as the menu sees it
 
+def has_data(path):
+    """a file with something in it: a clone ODE (SataTo3DO-based) makes an empty file whenever the menu looks for
+    one, so an empty cover or picture counts as none"""
+    try:
+        return os.path.getsize(path) > 0
+    except OSError:
+        return False
+
+
 def find_pic(folder, files, bases):
     for b in bases:
         for e in ('.jpg', '.png', '.jpeg'):
             f = files.get((b + e).lower())
-            if f:
+            if f and has_data(os.path.join(folder, f)):
                 return os.path.join(folder, f)
     return None
 
@@ -289,7 +298,7 @@ def walk(folder, is_root, rel, jobs, idx):
     if game:
         g = stem(game.name)
         dst = os.path.join(folder, '_cover.img')
-        mine.append(dict(game=g, folder=name, label=rel or name, dst=dst, have=os.path.exists(dst),
+        mine.append(dict(game=g, folder=name, label=rel or name, dst=dst, have=has_data(dst),
                          own=find_pic(folder, files, [g, name])))
     else:
         games = sorted(e.name for e in listed if not e.is_dir and not (e.flags & 0x18) and is_game_bytes(e.bytes)
@@ -300,7 +309,7 @@ def walk(folder, is_root, rel, jobs, idx):
             g = stem(f)
             dst = os.path.join(art, g + '.img')
             mine.append(dict(game=g, folder=None, label=(rel + '/' if rel else '') + g, dst=dst,
-                             have=(g + '.img').lower() in af, own=find_pic(art, af, [g]) if af else None))
+                             have=(g + '.img').lower() in af and has_data(dst), own=find_pic(art, af, [g]) if af else None))
     jobs[at:at] = mine
     b = build_index(listed)
     if b:

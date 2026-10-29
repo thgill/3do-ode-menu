@@ -594,15 +594,24 @@ static int32 art_fetch(const ArtWhere *w, uint16 *pix, int32 stride, ArtAbort ab
 
     *made_one = 0;
     at_read = at_dec = at_save = at_cmds_save = at_len = 0;
-    for (n = 0; !opened && art_candidate(w, n); n++)
-        opened = ode_file_open(art_try_name, 0) >= 0;
+    for (n = 0; art_candidate(w, n); n++) {
+        if (ode_file_open(art_try_name, 0) < 0)
+            continue;
+        rc = art_read_all(&buf, &len, &cap);
+        ode_file_close();
+        if (rc == 0 && len == 0) {
+            FreeMem(buf, cap);          /* empty: a clone makes the file it is asked to open (no picture there) */
+            buf = 0;
+            continue;
+        }
+        opened = 1;
+        break;
+    }
     t1 = gfx_vbl_count();
     at_find = (int32)(t1 - t0);
     at_cmds_find = g_ode_cmds - c0;
     if (!opened)
         return ART_MISSING;
-    rc = art_read_all(&buf, &len, &cap);
-    ode_file_close();
     at_len = len;
     t0 = gfx_vbl_count();
     at_read = (int32)(t0 - t1);
@@ -1800,10 +1809,13 @@ static int32 queue_one(int32 i)
     uint32 toc;
     int32 r;
 
-    if (!dir_is_game_folder(i))
+    if (!dir_is_game_folder(i)) {
+        dir_list_entry(g_dir.ent[i].toc_id);
         return ode_c4_queue_add(g_dir.ent[i].toc_id);
+    }
     if (dir_game_enter(i, &toc) < 0)
         return -1;
+    dir_list_entry(toc);
     r = ode_c4_queue_add(toc);
     dir_game_leave();
     return r;
@@ -2002,6 +2014,8 @@ static void play_now(int32 i)
 #ifdef LAUNCH_TRACE
     trace_save();                       /* before C3: C3, C4 and C5 go out together */
 #endif
+    if (!launch_direct)
+        dir_list_entry(toc);            /* (a game folder's start has just listed the folder) */
     ode_c3_queue_clear();
     q_count = 0;
     r = ode_c4_queue_add(toc);
@@ -2402,6 +2416,9 @@ static void scan_cover(int32 i)
 
     if (entry_path(i, pathbuf, LIST_PATH_MAX) < 0 || art_where(pathbuf, &w) < 0 || w.root)
         return;
+    if (dir_is_clone())
+        return;                 /* looking for <game>.jpg/.png would leave empty files behind on a clone (opening
+                                 * a file there creates it, and nothing can delete it): the Cover Maker does it */
     if (ode_file_open(w.made, 0) >= 0) {
         ode_file_close();       /* made before */
         g_dir.ent[i].art &= ~ART_NONE;
@@ -2469,6 +2486,9 @@ static void scan_card(void)
             (int)scan_covers);
     if (scan_bad)
         sprintf(tmp + strlen(tmp), " %d picture%s could not be read.", (int)scan_bad, scan_bad == 1 ? "" : "s");
+    if (dir_is_clone())
+        sprintf(tmp, "%s %d games found and folders indexed. On this ODE covers are made with the Cover Maker on a computer.",
+                scan_stop ? "Stopped." : "Done.", (int)scan_games);
     ui_message(scan_stop ? "Scan stopped" : "Scan finished", tmp);
 }
 
@@ -2480,8 +2500,8 @@ static void scan_offer(void)
     g_set.scanned = 1;
     g_set.dirty = 1;
     lists_save(0);
-    if (!g_set.index)
-        return;
+    if (!g_set.index || dir_is_clone())
+        return;                 /* (a clone: the scan would only index folders, which browsing does anyway) */
     dialog_init(&d, "Scan the card?");
     dlg_wrap(&d, SCAN_TEXT " Also in TOOLS.", 30);
     d.opts[0] = "SCAN NOW";

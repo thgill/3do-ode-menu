@@ -75,7 +75,9 @@ int32 ode_drives(void)
     return ext_b1 & 3;
 }
 
-int32 ode_c0_change_dir(uint32 id)
+static uint32 c0_last;                  /* the id the firmware takes as its current one (a clone's "current TOC") */
+
+static int32 c0_send(uint32 id)
 {
     uint8 cmd[8];
     uint8 reply[4];
@@ -83,7 +85,71 @@ int32 ode_c0_change_dir(uint32 id)
     clear7(cmd);
     cmd[0] = 0xc0;
     put32(cmd + 1, id);
+    if ((id & 0x00ffffffu) == 0x00ffffffu)
+        c0_last = id & 0xff000000u;     /* "up": the clone's current id becomes the folder's entry 0 */
+    else
+        c0_last = id;
     return ode_cmd(cmd, reply, 2);
+}
+
+static uint32 get32b(const uint8 *p)
+{
+    return ((uint32)p[0] << 24) | ((uint32)p[1] << 16) | ((uint32)p[2] << 8) | p[3];
+}
+
+/* A clone (SataTo3DO-based: its ids carry a drive byte) ignores C0 for the id it already takes as current, so
+ * folder 1 inside a folder that was itself entry 1 would not open. First C0 another entry of this folder: a file
+ * only becomes the current id (the firmware stays where it is), a folder is entered and left again. Returns 0 if
+ * the firmware will now take id, -1 if this folder has no other entry. */
+static int32 c0_unstick(uint32 id)
+{
+    static uint8 buf[ODE_XFER];
+    uint32 flags, toc, other = 0, other_dir = 0, len;
+    int32 pos = 0;
+
+    if (ode_d1_list(0, 14, buf) < 0)
+        return -1;
+    while (pos + 12 <= ODE_XFER) {
+        flags = get32b(buf + pos);
+        if (flags == 0xffffffffu)
+            break;
+        toc = get32b(buf + pos + 4);
+        len = get32b(buf + pos + 8);
+        if ((toc & 0x00ffffffu) != 0x00ffffffu && toc != id) {
+            if (!(flags & 2)) {
+                other = toc;
+                break;
+            }
+            if (!other_dir)
+                other_dir = toc;
+        }
+        if (len == 0 || len > 256)
+            break;
+        pos += 12 + len;
+    }
+    if (other) {
+        c0_send(other);
+        return 0;
+    }
+    if (other_dir) {
+        c0_send(other_dir);
+        c0_send((other_dir & 0xff000000u) | 0x00ffffffu);
+        return 0;
+    }
+    return -1;
+}
+
+int32 ode_c0_change_dir(uint32 id)
+{
+    if (id == c0_last && (id & 0xff000000u) != 0 && (id & 0x00ffffffu) != 0 && (id & 0x00ffffffu) != 0x00ffffffu)
+        c0_unstick(id);
+    return c0_send(id);
+}
+
+/* what the firmware takes as its current id, as far as the menu knows (0 after power-on) */
+uint32 ode_c0_current(void)
+{
+    return c0_last;
 }
 
 int32 ode_c3_queue_clear(void)
@@ -239,9 +305,18 @@ int32 ode_file_read(uint8 *buf, uint32 len, uint32 *got)
     int32 err;
     uint32 n;
 
+    static const uint8 mark[8] = { 0xfe, 0xed, 0x3d, 0x0e, 0x4d, 0x61, 0x72, 0x6b };
+
     *got = 0;
     if (len > ODE_XFER)
         len = ODE_XFER;
+    /* A clone (SataTo3DO-based) answers every read with the length asked for, even an empty file or the end of
+     * one, and its buffer still holds what was read before (another file). So 8 marker bytes go into the buffer
+     * first: if they are still there after the read, nothing was read. (Fixel's firmware answers the true length,
+     * and its read overwrites them.) */
+    err = fill_buffer(mark, sizeof(mark));
+    if (err < 0)
+        return err;
     clear7(cmd);
     cmd[0] = 0xe3;
     cmd[1] = (uint8)(len >> 8);
@@ -262,6 +337,8 @@ int32 ode_file_read(uint8 *buf, uint32 len, uint32 *got)
         return err;
     if (reply[0] != 0xe7)
         return -1;
+    if (n >= sizeof(mark) && memcmp(xfer, mark, sizeof(mark)) == 0)
+        return 0;                       /* nothing was read: the end of the file */
     memcpy(buf, xfer, n);
     *got = n;
     return 0;

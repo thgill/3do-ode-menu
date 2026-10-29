@@ -108,9 +108,10 @@ All of these are hidden from the menu (names starting with `_`) and safe to dele
 
 ## Clones
 
-Clone ODEs run Fixel's firmware or their own copy of it, and some answer a few requests differently. The menu
-allows for the differences seen so far: one clone numbers its files differently, and the menu now reads the numbers
-the ODE gives it instead of assuming them. If a game won't start on your clone, or the menu says a game is no
+Clone ODEs don't run Fixel's firmware: the ones seen so far run firmware based on FCare's open-source
+[SataTo3DO](https://github.com/FCare/SataTo3DO), which answers a number of requests differently. The menu allows
+for every difference found so far (see [docs/NOTES.md](docs/NOTES.md)). On a clone, make covers with the Cover
+Maker: the console's own card scan only indexes folders there. If a game won't start on your clone, or the menu says a game is no
 longer on the card, open the folder with your games, run **Tools > ODE Test** and post photos of both pages in an
 issue. That shows how your ODE answers, which is usually enough to fix it.
 

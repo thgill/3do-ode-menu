@@ -194,6 +194,37 @@ The hidden extras (both Konami codes, the eject-count picture, and the XPort RAM
   RECENT stays removed.
   TOOLS > ODE TEST shows the raw answers to the commands the menu relies on (into a folder and back up, into a
   game folder, a queue entry that is cleared again, single-entry listings), for a photo when a clone misbehaves.
+- **The clones seen so far run firmware based on FCare's SataTo3DO** (RP2040, MIT,
+  <https://github.com/FCare/SataTo3DO>). Every oddity above is in its source, and so are a few more. The simulator's
+  `FWSIM_CLONE=7` (`host/fwsim_sata.c`) follows that source; the menu passes the whole test suite against it.
+  What the firmware does, and what the menu does about it:
+  - **`C0 0` sets the drive byte only once.** After power-on the firmware's current id is 0, and `C0 0` makes it
+    `drive << 24`. Sent again at the root, it opens the drive afresh with current id 0: every id has drive byte 0
+    from then on, and no game starts (the firmware looks the game's drive up from that byte) until power-off. The
+    stock menu sends `C0 0` at every start, so a console reset (not power) can break the stock menu too. The menu
+    lists the folder first and sends `C0 0` only if the ids carry no drive byte yet (Fixel's firmware, or a clone
+    just switched on).
+  - **`C0` to the current id is ignored.** The firmware keeps the id of the last folder it entered; a subfolder
+    with the same id (entry 1 inside a folder that was entry 1) does not open. The menu tracks that id and first
+    sends `C0` to another entry of the folder (a file only becomes the current id; a folder is entered and left).
+  - **`C4` queues only an entry of the last listing.** It looks the id up in the buffer of the last `D1` answer,
+    not on the card. The menu lists the entry on its own just before each `C4` (the stock menu always queues from
+    the page it has just listed).
+  - **The root has no `..`, folders do.** D1 index 0 inside a folder answers `..` first; index n answers from entry
+    n + 1. At the root index n answers from entry n + 1 as well. The menu measures the shift on the entry with the
+    highest number (the first entry answers the same either way) and tries both settings.
+  - **Listings show only folders, `.cue` and `.iso`**, and folders whatever their name: `_art` was listed. The menu
+    hides names starting with `_` itself.
+  - **Opening a file creates it.** `E1` opens read/write with "open always", so looking for a cover that is not
+    there leaves an empty one. An empty cover counts as none, in the menu and in both Cover Makers. The card
+    scan does not look for `.jpg`/`.png` pictures on a clone (each name tried would leave an empty file, and the
+    ODE has no delete); covers come from the Cover Maker there. `boot.iso` can not be opened at all (the firmware
+    has it open as the running disc), so the drive root is found by `boot.iso` being listed, not opened.
+  - **A read answers the length asked for, even past the end**, with the buffer's old contents (often another
+    file). Before each read the menu puts 8 marker bytes at the start of the buffer (2 `E6`); if they are still
+    there after the read, nothing was read.
+  - **Writes never shorten a file**, so every file the menu writes says where it ends: list files end with
+    `-END-`, indexes and covers carry their size.
 - **Writing the card is slow**: the firmware takes data from the 3DO only 4 bytes per command (E6), about
   2.3 ms each, so writes run at about 1.7 KB/s (a 8.4 KB folder index took 4.9 s). Reading is fast (2 KB per
   command); a file that isn't there costs about 0.08 s to look for. So the menu writes as little as it can, and
