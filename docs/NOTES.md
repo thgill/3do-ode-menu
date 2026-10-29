@@ -187,6 +187,11 @@ The hidden extras (both Konami codes, the eject-count picture, and the XPort RAM
   position; `FWSIM_CLONE=5` adds that. And it reset into a black screen with one game when a game folder was
   started from the list, while picking the file inside worked, so a game folder is now started exactly that way:
   the menu opens the folder as usual and starts the game from its listing (RECENT still records the folder).
+  Its file reads also seem not to end: covers showed NO MEMORY and RECENT filled with copies, as if a read at the
+  end of a file answered the full length again. A `.img` is now read only up to its own size, other reads stop
+  when a chunk repeats the one before, and a list file stops at a second header and keeps each path once
+  (`FWSIM_CLONE=6`). And the NVRAM launch note is emptied once it has gone into RECENT, so a game removed from
+  RECENT stays removed.
   TOOLS > ODE TEST shows the raw answers to the commands the menu relies on (into a folder and back up, into a
   game folder, a queue entry that is cleared again, single-entry listings), for a photo when a clone misbehaves.
 - **Writing the card is slow**: the firmware takes data from the 3DO only 4 bytes per command (E6), about

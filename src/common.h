@@ -297,6 +297,7 @@ int32 list_split(const char *path, char comps[][DIR_NAME_MAX], int32 maxc);   /*
 const char *path_base(const char *path);
 int32 note_save(int32 drive, const char *path);   /* the launched game, in NVRAM */
 int32 note_load(int32 *drive, char *path, int32 max);
+int32 note_clear(void);
 #define TRACE_N 24
 #ifdef LAUNCH_TRACE
 extern uint8 g_trace[TRACE_N][12];

@@ -95,6 +95,7 @@ echo "$out" | awk '/C3|C4/{c=1} /E1 open .* write/{if(c)w=1} /C5 launch/{exit} E
 printf '20 end\n' > "$T/boot.txt"
 run "$T/boot.txt" > /dev/null
 head -2 "$T/sd/_odemenu.rec" 2>/dev/null | grep -q "^Games/Sub/Deep (USA).iso$" && ok "the launch goes into RECENT at the next start" || { bad "recent file"; cat "$T/sd/_odemenu.rec"; }
+grep -q "Deep" "$T/disc/nvram_ODEMenu" 2>/dev/null && bad "the NVRAM note stays after it went into RECENT (a removed game would come back)" || ok "the NVRAM note is emptied once it is in RECENT"
 
 # artwork: the info pane opens _art/<name>.img beside the game once the selection rests
 mkdir -p "$T/sd/Games/_art"

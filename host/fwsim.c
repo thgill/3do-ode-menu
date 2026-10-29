@@ -162,7 +162,7 @@ void fwsim_start_in(const char *rel)
  * ignores ids without it (0xffffffff included) */
 static int32 clone4(void)
 {
-    return getenv("FWSIM_CLONE") && (atoi(getenv("FWSIM_CLONE")) == 4 || atoi(getenv("FWSIM_CLONE")) == 5);
+    return getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) >= 4;
 }
 
 static void change_dir(uint32 id)
@@ -219,7 +219,7 @@ static void d1(const uint8 *cmd, uint8 *data)
     if (count < 14 && getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) == 2)
         idx++;
     /* =5: as 4, and D1 index n (n >= 1) answers from the entry at n + 1 (seen on the same clone) */
-    if (getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) == 5 && idx >= 1)
+    if (getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) >= 5 && idx >= 1)
         idx++;
     /* =3: no single-entry answer is right, whatever the count (a listing from 0, 14, 28... still is) */
     if (getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) == 3 && (count < 14 || idx % 14 != 0))
@@ -335,7 +335,13 @@ int32 host_fw_cmd(const uint8 *cmd, uint8 *reply, int32 n, uint8 *data, int32 le
     case 0xe3:
         v = (cmd[1] << 8) | cmd[2];
         if (v > 0x800) v = 0x800;
-        v = fops ? fread(fbuf, 1, v, fops) : 0;
+        {
+            uint32 want = v;
+            v = fops ? fread(fbuf, 1, v, fops) : 0;
+            /* FWSIM_CLONE=6: as 5, and a read at the end of a file still answers the full length (old data) */
+            if (fops && v < want && getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) == 6)
+                v = want;
+        }
         reply[1] = v >> 8;
         reply[2] = v;
         break;

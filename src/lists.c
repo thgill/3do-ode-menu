@@ -138,6 +138,8 @@ static int32 read_file(const char *name, char *buf, int32 max)
     while (n + ODE_XFER <= max) {
         if (ode_file_read((uint8 *)buf + n, ODE_XFER, &got) < 0 || got == 0)
             break;
+        if (got == ODE_XFER && n >= ODE_XFER && memcmp(buf + n, buf + n - ODE_XFER, ODE_XFER) == 0)
+            break;                      /* a clone's end of file: the last chunk again (see art_read_all) */
         n += got;
         if (got < ODE_XFER)
             break;
@@ -165,6 +167,7 @@ static int32 write_file(const char *name, const char *buf, int32 len)
 static void parse_list(PathList *l, char *buf)
 {
     char *p = buf, *e;
+    int32 k;
 
     l->n = 0;
     l->dirty = 0;
@@ -174,10 +177,15 @@ static void parse_list(PathList *l, char *buf)
     while (*p && l->n < l->max) {
         for (e = p; *e && *e != '\n' && *e != '\r'; e++)
             ;
+        if (strncmp(p, "OM", 2) == 0)
+            break;                      /* the file again (a clone's end of file): the list is complete */
         if (e > p && e - p < LIST_PATH_MAX) {
             memcpy(l->p[l->n], p, e - p);
             l->p[l->n][e - p] = 0;
-            l->n++;
+            for (k = 0; k < l->n && strcmp(l->p[k], l->p[l->n]) != 0; k++)
+                ;
+            if (k == l->n)
+                l->n++;                 /* each path once */
         }
         while (*e == '\n' || *e == '\r')
             e++;
@@ -280,6 +288,16 @@ int32 note_save(int32 drive, const char *path)
     return SaveFile(NOTE_FILE, note, NOTE_SIZE, 0);
 }
 
+/* the note, once taken into RECENT: emptied, so a game removed from RECENT does not come back at every start */
+int32 note_clear(void)
+{
+    static char note[NOTE_SIZE];
+
+    memset(note, 0, NOTE_SIZE);
+    strcpy(note, "ONT1\n0\n\n");
+    return SaveFile(NOTE_FILE, note, NOTE_SIZE, 0);
+}
+
 int32 note_load(int32 *drive, char *path, int32 max)
 {
     int32 size = 0, n;
@@ -323,7 +341,7 @@ void ode_trace(const uint8 *cmd, const uint8 *reply, int32 replylen, int32 err)
     int32 k;
 
     if (cmd[0] == 0xe3 || cmd[0] == 0xe7)
-        return;                     /* the status polls: many, and the same each time */
+        return;                     /* file reads (covers, lists): many, and not what a launch sends */
     memcpy(t, cmd, 7);
     for (k = 0; k < 4; k++)
         t[7 + k] = k < replylen ? reply[k] : 0;

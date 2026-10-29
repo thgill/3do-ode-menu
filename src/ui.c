@@ -401,7 +401,7 @@ static void art_forget(void)
 static int32 art_read_all(uint8 **out, int32 *len, int32 *cap)
 {
     uint8 *buf = 0, *nb;
-    int32 n = 0, size = 16 * 1024, newsize;
+    int32 n = 0, size = 16 * 1024, newsize, need;
     uint32 got;
 
     buf = (uint8 *)AllocMem(size, MEMTYPE_ANY);
@@ -426,9 +426,27 @@ static int32 art_read_all(uint8 **out, int32 *len, int32 *cap)
         }
         if (ode_file_read(buf + n, ODE_XFER, &got) < 0)
             break;
+        /* a clone was seen to answer the full length at the end of a file, with old data: a chunk the same as
+         * the one before ends it, and a .img stops at its own size */
+        if (got == ODE_XFER && n >= ODE_XFER && memcmp(buf, "OAR8", 4) != 0 && memcmp(buf, "OART", 4) != 0 &&
+            memcmp(buf + n, buf + n - ODE_XFER, ODE_XFER) == 0)
+            break;                      /* (not for a .img: it has its size, and flat pictures repeat) */
         n += got;
         if (got < ODE_XFER)
             break;
+        if (n >= 10 && memcmp(buf, "OAR8", 4) == 0) {
+            need = 10 + 2 * ((buf[8] << 8) | buf[9]) + ((buf[4] << 8) | buf[5]) * ((buf[6] << 8) | buf[7]);
+            if (n >= need) {
+                n = need;
+                break;
+            }
+        } else if (n >= 8 && memcmp(buf, "OART", 4) == 0) {
+            need = 8 + 2 * ((buf[4] << 8) | buf[5]) * ((buf[6] << 8) | buf[7]);
+            if (n >= need) {
+                n = need;
+                break;
+            }
+        }
         if (input_interrupt()) {
             FreeMem(buf, size);
             return ART_ABORTED;
@@ -1739,14 +1757,14 @@ static void launch_screen(const char *what, const char *name)
 #define SETTLE_IO    90
 #define SETTLE_WRITE 180
 
-static const char *note_path;      /* set while a game folder's game is started from inside it: RECENT keeps the folder */
+static const char *launch_note;      /* set while a game folder's game is started from inside it: RECENT keeps the folder */
 
 static void before_launch(const char *what, const char *name, int32 entry)
 {
     char nm[DIR_NAME_MAX];
 
-    if (note_path)
-        note_save(g_dir.drive, note_path);
+    if (launch_note)
+        note_save(g_dir.drive, launch_note);
     else if (entry >= 0 && entry_path(entry, pathbuf, LIST_PATH_MAX) == 0)
         note_save(g_dir.drive, pathbuf);
     strncpy(nm, name, sizeof(nm) - 1);
@@ -1940,9 +1958,9 @@ static void play_now(int32 i)
         }
         cur[T_GAMES] = j + has_up();
         dirty = 1;
-        note_path = fpath[0] ? fpath : 0;
+        launch_note = fpath[0] ? fpath : 0;
         play_now(j);
-        note_path = 0;
+        launch_note = 0;
         return;
     }
     before_launch("STARTING GAME", tmp2, i);
@@ -2791,10 +2809,12 @@ void ui_start(void)
     DIAG_STEP(0x5c17, 0);                       /* purple: favorites and settings read */
     load_err = dir_load(load_progress, 0);
     /* the menu always starts in the drive root; the last launch (noted in NVRAM) goes into RECENT */
-    if (load_err >= 0 && !g_dir.both_drives && note_load(&drive, note_path, LIST_PATH_MAX) == 0 &&
-        drive == g_dir.drive && (g_recent.n == 0 || strcmp(g_recent.p[0], note_path) != 0)) {
-        list_add_front(&g_recent, note_path);
-        lists_save(0);
+    if (load_err >= 0 && !g_dir.both_drives && note_load(&drive, note_path, LIST_PATH_MAX) == 0) {
+        if (drive == g_dir.drive && (g_recent.n == 0 || strcmp(g_recent.p[0], note_path) != 0)) {
+            list_add_front(&g_recent, note_path);
+            lists_save(0);
+        }
+        note_clear();               /* taken: it must not come back after it is removed from RECENT */
     }
     DIAG_STEP(0x7e1c, 0);                       /* pink: folder listed; next is the first menu frame */
     sync_lists();
