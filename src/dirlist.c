@@ -1015,24 +1015,71 @@ static void learn_up(void)
         d1_record(d1buf, 0, &flags, &toc, &nm, &len);
 }
 
+static int32 name_eq_nocase(const char *a, const char *b, int32 n)
+{
+    int32 k;
+
+    for (k = 0; k < n; k++)
+        if (lower(a[k]) != lower(b[k]))
+            return 0;
+    return 1;
+}
+
+/* Where the firmware is now, from the first pages of its listing (D1 from index 0, 14 at a time, as the stock menu
+ * lists): returns 1 if boot.iso is listed (the drive root), 0 if not; *up gets the ".." id, or 0 if there is none. */
+static int32 where_am_i(uint32 *up)
+{
+    uint32 flags, toc, idx = 0;
+    const char *nm;
+    int32 len, r, pos, page, seen;
+
+    *up = 0;
+    for (page = 0; page < 8; page++) {
+        if (ode_d1_list(idx, 14, d1buf) < 0)
+            return 0;
+        pos = 0;
+        seen = 0;
+        while ((r = d1_record(d1buf, pos, &flags, &toc, &nm, &len)) > 0) {
+            if (TOC_IS_UP(toc))
+                *up = toc;
+            else if (len == 8 && name_eq_nocase(nm, "boot.iso", 8))
+                return 1;
+            seen++;
+            pos += r;
+        }
+        if (r < 0 || seen < 14)
+            return 0;               /* the end of the folder */
+        idx += seen;
+    }
+    return 0;
+}
+
 int32 dir_go_root(void)
 {
     int32 i;
+    uint32 up;
 
-    ode_c0_change_dir(0);
     g_dir.depth = 0;
     g_dir.drive = g_dir.both_drives ? 0 : ode_drives();
-    if (g_dir.both_drives)
+    if (g_dir.both_drives) {
+        ode_c0_change_dir(0);       /* the device list */
         return 0;
-    if (at_boot_root())
-        return 0;
-    if (((ode_ext_b1() >> 4) & 3) == 0)
-        return -1;
-    for (i = 0; i < DIR_MAX_DEPTH; i++) {
-        learn_up();
-        ode_c0_change_dir(g_toc_up);
-        if (at_boot_root())
+    }
+    /* One drive: the firmware may still be in a folder (an earlier session, or a console reset after a game was
+     * started from its folder). The menu goes up only through the ".." the listing shows, the way you would in
+     * the stock menu, until boot.iso is listed (the drive root) or there is no ".." left. (Opening boot.iso to
+     * check fails on a clone that keeps the running disc open, and an "up" sent at the root breaks file access
+     * on Fixel's firmware.) */
+    for (i = 0; i <= DIR_MAX_DEPTH; i++) {
+        if (where_am_i(&up))
             return 0;
+        if (up == 0)
+            return at_boot_root() ? 0 : -1;     /* no ".." and no boot.iso in sight: the root of a big card */
+        if (i == 0 && ((ode_ext_b1() >> 4) & 3) == 0)
+            return -1;              /* the menu disc did not come from this drive: its root is unknown, stay here */
+        if (i == DIR_MAX_DEPTH)
+            break;
+        ode_c0_change_dir(up);
     }
     return -1;
 }
