@@ -471,30 +471,60 @@ const char *dir_inner(int32 i)
 int32 dir_game_enter(int32 i, uint32 *toc)
 {
     DirEntry *e;
-    char name[DIR_NAME_MAX];
-    uint32 flags;
+    uint32 idx = 0, flags, t, gtoc = 0;
+    const char *name;
+    int32 len, pos, sz, got, games = 0, seen = 0, found = 0, done = 0;
 
     if (!dir_is_game_folder(i))
         return -1;
     e = &g_dir.ent[i];
     if (ode_c0_change_dir(e->toc_id) < 0)
         return -1;
-    if (g_probe_ok == 0) {
-        *toc = e->inner_toc;            /* found by a fresh look inside the folder */
-        return 0;
+    /* the folder's listing, read as when you open it yourself (pages of 14 from the start): the game's id comes
+     * from it, so the start is the same as picking the file inside the folder (a clone did not start a game
+     * folder's game after the single-entry check) */
+    while (!done && !found && seen <= GF_MAX_SEEN) {
+        if (ode_d1_list(idx, 14, d1buf) < 0)
+            break;
+        pos = 0;
+        got = 0;
+        for (;;) {
+            sz = d1_record(d1buf, pos, &flags, &t, &name, &len);
+            if (sz == 0) {
+                done = 1;
+                break;
+            }
+            if (sz < 0)
+                break;
+            pos += sz;
+            got++;
+            if (!TOC_IS_UP(t)) {
+                seen++;
+                if ((flags & TF_FILE) && !(flags & (TF_NVM | TF_ODE)) && name_is_game_n(name, len)) {
+                    games++;
+                    gtoc = t;
+                    if (len == (int32)e->inner_len && memcmp(name, dir_inner(i), len) == 0) {
+                        *toc = t;
+                        found = 1;
+                        break;
+                    }
+                }
+            }
+            if (got >= 14)
+                break;
+        }
+        if (got == 0)
+            break;
+        idx += got;
     }
-    if (probe(e->inner_toc, &flags, name) == 1 && (flags & TF_FILE) && strcmp(name, dir_inner(i)) == 0) {
-        *toc = e->inner_toc;
+    if (found)
+        return 0;
+    if (done && games == 1) {           /* renamed since it was read: still the folder's one game */
+        *toc = gtoc;
         return 0;
     }
     ode_c0_change_dir(g_toc_up);
-    detect_folder(i);
-    if (e->gtype != GT_GAME)
-        return -2;
-    if (ode_c0_change_dir(e->toc_id) < 0)
-        return -1;
-    *toc = e->inner_toc;
-    return 0;
+    return -2;
 }
 
 void dir_game_leave(void)
