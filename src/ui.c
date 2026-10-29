@@ -2827,6 +2827,8 @@ void ui_start(void)
     }
     DIAG_STEP(0x5c17, 0);                       /* purple: favorites and settings read */
     load_err = dir_load(load_progress, 0);
+    if (!at_root && load_err >= 0 && dir_has_menu_disc())
+        at_root = 1;                            /* boot.iso is listed here, though it did not open */
     /* the menu always starts in the drive root; the last launch (noted in NVRAM) goes into RECENT */
     note_path[0] = 0;
     if (load_err >= 0 && !g_dir.both_drives && note_load(&drive, note_path, LIST_PATH_MAX) == 0) {

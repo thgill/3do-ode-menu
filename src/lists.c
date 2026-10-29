@@ -431,9 +431,11 @@ int32 trace_log(const char *game)
         len -= cut + 1 - (fbuf + 8);
     }
     if (n == 0 && !game[0])
-        len += sprintf(fbuf + len, "== START, NO LAUNCH BEFORE IT (MENU %s)\n", MENU_VERSION);
+        len += sprintf(fbuf + len, "== START, NO LAUNCH BEFORE IT (MENU %s, BOOT.ISO OPEN %d)\n", MENU_VERSION,
+                       (int)g_boot_open);
     else
-        len += sprintf(fbuf + len, "== %.200s (MENU %s)\n%s\n", game[0] ? game : "(QUEUE)", MENU_VERSION, g_probe_info);
+        len += sprintf(fbuf + len, "== %.200s (MENU %s, BOOT.ISO OPEN %d)\n%s\n", game[0] ? game : "(QUEUE)",
+                       MENU_VERSION, (int)g_boot_open, g_probe_info);
     if (n == 0 && game[0])
         len += sprintf(fbuf + len, "NO TRACE IN NVRAM (NVRAM FULL?)\n");
     for (k = 0; k < n; k++)

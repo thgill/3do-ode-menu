@@ -838,7 +838,9 @@ static int32 load_listing(DirProgress progress, int32 force_scan)
     int32 err;
     int32 at_devlist = g_dir.both_drives && g_dir.drive == 0;
 
-    if (!force_scan && g_dir.use_cache && g_probe_ok != 0 && !at_devlist) {
+    /* a game folder opened to start its game is always read from the ODE: its saved listing is not used for the
+     * entry number that is sent to start the game */
+    if (!force_scan && !g_dir_no_write && g_dir.use_cache && g_probe_ok != 0 && !at_devlist) {
         if (!up_learned)
             learn_up();                 /* the drive byte the index's entry numbers need (a clone) */
         if (progress)
@@ -956,11 +958,28 @@ int32 dir_back(DirProgress progress, char *came_from)
     return dir_load(progress, 0);
 }
 
+int32 g_boot_open = 99;                 /* what opening boot.iso last answered (0 = opened), for the test log */
+
 static int32 at_boot_root(void)
 {
     int32 r = ode_file_open("boot.iso", 0);
     ode_file_close();
+    g_boot_open = r;
     return r == 0;
+}
+
+/* boot.iso is in this listing (a firmware that will not open the menu disc while it is the running disc still
+ * lists it): this is the drive root */
+int32 dir_has_menu_disc(void)
+{
+    int32 i;
+
+    if (g_dir.depth != 0 || g_dir.devlist)
+        return 0;
+    for (i = 0; i < g_dir.count + g_dir.hidden; i++)
+        if (is_menu_disc(i))
+            return 1;
+    return 0;
 }
 
 /* Startup. With both drives C0(0) selects the device list. With one drive the firmware may still be in a folder
@@ -1305,6 +1324,7 @@ int32 dir_ode_test(char lines[][40], int32 max)
 
     sprintf(l, "DEPTH %d  2 DRIVES %d  LIST %d", (int)g_dir.depth, (int)g_dir.both_drives, (int)g_dir.devlist); t_line(lines, &k, max, l);
     sprintf(l, "ENTRIES %d  HIDDEN %d  D1 OK %d", (int)g_dir.count, (int)g_dir.hidden, (int)g_probe_ok); t_line(lines, &k, max, l);
+    sprintf(l, "BOOT.ISO OPEN %d  LISTED %d", (int)g_boot_open, (int)dir_has_menu_disc()); t_line(lines, &k, max, l);
     if (g_dir.devlist) {
         sprintf(l, "OPEN A DRIVE FIRST, THEN RUN AGAIN"); t_line(lines, &k, max, l);
         return k;

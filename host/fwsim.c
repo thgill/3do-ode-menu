@@ -329,6 +329,8 @@ int32 host_fw_cmd(const uint8 *cmd, uint8 *reply, int32 n, uint8 *data, int32 le
             fw_dotdot++;
         }
         fops = path_valid() ? fopen(path, cmd[6] ? "wb" : "rb") : 0;
+        /* FWSIM_BOOT_LOCKED=1: the running menu disc can't be opened (a firmware that keeps it open) */
+        if (fops && getenv("FWSIM_BOOT_LOCKED") && !strcasecmp(name, "boot.iso")) { fclose(fops); fops = 0; }
         reply[1] = fops != 0;
         host_log("E1 open %s %s -> %d\n", name, cmd[6] ? "write" : "read", fops != 0);
         break;

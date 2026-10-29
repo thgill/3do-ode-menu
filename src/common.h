@@ -166,6 +166,8 @@ int32       dir_back(DirProgress progress, char *came_from);   /* 2 = already at
 int32       dir_go_root(void);
 int32       dir_verify(int32 i);               /* 1 = the entry is still at its index */
 int32       dir_find(const char *name);
+int32       dir_has_menu_disc(void);
+extern int32 g_boot_open;
 void        dir_path_string(char *out, int32 max);
 int32       dir_write_cache(void);
 int32       dir_write_resume(const char *selected, int32 write);   /* firmware must be in the drive root */
