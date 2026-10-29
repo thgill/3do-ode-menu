@@ -1151,3 +1151,145 @@ int32 dir_resume(DirProgress progress, char *selected)
     strcpy(selected, resume_lines[3 + depth]);
     return 0;
 }
+
+/* ------------------------------------------------------------------ ODE TEST (TOOLS)
+ * For clone ODEs that do not behave like Fixel's: the raw answers to the commands the menu relies on, from the
+ * folder open in GAMES, for a photo. Down and up again into a folder, into a game folder, a queue entry that is
+ * cleared again (no launch), and single-entry listings. Every step is undone, if the ODE behaves. */
+
+/* one D1 page from index 0 here: "<n> REC 1:#<toc> F<flags> <name>" (the first real entry); *cnt, *ftoc, fname */
+static void t_line(char lines[][40], int32 *k, int32 max, char *l)
+{
+    l[38] = 0;
+    if (*k < max)
+        strcpy(lines[(*k)++], l);
+}
+
+static void t_list(char *out, int32 *cnt, uint32 *ftoc, char *fname)
+{
+    uint32 flags, toc;
+    const char *nm;
+    char t[64];
+    int32 len, pos = 0, sz, n = 0, err, got1 = 0;
+
+    *cnt = 0;
+    *ftoc = 0;
+    fname[0] = 0;
+    err = ode_d1_list(0, 14, d1buf);
+    if (err < 0) {
+        sprintf(out, "D1 ERR %d", (int)err);
+        return;
+    }
+    for (;;) {
+        sz = d1_record(d1buf, pos, &flags, &toc, &nm, &len);
+        if (sz <= 0)
+            break;
+        if (!got1 && toc != TOC_UP) {
+            got1 = 1;
+            *ftoc = toc;
+            if (len > 8) len = 8;
+            memcpy(fname, nm, len);
+            fname[len] = 0;
+            sprintf(out, "%d REC 1ST #%u F%02X %s", 0, (unsigned)toc, (unsigned)(flags & 0xff), fname);
+        }
+        pos += sz;
+        n++;
+        if (n >= 14)
+            break;
+    }
+    *cnt = n;
+    if (!got1)
+        sprintf(out, "%d REC, NONE BUT ..", (int)n);
+    else {
+        strcpy(t, strchr(out, ' '));
+        sprintf(out, "%d%s", (int)n, t);
+    }
+}
+
+int32 dir_ode_test(char lines[][40], int32 max)
+{
+    char l[128], lb[64], n0[16], n1[16], n2[16];
+    int32 k = 0, i, f = -1, g = -1, c0, c1, c2, r;
+    uint32 t0, t1, t2, flags, toc;
+    uint8 cmd[8], reply[8];
+
+    sprintf(l, "DEPTH %d  2 DRIVES %d  LIST %d", (int)g_dir.depth, (int)g_dir.both_drives, (int)g_dir.devlist); t_line(lines, &k, max, l);
+    sprintf(l, "ENTRIES %d  HIDDEN %d  D1 OK %d", (int)g_dir.count, (int)g_dir.hidden, (int)g_probe_ok); t_line(lines, &k, max, l);
+    if (g_dir.devlist) {
+        sprintf(l, "OPEN A DRIVE FIRST, THEN RUN AGAIN"); t_line(lines, &k, max, l);
+        return k;
+    }
+    t_list(lb, &c0, &t0, n0);
+    sprintf(l, "HERE: %s", lb); t_line(lines, &k, max, l);
+    for (i = 0; i < g_dir.count; i++)
+        if ((g_dir.ent[i].flags & TF_DIR) && g_dir.ent[i].gtype != GT_GAME) {
+            f = i;
+            break;
+        }
+    for (i = 0; i < g_dir.count; i++)
+        if (dir_is_game_folder(i)) {
+            g = i;
+            break;
+        }
+    if (f >= 0) {
+        r = ode_c0_change_dir(g_dir.ent[f].toc_id);
+        t_list(lb, &c1, &t1, n1);
+        sprintf(l, "C0 #%u %.8s: %d", (unsigned)g_dir.ent[f].toc_id, dir_name(f), (int)r); t_line(lines, &k, max, l);
+        sprintf(l, " IN: %s", lb); t_line(lines, &k, max, l);
+        r = ode_c0_change_dir(TOC_UP);
+        t_list(lb, &c2, &t2, n2);
+        sprintf(l, "UP %d: %s %s", (int)r, (c2 == c0 && t2 == t0 && strcmp(n2, n0) == 0) ? "SAME" : "DIFF", lb); t_line(lines, &k, max, l);
+    } else {
+        sprintf(l, "NO PLAIN FOLDER HERE TO TRY"); t_line(lines, &k, max, l);
+    }
+    if (g >= 0) {
+        r = ode_c0_change_dir(g_dir.ent[g].toc_id);
+        t_list(lb, &c1, &t1, n1);
+        sprintf(l, "GAME C0 #%u %.8s: %d", (unsigned)g_dir.ent[g].toc_id, dir_name(g), (int)r); t_line(lines, &k, max, l);
+        sprintf(l, " IN: %s", lb); t_line(lines, &k, max, l);
+        ode_c3_queue_clear();
+        memset(cmd, 0, sizeof(cmd));
+        memset(reply, 0, sizeof(reply));
+        cmd[0] = 0xc4;
+        toc = g_dir.ent[g].inner_toc;
+        cmd[1] = (uint8)(toc >> 24); cmd[2] = (uint8)(toc >> 16); cmd[3] = (uint8)(toc >> 8); cmd[4] = (uint8)toc;
+        r = ode_cmd(cmd, reply, 4);
+        ode_c3_queue_clear();
+        sprintf(l, "C4 #%u: %d  %02X %02X %02X %02X", (unsigned)toc, (int)r, reply[0], reply[1], reply[2], reply[3]); t_line(lines, &k, max, l);
+        r = ode_c0_change_dir(TOC_UP);
+        t_list(lb, &c2, &t2, n2);
+        sprintf(l, "UP %d: %s %s", (int)r, (c2 == c0 && t2 == t0 && strcmp(n2, n0) == 0) ? "SAME" : "DIFF", lb); t_line(lines, &k, max, l);
+    } else {
+        for (i = 0; i < g_dir.count && !dir_is_game(i); i++)
+            ;
+        if (i < g_dir.count) {
+            ode_c3_queue_clear();
+            memset(cmd, 0, sizeof(cmd));
+            memset(reply, 0, sizeof(reply));
+            cmd[0] = 0xc4;
+            toc = g_dir.ent[i].toc_id;
+            cmd[1] = (uint8)(toc >> 24); cmd[2] = (uint8)(toc >> 16); cmd[3] = (uint8)(toc >> 8); cmd[4] = (uint8)toc;
+            r = ode_cmd(cmd, reply, 4);
+            ode_c3_queue_clear();
+            sprintf(l, "C4 #%u %.8s: %d %02X %02X %02X %02X", (unsigned)toc, dir_name(i), (int)r, reply[0], reply[1],
+                  reply[2], reply[3]); t_line(lines, &k, max, l);
+        } else {
+            sprintf(l, "NO GAME HERE TO TRY"); t_line(lines, &k, max, l);
+        }
+    }
+    {
+        static const int32 counts[3] = { 1, 2, 14 };
+        char part[3][16], nm[DIR_NAME_MAX];
+        for (i = 0; i < 3; i++) {
+            nm[0] = 0;
+            flags = toc = 0;
+            r = g_dir.count ? probe_n(g_dir.ent[0].toc_id, counts[i], &flags, &toc, nm) : -9;
+            sprintf(part[i], "%d:%d#%u", (int)counts[i], (int)r, (unsigned)toc);
+        }
+        sprintf(l, "ONE #%u %s %s %s", g_dir.count ? (unsigned)g_dir.ent[0].toc_id : 0u, part[0], part[1], part[2]); t_line(lines, &k, max, l);
+    }
+    t_list(lb, &c2, &t2, n2);
+    sprintf(l, "END: %s %s", (c2 == c0 && t2 == t0 && strcmp(n2, n0) == 0) ? "SAME" : "DIFF", lb); t_line(lines, &k, max, l);
+    return k;
+}
+

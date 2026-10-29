@@ -165,7 +165,7 @@ static int32 tab_count(int32 t)
     case T_GAMES:   return has_up() + g_dir.count;
     case T_FAVS:    return g_favs.n;
     case T_RECENT:  return g_recent.n;
-    case T_TOOLS:   return 12;
+    case T_TOOLS:   return 13;
     default:        return 5;
     }
 }
@@ -702,7 +702,8 @@ static const char *tools_label(int32 i)
     case 8:  return "DUMP FMV ROM";
     case 9:  return "DUMP RAM (3 MB)";
     case 10: return "UPDATE ODE FIRMWARE";
-    default: return "DEVICE INFO";
+    case 11: return "DEVICE INFO";
+    default: return "ODE TEST";
     }
 }
 
@@ -2229,6 +2230,30 @@ static void device_info(void)
     dialog_run(&d);
 }
 
+/* TOOLS > ODE TEST: two pages of raw answers (see dir_ode_test), for a photo when a clone misbehaves */
+static void ode_test(void)
+{
+    static char lines[16][40];
+    Dialog d;
+    int32 n, k, page;
+
+    if (!ui_confirm("Run the ODE test?", "Talks to the ODE from the folder open in GAMES and shows its answers for a photo. Nothing is started or written."))
+        return;
+    n = dir_ode_test(lines, 16);
+    for (page = 0; page * 8 < n; page++) {
+        dialog_init(&d, page ? "ODE TEST 2/2" : (n > 8 ? "ODE TEST 1/2" : "ODE TEST"));
+        for (k = 0; k < 8 && page * 8 + k < n; k++)
+            gfx_fold(lines[page * 8 + k], d.lines[k], 40);
+        d.nlines = k;
+        d.opts[0] = "NEXT";
+        d.nopts = 1;
+        d.hint_a = (page + 1) * 8 < n ? "NEXT" : "CLOSE";
+        d.msg_only = 1;
+        dialog_run(&d);
+    }
+    reload(1, 0);
+}
+
 /* ---------------------------------------------------------------- the card scan (TOOLS, and offered once at the
  * first start): every folder of the drive is listed (so its index knows its game folders) and every game's cover
  * picture is turned into its .img. Folders already indexed and covers already made are skipped, so running it
@@ -2420,8 +2445,11 @@ static void tools_a(void)
         }
         after_tool(0);
         break;
-    default:
+    case 11:
         device_info();
+        break;
+    default:
+        ode_test();
         break;
     }
 }

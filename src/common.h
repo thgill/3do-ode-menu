@@ -165,6 +165,7 @@ int32       dir_to_root(DirProgress progress);  /* up to the drive root and list
 int32       dir_to_devlist(DirProgress progress);
 int32       dir_root_begin(void);               /* firmware to the drive root for a file access (-1 on the device list) */
 void        dir_root_end(void);                 /* and back to the folder the menu is in */
+int32       dir_ode_test(char lines[][40], int32 max);    /* TOOLS > ODE TEST: raw answers, for clones */
 int32       dir_open_path(int32 drive, const char *path, DirProgress progress);  /* index of the file, or < 0 */
 int32       name_is_game(const char *name);     /* .iso or .cue */
 int32       dir_is_game(int32 i);               /* a game file, or a game folder */

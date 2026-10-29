@@ -177,6 +177,8 @@ The hidden extras (both Konami codes, the eject-count picture, and the XPort RAM
   before acting on it, which the stock menu never does. The menu now tries that once at startup (counts 1, 2 and
   14) and, if no answer matches the listing, works without it: no folder index, entries trusted from a fresh
   read of the folder. TOOLS > DEVICE INFO shows the result on its last line.
+  TOOLS > ODE TEST shows the raw answers to the commands the menu relies on (into a folder and back up, into a
+  game folder, a queue entry that is cleared again, single-entry listings), for a photo when a clone misbehaves.
 - **Writing the card is slow**: the firmware takes data from the 3DO only 4 bytes per command (E6), about
   2.3 ms each, so writes run at about 1.7 KB/s (a 8.4 KB folder index took 4.9 s). Reading is fast (2 KB per
   command); a file that isn't there costs about 0.08 s to look for. So the menu writes as little as it can, and
