@@ -77,8 +77,7 @@ the info pane's 88x122 with its shape kept, in its own 256 colors (a US long box
 - a game file among others: `_art/<game name>.img` beside it (`Doom (USA).iso` uses `_art/Doom (USA).img`).
 
 How the pane lays it out depends only on the picture's height. Box art taller than 100 lines (long boxes,
-European cases) fills the pane, centered, with the sides beside a narrow box filled from its own edge colors,
-darkened, and the CUE / favorite / queue badges on a darkened strip along its foot (the name is in the list).
+European cases) fills the pane, centered, with dark sides beside a narrow box, and the CUE / favorite / queue badges on a darkened strip along its foot (the name is in the list).
 Shorter pictures (square and wide covers, screenshots) sit at the top with the name under them, a word per line;
 the badges go under the name when there are 40 lines to spare, else on the picture's foot.
 

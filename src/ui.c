@@ -593,9 +593,8 @@ static int32 art_fetch(const ArtWhere *w, uint16 *pix, int32 stride, ArtAbort ab
 /* Lays a decoded w x h cover out in its slot (ART_W x ART_H, rows of stride pixels), as the pane shows it. */
 static void art_compose(ArtSlot *s, int32 w, int32 h)
 {
-    static int32 side[2][ART_H][3];
     uint16 *p = s->img->pix, bg = (uint16)gfx_color(P_BG), panel = (uint16)gfx_color(P_PANEL), c;
-    int32 st = s->img->stride, ox = (ART_W - w) / 2, oy = 0, x, y, k, ch, n, i, sum[3], t, top, rows;
+    int32 st = s->img->stride, ox = (ART_W - w) / 2, oy = 0, x, y, t, rows;
 
     if (h > ART_TALL)
         oy = (ART_H - h) / 2;
@@ -605,96 +604,11 @@ static void art_compose(ArtSlot *s, int32 w, int32 h)
             for (x = w - 1; x >= 0; x--)
                 p[(y + oy) * st + x + ox] = p[y * st + x];
     rows = h > ART_TALL ? ART_H : h;
-#ifndef SIDE_FILL
-#define SIDE_FILL 0
-#endif
-    if (ox && SIDE_FILL == 1) {
+    if (ox)                                     /* beside a narrow cover: dark */
         for (y = 0; y < rows; y++)
             for (x = 0; x < ART_W; x++)
                 if (x < ox || x >= ox + w)
                     p[y * st + x] = bg;
-    } else if (ox && SIDE_FILL == 2) {
-        /* the cover stretched to the pane's width, very blurred and darkened: a coarse grid of its averages,
-         * spread smoothly over the sides */
-        static int32 grid[12][8][3];
-        int32 gx, gy, fx, fy, a0, a1, b0, b1, cnt[12][8];
-        memset(grid, 0, sizeof(grid));
-        memset(cnt, 0, sizeof(cnt));
-        for (y = 0; y < h; y++)
-            for (x = 0; x < w; x++) {
-                c = p[(y + oy) * st + ox + x];
-                gy = y * 12 / h;
-                gx = x * 8 / w;
-                grid[gy][gx][0] += (c >> 10) & 31;
-                grid[gy][gx][1] += (c >> 5) & 31;
-                grid[gy][gx][2] += c & 31;
-                cnt[gy][gx]++;
-            }
-        for (gy = 0; gy < 12; gy++)
-            for (gx = 0; gx < 8; gx++)
-                for (ch = 0; ch < 3; ch++)
-                    grid[gy][gx][ch] = cnt[gy][gx] ? grid[gy][gx][ch] * 256 / cnt[gy][gx] : 0;     /* x256 */
-        for (y = 0; y < rows; y++) {
-            top = y - oy;
-            if (top < 0) top = 0;
-            if (top > h - 1) top = h - 1;
-            fy = top * 11 * 256 / (h > 1 ? h - 1 : 1);          /* grid row, x256 */
-            gy = fy >> 8;
-            fy &= 255;
-            if (gy >= 11) { gy = 10; fy = 256; }
-            for (x = 0; x < ART_W; x++) {
-                if (x >= ox && x < ox + w)
-                    continue;
-                fx = x * 7 * 256 / (ART_W - 1);
-                gx = fx >> 8;
-                fx &= 255;
-                if (gx >= 7) { gx = 6; fx = 256; }
-                for (ch = 0, t = 0; ch < 3; ch++) {
-                    a0 = grid[gy][gx][ch] * (256 - fx) + grid[gy][gx + 1][ch] * fx;
-                    a1 = grid[gy + 1][gx][ch] * (256 - fx) + grid[gy + 1][gx + 1][ch] * fx;
-                    b0 = (a0 >> 8) * (256 - fy) + (a1 >> 8) * fy;       /* x256 x256 */
-                    b1 = (b0 >> 16) * 45 / 128;                        /* darkened */
-                    t |= (b1 > 31 ? 31 : b1) << (10 - 5 * ch);
-                }
-                p[y * st + x] = (uint16)t;
-            }
-        }
-    } else if (ox) {
-        /* the sides beside a narrow cover: its own edge colors, smoothed down the rows and darkened */
-        for (k = 0; k < 2; k++)
-            for (y = 0; y < h; y++) {
-                sum[0] = sum[1] = sum[2] = 0;
-                for (i = 0; i < 4 && i < w; i++) {
-                    c = p[(y + oy) * st + ox + (k ? w - 1 - i : i)];
-                    sum[0] += (c >> 10) & 31;
-                    sum[1] += (c >> 5) & 31;
-                    sum[2] += c & 31;
-                }
-                for (ch = 0; ch < 3; ch++)
-                    side[k][y][ch] = sum[ch] * 8 / (i ? i : 1);       /* x8 */
-            }
-        for (y = 0; y < rows; y++) {
-            top = y - oy;
-            for (k = 0; k < 2; k++) {
-                for (ch = 0; ch < 3; ch++)
-                    sum[ch] = 0;
-                n = 0;
-                for (i = top - 8; i <= top + 8; i++)
-                    if (i >= 0 && i < h) {
-                        for (ch = 0; ch < 3; ch++)
-                            sum[ch] += side[k][i][ch];
-                        n++;
-                    }
-                if (n == 0)
-                    c = bg;
-                else
-                    c = (uint16)(((sum[0] * 45 / (n * 8 * 128)) << 10) | ((sum[1] * 45 / (n * 8 * 128)) << 5) |
-                                 (sum[2] * 45 / (n * 8 * 128)));
-                for (x = k ? ox + w : 0; x < (k ? ART_W : ox); x++)
-                    p[y * st + x] = c;
-            }
-        }
-    }
     if (h > ART_TALL)                           /* above and below a cover a little short of the pane */
         for (y = 0; y < ART_H; y++)
             if (y < oy || y >= oy + h)
