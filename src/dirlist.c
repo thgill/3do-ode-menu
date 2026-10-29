@@ -1059,12 +1059,11 @@ int32 dir_go_root(void)
     int32 i;
     uint32 up;
 
+    ode_c0_change_dir(0);           /* as the stock menu starts (main.c): a clone numbers its entries only after it */
     g_dir.depth = 0;
     g_dir.drive = g_dir.both_drives ? 0 : ode_drives();
-    if (g_dir.both_drives) {
-        ode_c0_change_dir(0);       /* the device list */
-        return 0;
-    }
+    if (g_dir.both_drives)
+        return 0;                   /* the device list */
     /* One drive: the firmware may still be in a folder (an earlier session, or a console reset after a game was
      * started from its folder). The menu goes up only through the ".." the listing shows, the way you would in
      * the stock menu, until boot.iso is listed (the drive root) or there is no ".." left. (Opening boot.iso to

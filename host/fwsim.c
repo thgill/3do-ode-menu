@@ -160,6 +160,8 @@ void fwsim_start_in(const char *rel)
 
 /* FWSIM_CLONE=4: a clone seen on hardware: ids carry the drive in the top byte, ".." is 0x01ffffff, and C0
  * ignores ids without it (0xffffffff included) */
+static int32 clone_selected;         /* clone: C0 0 seen (the stock menu sends it first) */
+
 static int32 clone4(void)
 {
     return getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) >= 4;
@@ -228,7 +230,8 @@ static void d1(const uint8 *cmd, uint8 *data)
         if (read_dir(idx, &te) <= 0)
             break;
         tocbuf[pos] = te.flags >> 24; tocbuf[pos + 1] = te.flags >> 16; tocbuf[pos + 2] = te.flags >> 8; tocbuf[pos + 3] = te.flags;
-        if (clone4())
+        /* the tester's clone numbers its entries with the drive byte only after C0 0 */
+        if (clone4() && clone_selected)
             te.toc = te.toc == 0xffffffff ? 0x01ffffff : (0x01000000 | te.toc);
         tocbuf[pos + 4] = te.toc >> 24; tocbuf[pos + 5] = te.toc >> 16; tocbuf[pos + 6] = te.toc >> 8; tocbuf[pos + 7] = te.toc;
         if (te.flags == 0xffffffff)
@@ -266,7 +269,11 @@ int32 host_fw_cmd(const uint8 *cmd, uint8 *reply, int32 n, uint8 *data, int32 le
         break;
     case 0xc0:
         v = ((uint32)cmd[1] << 24) | (cmd[2] << 16) | (cmd[3] << 8) | cmd[4];
-        if (clone4()) {             /* only its own ids: 0x01000000 + entry, 0x01ffffff for ".." */
+        if (clone4() && v == 0)
+            clone_selected = 1;
+        if (clone4() && !clone_selected)
+            ;                       /* before C0 0: plain ids, but nothing it starts will run (C4 below) */
+        else if (clone4()) {             /* only its own ids: 0x01000000 + entry, 0x01ffffff for ".." */
             if (v == 0x01ffffff)
                 v = 0xffffffff;
             else if ((v >> 24) == 1)
@@ -284,6 +291,11 @@ int32 host_fw_cmd(const uint8 *cmd, uint8 *reply, int32 n, uint8 *data, int32 le
     case 0xc4:
         v = ((uint32)cmd[1] << 24) | (cmd[2] << 16) | (cmd[3] << 8) | cmd[4];
         if (clone4()) {
+            if (!clone_selected) {
+                reply[1] = reply[2] = 1;    /* takes it, but the game never starts (seen with build 6) */
+                host_log("C4 without C0 0 first: the game will not start\n");
+                break;
+            }
             if ((v >> 24) != 1)
                 break;
             v &= 0x00ffffff;
