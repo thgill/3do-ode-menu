@@ -207,6 +207,12 @@ The hidden extras (both Konami codes, the eject-count picture, and the XPort RAM
   - **`C0` to the current id is ignored.** The firmware keeps the id of the last folder it entered; a subfolder
     with the same id (entry 1 inside a folder that was entry 1) does not open. The menu tracks that id and first
     sends `C0` to another entry of the folder (a file only becomes the current id; a folder is entered and left).
+    A folder whose only entry is such a folder can not be opened at all: the menu says so instead of going on as
+    if it had (which once left it a folder off from the firmware). After a console reset the menu does not know
+    the firmware's id, so it does this before the first folder it opens.
+  - **The firmware keeps its folder through a console reset**, and its EXT_ID always says the menu disc came from
+    drive 1. So at startup the menu follows a `..` that carries a drive byte up to the root (it stays put only on
+    Fixel's firmware with an unknown boot source).
   - **`C4` queues only an entry of the last listing.** It looks the id up in the buffer of the last `D1` answer,
     not on the card. The menu lists the entry on its own just before each `C4` (the stock menu always queues from
     the page it has just listed).
@@ -225,6 +231,8 @@ The hidden extras (both Konami codes, the eject-count picture, and the XPort RAM
     there after the read, nothing was read.
   - **Writes never shorten a file**, so every file the menu writes says where it ends: list files end with
     `-END-`, indexes and covers carry their size.
+  - Not modelled yet: what the firmware does once the last queued disc has loaded (it clears its folder state), so
+    coming back to the menu after a launch that did not boot is untested on the clone model.
 - **Writing the card is slow**: the firmware takes data from the 3DO only 4 bytes per command (E6), about
   2.3 ms each, so writes run at about 1.7 KB/s (a 8.4 KB folder index took 4.9 s). Reading is fast (2 KB per
   command); a file that isn't there costs about 0.08 s to look for. So the menu writes as little as it can, and

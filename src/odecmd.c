@@ -75,7 +75,8 @@ int32 ode_drives(void)
     return ext_b1 & 3;
 }
 
-static uint32 c0_last;                  /* the id the firmware takes as its current one (a clone's "current TOC") */
+#define C0_UNKNOWN 0xfffffffeu          /* not known: after power-on 0, but a clone keeps its own through a reset */
+static uint32 c0_last = C0_UNKNOWN;     /* the id the firmware takes as its current one (a clone's "current TOC") */
 
 static int32 c0_send(uint32 id)
 {
@@ -141,16 +142,12 @@ static int32 c0_unstick(uint32 id)
 
 int32 ode_c0_change_dir(uint32 id)
 {
-    if (id == c0_last && (id & 0xff000000u) != 0 && (id & 0x00ffffffu) != 0 && (id & 0x00ffffffu) != 0x00ffffffu)
-        c0_unstick(id);
+    if ((id == c0_last || c0_last == C0_UNKNOWN) && (id & 0xff000000u) != 0 && (id & 0x00ffffffu) != 0 &&
+        (id & 0x00ffffffu) != 0x00ffffffu && c0_unstick(id) < 0 && id == c0_last)
+        return ODE_C0_STUCK;            /* it would be ignored: the caller must not go on as if it had opened */
     return c0_send(id);
 }
 
-/* what the firmware takes as its current id, as far as the menu knows (0 after power-on) */
-uint32 ode_c0_current(void)
-{
-    return c0_last;
-}
 
 int32 ode_c3_queue_clear(void)
 {
@@ -337,8 +334,8 @@ int32 ode_file_read(uint8 *buf, uint32 len, uint32 *got)
         return err;
     if (reply[0] != 0xe7)
         return -1;
-    if (n >= sizeof(mark) && memcmp(xfer, mark, sizeof(mark)) == 0)
-        return 0;                       /* nothing was read: the end of the file */
+    if (memcmp(xfer, mark, n < sizeof(mark) ? n : sizeof(mark)) == 0)
+        return 0;                       /* nothing was read: the end of the file (n > 0 here) */
     memcpy(buf, xfer, n);
     *got = n;
     return 0;

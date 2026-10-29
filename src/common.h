@@ -102,8 +102,8 @@ int32  ode_c0_change_dir(uint32 id);
 int32  ode_c3_queue_clear(void);
 int32  ode_c4_queue_add(uint32 toc_id);         /* 0 added, -1 error, -2 not added (full) */
 int32  ode_c5_launch(void);
-int32  ode_d1_list(uint32 index, uint32 count, uint8 *buf);
-uint32 ode_c0_current(void);   /* 2 KB into buf */
+int32  ode_d1_list(uint32 index, uint32 count, uint8 *buf);   /* 2 KB into buf */
+#define ODE_C0_STUCK (-0x2000)  /* a clone would ignore this C0 (see ode_c0_change_dir) */
 int32  ode_file_open(const char *name, int32 write);
 int32  ode_file_write(const uint8 *buf, uint32 len);           /* <= 2 KB per call */
 int32  ode_file_read(uint8 *buf, uint32 len, uint32 *got);     /* <= 2 KB per call */

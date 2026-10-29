@@ -967,6 +967,10 @@ int32 dir_enter(int32 i, DirProgress progress)
     if (g_dir.from_cache && !check_one(e->toc_id))
         return -3;              /* index is stale: the caller rescans and tries again */
     r = ode_c0_change_dir(e->toc_id);
+    if (r == ODE_C0_STUCK) {
+        strcpy(g_dir_err, "ON THIS ODE A FOLDER THAT HOLDS ONLY ONE FOLDER CAN NOT BE OPENED");
+        return -1;
+    }
     if (r < 0) {
         sprintf(g_dir_err, "C0 %d failed: %d", (int)e->toc_id, (int)r);
         return -1;
@@ -1059,8 +1063,8 @@ static int32 listing_has_drive_byte(void)
     if (ode_d1_list(0, 14, d1buf) < 0)
         return 0;
     while ((r = d1_record(d1buf, pos, &flags, &toc, &nm, &len)) > 0) {
-        if (!TOC_IS_UP(toc) && (toc & 0xff000000u) != 0)
-            return 1;               /* (".." is 0xffffffff on Fixel's firmware: not a drive byte) */
+        if (toc != 0xffffffffu && (toc & 0xff000000u) != 0)
+            return 1;               /* (a clone's ".." is drive << 24 | 0xffffff; Fixel's is 0xffffffff) */
         pos += r;
     }
     return 0;
@@ -1121,8 +1125,10 @@ int32 dir_go_root(void)
             return 0;
         if (up == 0)
             return at_boot_root() ? 0 : -1;     /* no ".." and no boot.iso in sight: the root of a big card */
-        if (i == 0 && ((ode_ext_b1() >> 4) & 3) == 0)
-            return -1;              /* the menu disc did not come from this drive: its root is unknown, stay here */
+        if (i == 0 && up == 0xffffffffu && ((ode_ext_b1() >> 4) & 3) == 0)
+            return -1;              /* Fixel's firmware, and the menu disc did not come from this drive: its root is
+                                     * unknown, stay here. (A clone's ".." carries its drive byte, and its EXT_ID
+                                     * always says 1: it can be followed up.) */
         if (i == DIR_MAX_DEPTH)
             break;
         ode_c0_change_dir(up);

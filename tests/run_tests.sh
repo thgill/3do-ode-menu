@@ -6,6 +6,7 @@ ROOT=$(pwd)
 M=$ROOT/build/host/menu_host
 T=$(mktemp -d)
 FAIL=0
+case "${FWSIM_CLONE:-0}" in 4|5|6|7) CLONE=1 ;; *) CLONE= ;; esac    # clone ODE models (see host/fwsim*.c)
 ok()   { echo "PASS  $1"; }
 bad()  { echo "FAIL  $1"; FAIL=1; }
 run()  { o=$($M --sd "$T/sd" --out "$T" --disc "$T/disc" --script "$@" 2>&1); echo "$o"; echo "$o" | grep -q "path is now invalid" && echo "INVALID-PATH" >> "$T/invalid.log"; echo "$o" | grep "fails on exFAT" >> "$T/dotdot.log"; true; }
@@ -70,7 +71,10 @@ echo "$out" | grep -q "C5 launch: .*Games/Sub/Deep (USA).iso" && ok "startup fro
 # boot source unknown (flash image): the menu must not move the firmware, so it starts in the folder it was left in
 printf '20 pad A\n22 pad -\n30 pad A\n32 pad -\n600 end\n' > "$T/flash.txt"
 out=$(run "$T/flash.txt" --start "Games/Sub" --source 4)
+# (Fixel's firmware only: a clone's ".." carries its drive byte and is followed up to the root; its EXT_ID always says 1)
+if [ -z "$CLONE" ]; then
 echo "$out" | grep -q "C5 launch: .*Games/Sub/Deep (USA).iso" && ok "unknown boot source: stays in the current folder, no overshoot" || { bad "unknown boot source"; echo "$out" | grep -E "C5|invalid"; }
+fi
 
 # a launch that does not boot: the menu waits for B, and must then still be in a valid folder (B, then play another)
 printf '20 pad A\n22 pad -\n30 pad D\n32 pad -\n34 pad D\n36 pad -\n40 pad A\n42 pad -\n50 pad A\n52 pad -\n620 pad B\n622 pad -\n700 pad D\n702 pad -\n710 pad A\n712 pad -\n720 pad A\n722 pad -\n1330 pad B\n1332 pad -\n1400 pad B\n1402 pad -\n1410 pad A\n1412 pad -\n1420 pad D\n1422 pad -\n1424 pad D\n1426 pad -\n1430 pad A\n1432 pad -\n1440 pad A\n1442 pad -\n2200 end\n' > "$T/relaunch.txt"
@@ -125,8 +129,7 @@ for k in sys.argv[1].split():
     out.append('%d pad %s'%(f,k)); out.append('%d pad -'%(f+2)); f+=$2
 out.append('%d end'%(f+$3))
 print('\n'.join(out))" "$1"; }
-# clone modes (FWSIM_CLONE 4-7): the card scan indexes folders but looks for no pictures (it would leave empty files)
-case "${FWSIM_CLONE:-0}" in 4|5|6|7) CLONE=1 ;; *) CLONE= ;; esac
+# (clone modes: the card scan indexes folders but looks for no pictures, see CLONE at the top)
 SCAN="r r r D A D A w w w w w w w w w w w w w w w w w w w w A l l l"     # TOOLS > SCAN CARD > YES, wait, close, back
 rm -f "$T/sd/Games/_art/"*
 python3 -c "from PIL import Image; Image.new('RGB',(320,240),(255,0,0)).save('$T/sd/Games/_art/Game 2 (USA).png')"
@@ -251,6 +254,22 @@ keys "A" 30 30 > "$T/first.txt"
 run "$T/first.txt" > /dev/null
 grep -q "^scanned=1$" "$T/sd/_odemenu.opt" 2>/dev/null && ok "first start offers the scan once (scanned=1 kept)" || { bad "first-start offer"; cat "$T/sd/_odemenu.opt"; }
 mv "$T/opt.keep" "$T/sd/_odemenu.opt"
+
+# SataTo3DO-based clone (FWSIM_CLONE=7): its firmware ignores C0 to the id it already holds, so a folder whose only
+# entry is a folder with the same number (entry 1 in entry 1) can not be opened: the menu must say so and stay in
+# step (it did not, and wrote one folder's listing as the root's index)
+if [ "${FWSIM_CLONE:-0}" = 7 ]; then
+    C="$T/c7"; mkdir -p "$C/sd/A/X" "$C/disc/assets"; cp "$T/disc/assets/logo.img" "$C/disc/assets/"; touch "$C/sd/boot.iso" "$C/sd/A/X/Inner (USA).iso"
+    printf 'OMO1\npane=1\nbar=1\nshine=0\nindex=1\nscanned=1\n' > "$C/sd/_odemenu.opt"
+    printf '40 pad A\n42 pad -\n120 pad A\n122 pad -\n200 shot stuck\n210 end\n' > "$C/s.txt"
+    for start in "" A; do
+        rm -f "$C/sd/_odemenu.idx" "$C/sd/A/_odemenu.idx"
+        $M --sd "$C/sd" --out "$C" --disc "$C/disc" --script "$C/s.txt" ${start:+--start $start} > "$C/out.txt" 2>&1
+        python3 -c "import sys; d=open('$C/sd/_odemenu.idx','rb').read(); sys.exit(0 if b'boot.iso' in d and b'Inner' not in d else 1)" 2>/dev/null &&
+            ok "clone: a folder holding one same-numbered folder: the menu stays in step${start:+ (after a reset inside A)}" ||
+            { bad "clone single subfolder${start:+ after reset}"; grep -E "C0" "$C/out.txt" | head; }
+    done
+fi
 
 [ -s "$T/dotdot.log" ] && { bad "file names with '..' (exFAT cannot resolve them)"; sort -u "$T/dotdot.log" | head -3; } || ok "no file name relies on '..' (exFAT)"
 [ -f "$T/invalid.log" ] && bad "firmware path went above the drive root ($(wc -l < "$T/invalid.log") runs)" || ok "firmware path never went above the drive root"
