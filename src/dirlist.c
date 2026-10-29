@@ -266,12 +266,15 @@ static void probe_calibrate(void)
 
     if (g_probe_ok != -1 || g_dir.devlist || g_dir.count == 0)
         return;
-    /* the entry with the highest number: the first one answers the same with or without the shift (D1 index 0 is
-     * the first entry either way), so it can not tell them apart */
+    /* the lowest-numbered entry after the first: the first answers the same with or without the shift (D1 index 0
+     * is the first entry either way), so it can not tell them apart; and a high one is slow on Fixel's firmware,
+     * which walks the folder from its start for every entry (seconds in a big folder) */
     e = &g_dir.ent[0];
-    for (k = 1; k < g_dir.count; k++)
-        if ((g_dir.ent[k].toc_id & 0x00ffffff) > (e->toc_id & 0x00ffffff))
+    for (k = 1; k < g_dir.count; k++) {
+        uint32 n = g_dir.ent[k].toc_id & 0x00ffffff, m = e->toc_id & 0x00ffffff;
+        if (n >= 2 && (m < 2 || n < m))
             e = &g_dir.ent[k];
+    }
     for (off = 0; off < 2; off++) {
         d1_off = off;
         for (k = 0; k < 3; k++) {
