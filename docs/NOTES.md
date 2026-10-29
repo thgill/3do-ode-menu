@@ -182,6 +182,11 @@ The hidden extras (both Konami codes, the eject-count picture, and the XPort RAM
   uses. The menu now takes the "up" id from the folder's own `..` entry, treats any id ending in `ffffff` as `..`,
   asks D1 for the entry's position (the id's low bits), and stores only the entry number in the folder index,
   putting the drive byte back when it reads it. The simulator's `FWSIM_CLONE=4` behaves like that clone.
+  It also answers D1 index n with the entry after it (index 0 is `..` then the first entry), so the menu measures
+  that on the first folder it reads ("D1 CHECK OK (COUNT n, SHIFTED)" in DEVICE INFO) and pages by entry
+  position; `FWSIM_CLONE=5` adds that. And it reset into a black screen with one game when a game folder was
+  started from the list, while picking the file inside worked, so a game folder is now started exactly that way:
+  the menu opens the folder as usual and starts the game from its listing (RECENT still records the folder).
   TOOLS > ODE TEST shows the raw answers to the commands the menu relies on (into a folder and back up, into a
   game folder, a queue entry that is cleared again, single-entry listings), for a photo when a clone misbehaves.
 - **Writing the card is slow**: the firmware takes data from the 3DO only 4 bytes per command (E6), about

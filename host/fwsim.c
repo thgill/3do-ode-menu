@@ -162,7 +162,7 @@ void fwsim_start_in(const char *rel)
  * ignores ids without it (0xffffffff included) */
 static int32 clone4(void)
 {
-    return getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) == 4;
+    return getenv("FWSIM_CLONE") && (atoi(getenv("FWSIM_CLONE")) == 4 || atoi(getenv("FWSIM_CLONE")) == 5);
 }
 
 static void change_dir(uint32 id)
@@ -217,6 +217,9 @@ static void d1(const uint8 *cmd, uint8 *data)
         return;
     }
     if (count < 14 && getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) == 2)
+        idx++;
+    /* =5: as 4, and D1 index n (n >= 1) answers from the entry at n + 1 (seen on the same clone) */
+    if (getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) == 5 && idx >= 1)
         idx++;
     /* =3: no single-entry answer is right, whatever the count (a listing from 0, 14, 28... still is) */
     if (getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) == 3 && (count < 14 || idx % 14 != 0))

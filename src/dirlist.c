@@ -202,20 +202,37 @@ static int32 d1_record(const uint8 *buf, int32 pos, uint32 *flags, uint32 *toc, 
  * If none does, it stops relying on single-entry answers: no folder index, and entries are trusted as listed by
  * a fresh read of the folder (as the stock menu does). */
 static int32 probe_count = 1;
+static int32 d1_off;                /* a clone answers D1 index n with the entry at n + 1 (index 0 is ".." then
+                                     * the first entry): 1 there, 0 on Fixel's firmware */
 int32 g_probe_ok = -1;              /* -1 not tested yet, 1 works (with probe_count), 0 does not */
 char  g_probe_info[40] = "D1 CHECK: NO FOLDER READ YET";
+
+/* the D1 index that answers with the entry whose id is id (a clone's ids carry a drive byte) */
+static uint32 d1_index(uint32 id)
+{
+    uint32 pos = id & 0x00ffffff;
+    return pos >= (uint32)d1_off ? pos - d1_off : 0;
+}
 
 static int32 probe_n(uint32 idx, int32 count, uint32 *flags, uint32 *toc, char *name)
 {
     const char *nm;
-    int32 len, r;
+    int32 len, r, pos = 0;
+    uint32 at = d1_index(idx);
 
-    r = ode_d1_list(idx & 0x00ffffff, count, d1buf);    /* the listing position (a clone's ids carry a drive) */
+    if (at == 0 && count < 2)
+        count = 2;                      /* index 0 starts with "..": the entry is the one after it */
+    r = ode_d1_list(at, count, d1buf);
     if (r < 0)
         return r;
-    r = d1_record(d1buf, 0, flags, toc, &nm, &len);
-    if (r <= 0)
-        return r;
+    for (;;) {
+        r = d1_record(d1buf, pos, flags, toc, &nm, &len);
+        if (r <= 0)
+            return r;
+        if (!TOC_IS_UP(*toc))
+            break;
+        pos += r;
+    }
     memcpy(name, nm, len);
     name[len] = 0;
     return 1;
@@ -240,19 +257,27 @@ static void probe_calibrate(void)
     DirEntry *e;
     int32 k, r = 0;
 
+    int32 off;
+
     if (g_probe_ok != -1 || g_dir.devlist || g_dir.count == 0)
         return;
     e = &g_dir.ent[0];
-    for (k = 0; k < 3; k++) {
-        name[0] = 0;
-        r = probe_n(e->toc_id, counts[k], &flags, &toc, name);
-        if (r == 1 && toc == e->toc_id && (flags & 0xff) == e->flags && strcmp(name, dir_name(0)) == 0) {
-            probe_count = counts[k];
-            g_probe_ok = 1;
-            sprintf(g_probe_info, "D1 CHECK OK (COUNT %d)", (int)counts[k]);
-            return;
+    for (off = 0; off < 2; off++) {
+        d1_off = off;
+        for (k = 0; k < 3; k++) {
+            name[0] = 0;
+            r = probe_n(e->toc_id, counts[k], &flags, &toc, name);
+            if (r == 1 && toc == e->toc_id && (flags & 0xff) == e->flags && strcmp(name, dir_name(0)) == 0) {
+                probe_count = counts[k];
+                g_probe_ok = 1;
+                sprintf(g_probe_info, "D1 CHECK OK (COUNT %d%s)", (int)counts[k], off ? ", SHIFTED" : "");
+                return;
+            }
         }
+        if (off == 0 && !(r == 1 && (toc & 0x00ffffff) == (e->toc_id & 0x00ffffff) + 1))
+            break;                      /* not the clone's one-late answer: no point trying the shift */
     }
+    d1_off = 0;
     g_probe_ok = 0;
     sprintf(g_probe_info, "D1 #%u: %d #%u F%02X", (unsigned)e->toc_id, (int)r, (unsigned)toc, (unsigned)(flags & 0xff));
 }
@@ -318,7 +343,7 @@ static void sort_entries(void)
 
 static int32 scan(DirProgress progress)
 {
-    uint32 idx = 0, flags, toc;
+    uint32 idx = 0, flags, toc, last_real;
     const char *name;
     int32 len, pos, sz, got, err;
 
@@ -332,12 +357,15 @@ static int32 scan(DirProgress progress)
         }
         pos = 0;
         got = 0;
+        last_real = 0;
         for (;;) {
             sz = d1_record(d1buf, pos, &flags, &toc, &name, &len);
             if (sz == 0)
                 goto done;
             if (sz < 0)
                 break;
+            if (!TOC_IS_UP(toc))
+                last_real = toc;
             if (idx == 0 && got == 0 && name[0] == '/' && !TOC_IS_UP(toc))
                 g_dir.devlist = 1;
             if (!TOC_IS_UP(toc) && add_entry(flags, toc, name, len) < 0)
@@ -353,7 +381,9 @@ static int32 scan(DirProgress progress)
                     d1buf[8], d1buf[9], d1buf[10], d1buf[11], d1buf[12], d1buf[13], d1buf[14], d1buf[15]);
             return -1;
         }
-        idx += got;
+        if (g_probe_ok == -1 && !g_dir.devlist && got >= 14)
+            probe_calibrate();          /* before the next page: how this ODE numbers its D1 answers */
+        idx = last_real && !g_dir.devlist ? d1_index(last_real) + 1 : idx + got;
         if (progress && progress(g_dir.count, 0)) {
             g_dir.truncated = 1;
             return 1;           /* canceled: keep what we have, do not cache it */
@@ -372,7 +402,7 @@ done:
 static int32 detect_folder(int32 i)
 {
     DirEntry *e = &g_dir.ent[i];
-    uint32 idx = 0, flags, toc, gtoc = 0;     /* from 0 in pages of 14, as the stock menu reads a folder */
+    uint32 idx = 0, flags, toc, gtoc = 0, last_real;     /* from 0 in pages of 14, as the stock menu reads a folder */
     const char *name;
     char gname[DIR_NAME_MAX];
     int32 len, pos, sz, got, games = 0, seen = 0, glen = 0, done = 0, plain = 0;
@@ -385,6 +415,7 @@ static int32 detect_folder(int32 i)
             break;
         pos = 0;
         got = 0;
+        last_real = 0;
         for (;;) {
             sz = d1_record(d1buf, pos, &flags, &toc, &name, &len);
             if (sz == 0) {
@@ -397,6 +428,7 @@ static int32 detect_folder(int32 i)
             got++;
             if (TOC_IS_UP(toc))
                 continue;
+            last_real = toc;
             seen++;
             if ((flags & TF_DIR) || seen > GF_MAX_SEEN) {
                 plain = 1;
@@ -416,7 +448,7 @@ static int32 detect_folder(int32 i)
         }
         if (got == 0)
             break;
-        idx += got;
+        idx = last_real ? d1_index(last_real) + 1 : idx + got;
     }
     ode_c0_change_dir(g_toc_up);
     if (done && !plain && games == 1 && set_inner(e, gname, glen, gtoc) == 0)
@@ -471,7 +503,7 @@ const char *dir_inner(int32 i)
 int32 dir_game_enter(int32 i, uint32 *toc)
 {
     DirEntry *e;
-    uint32 idx = 0, flags, t, gtoc = 0;
+    uint32 idx = 0, flags, t, gtoc = 0, last_real;
     const char *name;
     int32 len, pos, sz, got, games = 0, seen = 0, found = 0, done = 0;
 
@@ -488,6 +520,7 @@ int32 dir_game_enter(int32 i, uint32 *toc)
             break;
         pos = 0;
         got = 0;
+        last_real = 0;
         for (;;) {
             sz = d1_record(d1buf, pos, &flags, &t, &name, &len);
             if (sz == 0) {
@@ -499,6 +532,7 @@ int32 dir_game_enter(int32 i, uint32 *toc)
             pos += sz;
             got++;
             if (!TOC_IS_UP(t)) {
+                last_real = t;
                 seen++;
                 if ((flags & TF_FILE) && !(flags & (TF_NVM | TF_ODE)) && name_is_game_n(name, len)) {
                     games++;
@@ -515,7 +549,7 @@ int32 dir_game_enter(int32 i, uint32 *toc)
         }
         if (got == 0)
             break;
-        idx += got;
+        idx = last_real ? d1_index(last_real) + 1 : idx + got;
     }
     if (found)
         return 0;

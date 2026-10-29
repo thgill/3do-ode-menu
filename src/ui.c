@@ -1739,11 +1739,15 @@ static void launch_screen(const char *what, const char *name)
 #define SETTLE_IO    90
 #define SETTLE_WRITE 180
 
+static const char *note_path;      /* set while a game folder's game is started from inside it: RECENT keeps the folder */
+
 static void before_launch(const char *what, const char *name, int32 entry)
 {
     char nm[DIR_NAME_MAX];
 
-    if (entry >= 0 && entry_path(entry, pathbuf, LIST_PATH_MAX) == 0)
+    if (note_path)
+        note_save(g_dir.drive, note_path);
+    else if (entry >= 0 && entry_path(entry, pathbuf, LIST_PATH_MAX) == 0)
         note_save(g_dir.drive, pathbuf);
     strncpy(nm, name, sizeof(nm) - 1);
     nm[sizeof(nm) - 1] = 0;
@@ -1893,6 +1897,8 @@ static int32 offer_discs(int32 i)
     return 1;
 }
 
+static void open_folder(int32 i);
+
 static void play_now(int32 i)
 {
     char nm[DIR_NAME_MAX];
@@ -1907,8 +1913,36 @@ static void play_now(int32 i)
     stem(nm, tmp2, sizeof(tmp2));
     folder = dir_is_game_folder(i);
     toc = g_dir.ent[i].toc_id;
-    if (folder && dir_game_enter(i, &toc) < 0) {
-        cant_start();
+    if (folder) {
+        /* A game folder's game is started exactly as if you opened the folder and picked the file: the folder is
+         * opened and read as usual, and the game started from its listing. (Started any other way, a clone ODE
+         * reset into a black screen with one game; picking the file worked.) RECENT still gets the folder. */
+        static char fpath[LIST_PATH_MAX];
+        char inner[DIR_NAME_MAX];
+        int32 depth = g_dir.depth, j;
+
+        strcpy(inner, dir_inner(i));
+        if (entry_path(i, fpath, LIST_PATH_MAX) < 0)
+            fpath[0] = 0;
+        open_folder(i);
+        if (g_dir.depth != depth + 1)
+            return;                     /* it could not be opened (open_folder said so) */
+        j = dir_find(inner);
+        if (j < 0)
+            for (r = 0; r < g_dir.count; r++)
+                if (dir_is_game(r)) {
+                    j = r;              /* renamed since: the folder's game */
+                    break;
+                }
+        if (j < 0) {
+            cant_start();
+            return;
+        }
+        cur[T_GAMES] = j + has_up();
+        dirty = 1;
+        note_path = fpath[0] ? fpath : 0;
+        play_now(j);
+        note_path = 0;
         return;
     }
     before_launch("STARTING GAME", tmp2, i);
@@ -1916,8 +1950,6 @@ static void play_now(int32 i)
     q_count = 0;
     r = ode_c4_queue_add(toc);
     if (r < 0) {
-        if (folder)
-            dir_game_leave();
         mark_queue();
         cant_start();
         return;
@@ -1928,8 +1960,6 @@ static void play_now(int32 i)
     ode_c5_launch();
     stem(nm, tmp, sizeof(tmp));
     launch_screen("STARTING GAME", tmp);
-    if (folder)
-        dir_game_leave();       /* still here: the console did not start the game */
     mark_queue();
 }
 
@@ -2015,7 +2045,6 @@ static const char *nvram_result(int32 r, const char *ok)
     return "Loading NVRAM failed, console NVRAM not changed";
 }
 
-static void open_folder(int32 i);
 
 static void game_dialog(int32 i)
 {

@@ -181,6 +181,7 @@ rm -f "$T/disc/nvram_ODEMenu"
 keys "D A w sg2 D D w w w w sdoom A A" 30 700 > "$T/gf.txt"
 out=$(run "$T/gf.txt")
 echo "$out" | grep -q "C5 launch: .*Games2/Doom/doom_1994_ID_Software.cue" && ok "a game folder starts its game (Games2/Doom)" || { bad "game folder start"; echo "$out" | grep -E "C0|C4|C5"; }
+grep -q "^Games2/Doom/$" "$T/disc/nvram_ODEMenu" && ok "a game folder's launch goes into RECENT as the folder" || { bad "game folder RECENT note"; cat "$T/disc/nvram_ODEMenu"; }
 [ ! -f "$G/Doom/_cover.img" ] && ok "browsing a game folder makes no _cover.img" || bad "browsing wrote _cover.img"
 python3 -c "
 d=open('$T/g2.ppm','rb').read().split(b'\n',3)[3]
