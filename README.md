@@ -3,6 +3,9 @@
 A new menu for Fixel's 3DO FZ-1 ODE. It's a replacement `boot.iso`: copy it to your card in place of the stock
 one and everything else (the ODE driver, Storage Manager, firmware updates) works as before.
 
+It works with Fixel's ODE and has been tested on one clone. Most clones should work too, but there are too many
+to check them all; if yours has trouble, see [Clones](#clones).
+
 The look is borrowed from my PicoPak SMS menu: tabs across the top, a game list on the left and an info pane with
 the box art on the right.
 
@@ -76,8 +79,14 @@ All of these are hidden from the menu (names starting with `_`) and safe to dele
   for every entry. Every visit after that is quick, and the Cover Makers can make the indexes ahead of time.
 - Names show in capitals, accents are dropped and Japanese characters show as `?` (the font has no lower case).
 - Up to 4,096 entries per folder.
-- Some clone ODEs answer a few firmware requests differently. The menu checks for this at startup and falls back
-  to working without the folder index; Tools > Device Info shows what it found.
+
+## Clones
+
+Clone ODEs run Fixel's firmware or their own copy of it, and some answer a few requests differently. The menu
+allows for the differences seen so far: one clone numbers its files differently, and the menu now reads the numbers
+the ODE gives it instead of assuming them. If a game won't start on your clone, or the menu says a game is no
+longer on the card, open the folder with your games, run **Tools > ODE Test** and post photos of both pages in an
+issue. That shows how your ODE answers, which is usually enough to fix it.
 
 ## Building
 
