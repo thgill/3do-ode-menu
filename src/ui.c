@@ -1860,6 +1860,9 @@ static void play_discs(int32 first, const int32 *more, int32 n)
     mark_queue();
     stem(names[0], tmp2, sizeof(tmp2));
     before_launch("STARTING GAME", tmp2, dir_find(names[0]));
+#ifdef LAUNCH_TRACE
+    trace_save();
+#endif
     ode_c5_launch();
     stem(names[0], tmp, sizeof(tmp));
     launch_screen("STARTING GAME", tmp);
@@ -1919,6 +1922,9 @@ static void play_now(int32 i)
         cant_start();
         return;
     }
+#ifdef LAUNCH_TRACE
+    trace_save();
+#endif
     ode_c5_launch();
     stem(nm, tmp, sizeof(tmp));
     launch_screen("STARTING GAME", tmp);
@@ -1972,6 +1978,9 @@ static void play_queue(void)
     stem(q_name[0], tmp2, sizeof(tmp2));
     before_launch(q_count > 1 ? "STARTING QUEUE" : "STARTING GAME", tmp2,
                   q_folder[0] == folder_key() ? dir_find(q_name[0]) : -1);
+#ifdef LAUNCH_TRACE
+    trace_save();
+#endif
     ode_c5_launch();
     stem(q_name[0], tmp, sizeof(tmp));
     launch_screen(q_count > 1 ? "STARTING QUEUE" : "STARTING GAME", tmp);
@@ -2243,6 +2252,18 @@ static void ode_test(void)
     Dialog d;
     int32 n, k, page;
 
+    n = trace_lines(lines, 16);         /* a LAUNCH_TRACE build: what the last launch sent, before the test */
+    for (page = 0; page * 8 < n; page++) {
+        dialog_init(&d, "LAST LAUNCH");
+        for (k = 0; k < 8 && page * 8 + k < n; k++)
+            strcpy(d.lines[k], lines[page * 8 + k]);
+        d.nlines = k;
+        d.opts[0] = "NEXT";
+        d.nopts = 1;
+        d.hint_a = "NEXT";
+        d.msg_only = 1;
+        dialog_run(&d);
+    }
     if (!ui_confirm("Run the ODE test?", "Talks to the ODE from the folder open in GAMES and shows its answers for a photo. Nothing is started or written."))
         return;
     n = dir_ode_test(lines, 16);

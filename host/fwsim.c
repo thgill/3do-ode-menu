@@ -365,8 +365,30 @@ int32 ode_io_open(void) { return 0; }
 int32 g_ode_cmds;
 uint32 g_ode_io_vbl;
 uint32 gfx_vbl_count(void);
-int32 ode_cmd(const uint8 *cmd, uint8 *reply, int32 n) { g_ode_cmds++; g_ode_io_vbl = gfx_vbl_count(); return host_fw_cmd(cmd, reply, n, 0, 0); }
-int32 ode_cmd_data(const uint8 *cmd, uint8 *reply, int32 n, uint8 *data, int32 len) { g_ode_io_vbl = gfx_vbl_count(); return host_fw_cmd(cmd, reply, n, data, len); }
+#ifdef LAUNCH_TRACE
+void ode_trace(const uint8 *cmd, const uint8 *reply, int32 replylen, int32 err);
+#endif
+int32 ode_cmd(const uint8 *cmd, uint8 *reply, int32 n)
+{
+    int32 r;
+    g_ode_cmds++;
+    g_ode_io_vbl = gfx_vbl_count();
+    r = host_fw_cmd(cmd, reply, n, 0, 0);
+#ifdef LAUNCH_TRACE
+    ode_trace(cmd, reply, n, r);
+#endif
+    return r;
+}
+int32 ode_cmd_data(const uint8 *cmd, uint8 *reply, int32 n, uint8 *data, int32 len)
+{
+    int32 r;
+    g_ode_io_vbl = gfx_vbl_count();
+    r = host_fw_cmd(cmd, reply, n, data, len);
+#ifdef LAUNCH_TRACE
+    ode_trace(cmd, reply, n, r);
+#endif
+    return r;
+}
 int32 ramp_read(int32 unit, uint32 addr, void *buf, int32 len) { (void)unit; (void)addr; memset(buf, 0, len); return 0; }
 int32 ramp_write(int32 unit, uint32 addr, void *buf, int32 len) { (void)unit; (void)addr; (void)buf; (void)len; return 0; }
 Item nvram_unmount(void) { return 0; }

@@ -308,3 +308,73 @@ int32 note_load(int32 *drive, char *path, int32 max)
     UnloadFile(buf);
     return n;
 }
+
+/* ------------------------------------------------------------------ launch trace (LAUNCH_TRACE builds only) */
+#define TRACE_FILE "/NVRAM/ODETrace"
+
+#ifdef LAUNCH_TRACE
+uint8 g_trace[TRACE_N][12];
+int32 g_trace_n;
+
+/* every ODE command and the start of its answer (odeio.c), the last TRACE_N kept */
+void ode_trace(const uint8 *cmd, const uint8 *reply, int32 replylen, int32 err)
+{
+    uint8 *t = g_trace[g_trace_n % TRACE_N];
+    int32 k;
+
+    if (cmd[0] == 0xe3 || cmd[0] == 0xe7)
+        return;                     /* the status polls: many, and the same each time */
+    memcpy(t, cmd, 7);
+    for (k = 0; k < 4; k++)
+        t[7 + k] = k < replylen ? reply[k] : 0;
+    t[11] = (uint8)(err < 0 ? 0xee : 0);
+    g_trace_n++;
+}
+#endif
+
+int32 trace_save(void)
+{
+#ifdef LAUNCH_TRACE
+    static uint8 buf[8 + TRACE_N * 12];
+    int32 n = g_trace_n < TRACE_N ? g_trace_n : TRACE_N, k, first = g_trace_n - n;
+
+    memcpy(buf, "OTR1", 4);
+    buf[4] = (uint8)n;
+    buf[5] = buf[6] = buf[7] = 0;
+    for (k = 0; k < n; k++)
+        memcpy(buf + 8 + k * 12, g_trace[(first + k) % TRACE_N], 12);
+    return SaveFile(TRACE_FILE, buf, sizeof(buf), 0);
+#else
+    return 0;
+#endif
+}
+
+int32 trace_lines(char lines[][40], int32 max)
+{
+#ifdef LAUNCH_TRACE
+    int32 size = 0, n, k;
+    uint8 *b = (uint8 *)LoadFile(TRACE_FILE, &size, MEMTYPE_ANY), *t;
+
+    if (b == 0)
+        return 0;
+    n = 0;
+    if (size >= 8 && memcmp(b, "OTR1", 4) == 0) {
+        n = b[4];
+        if (n > max)
+            n = max;
+        if (8 + n * 12 > size)
+            n = 0;
+        for (k = 0; k < n; k++) {
+            t = b + 8 + (b[4] - n + k) * 12;
+            sprintf(lines[k], "%02X %02X%02X%02X%02X %02X%02X >%02X%02X%02X%02X%s", t[0], t[1], t[2], t[3], t[4], t[5],
+                    t[6], t[7], t[8], t[9], t[10], t[11] ? " ERR" : "");
+        }
+    }
+    UnloadFile(b);
+    return n;
+#else
+    (void)lines;
+    (void)max;
+    return 0;
+#endif
+}

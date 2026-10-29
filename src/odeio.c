@@ -62,6 +62,8 @@ int32 ode_io_open(void)
 
 uint32 g_ode_io_vbl;
 
+
+
 int32 ode_cmd(const uint8 *cmd, uint8 *reply, int32 replylen)
 {
     IOInfo ioi;
@@ -83,6 +85,9 @@ int32 ode_cmd(const uint8 *cmd, uint8 *reply, int32 replylen)
     ioi.ioi_Flags = IO_QUICK;
     err = DoIO(req, &ioi);
     DeleteItem(req);
+#ifdef LAUNCH_TRACE
+    ode_trace(cmd, reply, replylen, err);
+#endif
     return err;
 }
 
@@ -110,6 +115,9 @@ int32 ode_cmd_data(const uint8 *cmd, uint8 *reply, int32 replylen, uint8 *data, 
     ioi.ioi_Send.iob_Len = 7;
     err = DoIO(req, &ioi);
     DeleteItem(req);
+#ifdef LAUNCH_TRACE
+    ode_trace(cmd, reply, replylen, err);
+#endif
     return err;
 }
 

@@ -297,6 +297,14 @@ int32 list_split(const char *path, char comps[][DIR_NAME_MAX], int32 maxc);   /*
 const char *path_base(const char *path);
 int32 note_save(int32 drive, const char *path);   /* the launched game, in NVRAM */
 int32 note_load(int32 *drive, char *path, int32 max);
+#define TRACE_N 24
+#ifdef LAUNCH_TRACE
+extern uint8 g_trace[TRACE_N][12];
+extern int32 g_trace_n;
+void  ode_trace(const uint8 *cmd, const uint8 *reply, int32 replylen, int32 err);
+#endif
+int32 trace_save(void);                          /* LAUNCH_TRACE builds: the last commands, to NVRAM */
+int32 trace_lines(char lines[][40], int32 max);  /* the saved trace, oldest first; 0 if none */
 
 /* ---- tools (tools.c), the X-menu actions of the original menu ---- */
 void  tool_storage_manager(void);
