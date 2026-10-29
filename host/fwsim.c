@@ -272,6 +272,20 @@ int32 host_fw_cmd(const uint8 *cmd, uint8 *reply, int32 n, uint8 *data, int32 le
     int32 dp;
     TE te;
 
+    {
+        /* the start (C3, C4, C5 together) must follow 1.5 s (90 fields) without any other ODE command: shorter
+         * failed on an FZ-1 and on a clone */
+        static uint32 last_other;
+        static int32 any;
+        extern uint32 gfx_vbl_count(void);
+        uint32 now = gfx_vbl_count();
+        if (cmd[0] == 0xc5 && any && (int32)(now - last_other) < 90)
+            host_log("C5 only %d fields after the last command other than C3/C4\n", (int)(now - last_other));
+        if (cmd[0] != 0xc3 && cmd[0] != 0xc4 && cmd[0] != 0xc5) {
+            last_other = now;
+            any = 1;
+        }
+    }
     if (sata())
         return fwsim_sata_cmd(cmd, reply, n, data, len);
     fw_cmds++;

@@ -9,7 +9,7 @@ FAIL=0
 case "${FWSIM_CLONE:-0}" in 4|5|6|7) CLONE=1 ;; *) CLONE= ;; esac    # clone ODE models (see host/fwsim*.c)
 ok()   { echo "PASS  $1"; }
 bad()  { echo "FAIL  $1"; FAIL=1; }
-run()  { o=$($M --sd "$T/sd" --out "$T" --disc "$T/disc" --script "$@" 2>&1); echo "$o"; echo "$o" | grep -q "path is now invalid" && echo "INVALID-PATH" >> "$T/invalid.log"; echo "$o" | grep "fails on exFAT" >> "$T/dotdot.log"; true; }
+run()  { o=$($M --sd "$T/sd" --out "$T" --disc "$T/disc" --script "$@" 2>&1); echo "$o"; echo "$o" | grep "C5 only" >> "$T/settle.log"; echo "$o" | grep -q "path is now invalid" && echo "INVALID-PATH" >> "$T/invalid.log"; echo "$o" | grep "fails on exFAT" >> "$T/dotdot.log"; true; }
 
 mkdir -p "$T/disc/assets" "$T/sd/Games/Sub"
 touch "$T/sd/boot.iso"          # the menu disc itself, as on a real card
@@ -272,6 +272,7 @@ if [ "${FWSIM_CLONE:-0}" = 7 ]; then
 fi
 
 [ -s "$T/dotdot.log" ] && { bad "file names with '..' (exFAT cannot resolve them)"; sort -u "$T/dotdot.log" | head -3; } || ok "no file name relies on '..' (exFAT)"
+[ -s "$T/settle.log" ] && { bad "a start came less than 1.5 s after another ODE command"; sort -u "$T/settle.log" | head -3; } || ok "every start follows 1.5 s with no other ODE command"
 [ -f "$T/invalid.log" ] && bad "firmware path went above the drive root ($(wc -l < "$T/invalid.log") runs)" || ok "firmware path never went above the drive root"
 
 echo "work dir: $T"

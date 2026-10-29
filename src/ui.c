@@ -1784,9 +1784,11 @@ static void launch_screen(const char *what, const char *name)
 #define SETTLE_WRITE 180
 
 /* The stock menu starts a game from the page it has listed, and a person takes a moment to press the button: so
- * between the last listing and C3/C4/C5 the menu waits PICK_PAUSE fields with no ODE command (a clone started a
- * game less reliably when C3 followed the listing at once). */
-#define PICK_PAUSE 60
+ * between the last listing and C3/C4/C5 the menu waits with no ODE command, as long as the launch's settle wait
+ * (SETTLE_IO). Shorter failed on both firmwares: a clone left a game black when C3 followed the listing at once,
+ * and an FZ-1 stopped starting games when the gap was 1 s instead of 1.5 s (as when the field clock ran at double
+ * rate). */
+#define PICK_PAUSE SETTLE_IO
 
 static void pick_pause(const char *what, const char *name)
 {

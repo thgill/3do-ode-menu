@@ -214,10 +214,10 @@ The hidden extras (both Konami codes, the eject-count picture, and the XPort RAM
     drive 1. So at startup the menu follows a `..` that carries a drive byte up to the root (it stays put only on
     Fixel's firmware with an unknown boot source).
   - **Starting a game is done the stock menu's way, timing included:** wait for an idle card, open the folder
-    and list it, then a second with no command (in the stock menu a person presses the button), then `C3`, `C4`,
-    `C5` together. Gex on a tester's clone went from failing to starting every time once nothing was written to
-    the card at each start and the start followed the listing; the pause was added after a game started less
-    reliably when `C3` came straight after the listing.
+    and list it, then 1.5 s with no command (in the stock menu a person presses the button), then `C3`, `C4`,
+    `C5` together. Both firmwares need that quiet gap after the last command: a clone left Wolfenstein black when
+    `C3` came straight after the listing, and an FZ-1 stopped starting games when the gap was 1 s (one build
+    listed the game again just before the start). The tests check every start for it.
   - **`C4` queues only an entry of the last listing.** It looks the id up in the buffer of the last `D1` answer,
     not on the card. The menu lists the entry on its own just before each `C4` (the stock menu always queues from
     the page it has just listed).
