@@ -45,6 +45,7 @@ static char   queue[16][2048];
 static uint32 queue_id[16];
 static int32  qn;
 long fw_sata_created;                /* files that did not exist and were made by an open */
+long fw_sata_validated;              /* images checked by listings (each leaks a little memory) */
 
 void fwsim_sata_setup(const char *sd)
 {
@@ -97,6 +98,9 @@ static int32 nth(int32 n, char *out, int32 *dirp)
         dp = is_dir_at(path, e->d_name);
         if (!dp && !ends_with(e->d_name, ".cue") && !ends_with(e->d_name, ".iso"))
             continue;
+        if (!dp)
+            fw_sata_validated++;        /* the firmware opens and checks each image it lists or skips past (and
+                                         * leaks the path it built for it: ValidateInfofromCue/Iso never free it) */
         if (++i == n) {
             strcpy(out, e->d_name);
             *dirp = dp;

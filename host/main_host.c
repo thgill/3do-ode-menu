@@ -7,12 +7,15 @@ void host_setup(const char *outdir, const char *script);
 void fwsim_setup(const char *sd, const char *usb);
 void fwsim_start_in(const char *rel);
 extern int fw_boot_source;
+extern long fw_sata_validated, fw_sata_created;
 extern long fw_readdir_steps, fw_cmds, fw_d1, fw_e6, fw_bytes_written, fw_d1_overflow, fw_dotdot;
 
 static void report(void)
 {
     fprintf(stderr, "firmware: %ld commands, %ld D1, %ld E6, %ld directory reads, %ld bytes written, %ld D1 overflows, %ld dot-dot names\n",
             fw_cmds, fw_d1, fw_e6, fw_readdir_steps, fw_bytes_written, fw_d1_overflow, fw_dotdot);
+    if (getenv("FWSIM_CLONE") && atoi(getenv("FWSIM_CLONE")) == 7)
+        fprintf(stderr, "sata: %ld images checked by listings, %ld files made by opens\n", fw_sata_validated, fw_sata_created);
 }
 
 int main(int argc, char **argv)
