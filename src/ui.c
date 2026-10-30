@@ -60,7 +60,10 @@ enum { T_GAMES, T_FAVS, T_RECENT, T_TOOLS, T_OPTIONS, T_COUNT };
 #define QMAX        5
 #define LAUNCH_WAIT 420             /* frames (7 s at 60 Hz), as the original waited 7 s after C5 */
 #define NAME_PANE   (SPLIT - 5)     /* characters of a name beside the info pane */
-#define ART_SLOTS   8               /* the selection and the games around it (fetched ahead while resting) */
+#ifndef ART_SLOTS
+#define ART_SLOTS   8
+#endif
+/* (ART_SLOTS: the selection and the games around it, fetched ahead while resting) */
 #define ART_FILE_MAX (512 * 1024)      /* PNG / JPG files larger than this show NO ART */
 
 static const char *tab_names[T_COUNT] = { "GAMES", "FAVS", "RECENT", "TOOLS", "OPTIONS" };

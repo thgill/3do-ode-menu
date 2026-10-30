@@ -122,8 +122,10 @@ extern uint32 g_sd_write_vbl;                  /* gfx_vbl_count() at the last ca
 int32  ode_f0_update(void);                     /* 1 staged, 0 no update file, < 0 error */
 
 /* ---- directory model (dirlist.c) ---- */
+#ifndef DIR_MAX_ENTRIES
 #define DIR_MAX_ENTRIES 4096
-#define DIR_POOL_BYTES  (256 * 1024)
+#endif
+#define DIR_POOL_BYTES  (DIR_MAX_ENTRIES * 64)
 #define DIR_MAX_DEPTH   16
 #define DIR_NAME_MAX    128
 
