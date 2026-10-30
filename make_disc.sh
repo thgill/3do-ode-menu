@@ -23,6 +23,19 @@ cp assets_gen/BannerScreen "$TMP/disc/BannerScreen"     # our own boot banner (t
       "$TMP/disc/System/Programs/MAUS" "$TMP/disc/System/Programs/WALKER" \
       "$TMP/disc/System/Drivers/TUNERS/access.tuner"
 rmdir "$TMP/disc/System/Drivers/TUNERS" 2>/dev/null || true
+# AppStartup ends with $boot/LaunchMe, and the system starts $boot/LaunchMe itself after the script: two copies.
+# The menu lets only one stay, which made the system's own copy (the title program) quit at once. Only the system's
+# copy is started now (the script line goes), so the title program is the menu and never exits: when the ODE swaps
+# the disc, the system reboots into the game as it does with the stock menu (games did not always start before).
+[ -n "$KEEP_SCRIPT_LAUNCH" ] || python3 - "$TMP/disc/AppStartup" <<'PY'
+import sys
+p = sys.argv[1]
+d = open(p, 'rb').read()
+lines = d.split(b'\r')
+keep = [l for l in lines if l.strip().lower() not in (b'$boot/launchme', b'$boot/launchme&')]
+assert len(keep) == len(lines) - 1, 'AppStartup: expected one $boot/LaunchMe line'
+open(p, 'wb').write(b'\r'.join(keep))
+PY
 cp assets_gen/logo.img "$TMP/disc/assets/"
 cp assets_gen/OFL.txt "$TMP/disc/OFL.txt"
 mkdir -p "$(dirname "$OUT")"
