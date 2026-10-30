@@ -450,3 +450,12 @@ int32 ramp_read(int32 unit, uint32 addr, void *buf, int32 len) { (void)unit; (vo
 int32 ramp_write(int32 unit, uint32 addr, void *buf, int32 len) { (void)unit; (void)addr; (void)buf; (void)len; return 0; }
 Item nvram_unmount(void) { return 0; }
 Item run_fscheck(void) { return 0; }
+
+/* host: the menu's quiet sleep after C5 just lets the video fields go by */
+void gfx_wait_vbl(void);
+void ode_sleep_quiet(int32 secs)
+{
+    int32 f;
+    for (f = 0; f < secs * 60; f++)
+        gfx_wait_vbl();
+}

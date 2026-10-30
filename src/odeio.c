@@ -10,6 +10,7 @@
  * Difference from the original: no debug printf on every data transfer.
  */
 #include "common.h"
+#include "time.h"
 
 typedef struct OdeRW {
     uint32  unit;
@@ -184,4 +185,34 @@ Item nvram_unmount(void)
 Item run_fscheck(void)
 {
     return LoadProgram("$c/fscheck");
+}
+
+/* Sleep secs seconds on the timer device, doing nothing else: what the stock menu does after C5 (its
+ * timer_delay(7, 0)), so the console is left alone while the ODE swaps the disc and resets it. */
+void ode_sleep_quiet(int32 secs)
+{
+    IOInfo ioi;
+    TimeVal tv;
+    Item dev, req = -1;
+
+    dev = FindAndOpenDevice("timer");
+    if (dev >= 0)
+        req = CreateIOReq(0, 0, dev, 0);
+    if (req >= 0) {
+        tv.tv_sec = secs;
+        tv.tv_usec = 0;
+        memset(&ioi, 0, sizeof(ioi));
+        ioi.ioi_Command = TIMERCMD_DELAY;
+        ioi.ioi_Unit = TIMER_UNIT_USEC;
+        ioi.ioi_Send.iob_Buffer = &tv;
+        ioi.ioi_Send.iob_Len = sizeof(tv);
+        DoIO(req, &ioi);
+        DeleteItem(req);
+    } else {
+        int32 f;
+        for (f = 0; f < secs * 60; f++)
+            gfx_wait_vbl();         /* (no timer: wait on the video fields instead, still drawing nothing) */
+    }
+    if (dev >= 0)
+        CloseItem(dev);
 }

@@ -1757,14 +1757,15 @@ static int32 check_entry(int32 *pi)
 static void launch_screen(const char *what, const char *name)
 {
     char nm[DIR_NAME_MAX];
-    int32 f;
 
     strncpy(nm, name, sizeof(nm) - 1);
     nm[sizeof(nm) - 1] = 0;
-    for (f = 0; f < LAUNCH_WAIT; f++) {
-        progress_frame(what, nm, f * 100 / LAUNCH_WAIT, 0);
-        input_poll(0);
-    }
+    /* As the stock menu: the screen is drawn once and the menu sleeps (no drawing, no controller reads), while the
+     * ODE swaps the disc and resets the console. (On an FZ-1 a game that failed sat on this screen for seconds
+     * before a black screen, while one that worked reset at once; the stock menu sleeps here and never failed.) */
+    progress_frame(what, nm, -1, 0);
+    progress_frame(what, nm, -1, 0);        /* (both screens of the double buffer) */
+    ode_sleep_quiet(LAUNCH_WAIT / 60);
     /* Still here: some games take longer to come up (or the console is still resetting). Send the ODE nothing
      * until asked: a command now (the way back out of a game folder) could reach the ODE while it starts the
      * game, which left a game on a black screen. B gives up and goes back to the menu. */
