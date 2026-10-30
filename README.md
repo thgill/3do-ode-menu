@@ -17,7 +17,7 @@ artwork are mine and not for reuse in other projects; see [NOTICE.md](NOTICE.md)
 - Box art or screenshots for each game (see [Cover art](#cover-art))
 - Folders and games sorted the way you'd expect, with `Disc 2` before `Disc 10`
 - A game kept in its own folder (`Doom/Doom.cue` + `.bin`) shows up as the game itself, no need to open the folder
-- Multi-disc games: start disc 1 and the menu offers to queue the rest
+- Multi-disc games: start disc 1 and the menu offers to queue the rest (see [Multi-disc games](#multi-disc-games))
 - Favorites, recently played and a play queue
 - Big folders open quickly after the first visit
 - Hold up/down to scroll (it speeds up), L/R to switch tabs, left/right to jump by letter
@@ -61,6 +61,23 @@ To go back, copy the original `boot.iso` back.
 | L / R | Previous / next tab |
 | Up / Down | Move (hold to scroll faster) |
 | Left / Right | Jump to the previous / next letter; change a setting in Options |
+
+## Multi-disc games
+
+Start disc 1 and the menu asks whether to queue the other discs too ("start with all discs" or "disc 1 only").
+For that, the discs must be named the same apart from the disc number, for example
+`Wing Commander III (Disc 1).cue`, `Wing Commander III (Disc 2).cue` and so on. "Disc", "Disk" and "CD" all work,
+in any case; the menu looks for discs 2 to 9 and stops at the first one it doesn't find. The queue holds 5 discs.
+
+The discs can be laid out either way:
+
+| Layout | In the list | Starting |
+|---|---|---|
+| All discs in one folder (`Wing Commander III/`) | One entry, a folder | Open it and pick disc 1 |
+| One folder per disc (`Wing Commander III (Disc 1)/`, `(Disc 2)/`...) | One entry per disc | Pick disc 1 straight from the list |
+
+A folder with more than one game in it shows as a normal folder rather than as the game, so the first layout
+costs one extra press but keeps the list tidy.
 
 ## Cover art
 
