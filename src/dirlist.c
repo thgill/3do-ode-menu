@@ -512,6 +512,37 @@ const char *dir_inner(int32 i)
 
 /* Into game folder i, ready for C4 with *toc. Its game is checked by name first; if the folder changed since it
  * was indexed it is looked at again. On failure the firmware is back where it was. */
+/* Fixel's firmware: into game folder i and check its game by its own entry, as the menu did when it was tested on
+ * an FZ-1 (the clone's way, a fresh listing, is in dir_game_enter). 0 and *toc, or < 0. */
+int32 dir_game_enter_fixel(int32 i, uint32 *toc)
+{
+    DirEntry *e;
+    char name[DIR_NAME_MAX];
+    uint32 flags;
+
+    if (!dir_is_game_folder(i))
+        return -1;
+    e = &g_dir.ent[i];
+    if (ode_c0_change_dir(e->toc_id) < 0)
+        return -1;
+    if (g_probe_ok == 0) {
+        *toc = e->inner_toc;            /* found by a fresh look inside the folder */
+        return 0;
+    }
+    if (probe(e->inner_toc, &flags, name) == 1 && (flags & TF_FILE) && strcmp(name, dir_inner(i)) == 0) {
+        *toc = e->inner_toc;
+        return 0;
+    }
+    ode_c0_change_dir(g_toc_up);
+    detect_folder(i);
+    if (e->gtype != GT_GAME)
+        return -2;
+    if (ode_c0_change_dir(e->toc_id) < 0)
+        return -1;
+    *toc = e->inner_toc;
+    return 0;
+}
+
 int32 dir_game_enter(int32 i, uint32 *toc)
 {
     DirEntry *e;
@@ -911,7 +942,7 @@ void dir_list_entry(uint32 toc)
     uint32 flags;
     char name[DIR_NAME_MAX];
 
-    if (g_probe_ok == 1)
+    if (g_probe_ok == 1 && dir_is_clone())      /* (Fixel's firmware opens the image at C4 by its id) */
         probe(toc, &flags, name);
 }
 

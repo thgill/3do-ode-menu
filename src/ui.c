@@ -1832,7 +1832,7 @@ static int32 queue_one(int32 i)
         dir_list_entry(g_dir.ent[i].toc_id);
         return ode_c4_queue_add(g_dir.ent[i].toc_id);
     }
-    if (dir_game_enter(i, &toc) < 0)
+    if ((dir_is_clone() ? dir_game_enter(i, &toc) : dir_game_enter_fixel(i, &toc)) < 0)
         return -1;
     dir_list_entry(toc);
     r = ode_c4_queue_add(toc);
@@ -1983,6 +1983,33 @@ static void play_now(int32 i)
     stem(nm, tmp2, sizeof(tmp2));
     folder = dir_is_game_folder(i);
     toc = g_dir.ent[i].toc_id;
+    if (folder && !launch_direct && !dir_is_clone()) {
+        /* Fixel's firmware: as the menu did when it was tested on an FZ-1: into the folder, its game's own entry
+         * checked, the settle wait, then C3, C4, C5 */
+        if (dir_game_enter_fixel(i, &toc) < 0) {
+            cant_start();
+            return;
+        }
+        before_launch("STARTING GAME", tmp2, i);
+#ifdef LAUNCH_TRACE
+        trace_save();
+#endif
+        ode_c3_queue_clear();
+        q_count = 0;
+        r = ode_c4_queue_add(toc);
+        if (r < 0) {
+            dir_game_leave();
+            mark_queue();
+            cant_start();
+            return;
+        }
+        ode_c5_launch();
+        stem(nm, tmp, sizeof(tmp));
+        launch_screen("STARTING GAME", tmp);
+        dir_game_leave();               /* still here: the console did not start the game */
+        mark_queue();
+        return;
+    }
     if (folder && !launch_direct) {
         /* A game folder's game is started the way the stock menu starts a game you picked in its folder: the
          * folder is opened and listed, and C3, C4 and C5 follow at once, with no other ODE command and no wait in

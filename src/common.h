@@ -169,6 +169,7 @@ int32       dir_verify(int32 i);               /* 1 = the entry is still at its 
 int32       dir_find(const char *name);
 int32       dir_has_menu_disc(void);
 void        dir_list_entry(uint32 toc);
+int32       dir_game_enter_fixel(int32 i, uint32 *toc);
 int32       dir_is_clone(void);
 extern int32 g_boot_open;
 void        dir_path_string(char *out, int32 max);

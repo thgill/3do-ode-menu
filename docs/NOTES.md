@@ -213,7 +213,11 @@ The hidden extras (both Konami codes, the eject-count picture, and the XPort RAM
   - **The firmware keeps its folder through a console reset**, and its EXT_ID always says the menu disc came from
     drive 1. So at startup the menu follows a `..` that carries a drive byte up to the root (it stays put only on
     Fixel's firmware with an unknown boot source).
-  - **Starting a game is done the stock menu's way, timing included:** wait for an idle card, open the folder
+  - **Each firmware gets the start that was proven on it.** On Fixel's firmware a game folder is started as the
+    menu did when it was tested on an FZ-1: into the folder, the game's own entry checked (`D1` for that entry),
+    the settle wait, `C3 C4 C5`. Listing the whole folder there instead (the clone's way, below) left Gex black on
+    an FZ-1. On a clone (ids with a drive byte) the start below is used.
+  - **Starting a game on a clone is done the stock menu's way, timing included:** wait for an idle card, open the folder
     and list it, then 1.5 s with no command (in the stock menu a person presses the button), then `C3`, `C4`,
     `C5` together. Both firmwares need that quiet gap after the last command: a clone left Wolfenstein black when
     `C3` came straight after the listing, and an FZ-1 stopped starting games when the gap was 1 s (one build

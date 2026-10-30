@@ -285,6 +285,8 @@ int32 host_fw_cmd(const uint8 *cmd, uint8 *reply, int32 n, uint8 *data, int32 le
             last_other = now;
             any = 1;
         }
+        if (getenv("FWSIM_CMDLOG"))     /* every command, for comparing two builds */
+            host_log("CMD %02X %02X%02X%02X%02X %02X%02X\n", cmd[0], cmd[1], cmd[2], cmd[3], cmd[4], cmd[5], cmd[6]);
     }
     if (sata())
         return fwsim_sata_cmd(cmd, reply, n, data, len);
