@@ -217,6 +217,12 @@ static int32 opt_value(const char *buf, const char *key, int32 def, int32 maxv)
 
 void lists_load(void)
 {
+#if FIXEL_DIAG & 1
+    g_set.scanned = 1;
+    g_set.index = (FIXEL_DIAG & 2) ? 0 : 1;
+    g_dir.use_cache = g_set.index;
+    return;
+#endif
     if (dir_root_begin() < 0)
         return;
     if (read_file(FAV_FILE, fbuf, FILE_MAX) > 0)
@@ -257,6 +263,9 @@ static int32 save_list(PathList *l)
 
 void lists_save(int32 at_root)
 {
+#if FIXEL_DIAG & 1
+    return;
+#endif
     if (!g_favs.dirty && !g_recent.dirty && !g_set.dirty)
         return;
     if (!at_root && dir_root_begin() < 0)
@@ -287,6 +296,9 @@ int32 note_save(int32 drive, const char *path)
 {
     static char note[NOTE_SIZE];
 
+#if FIXEL_DIAG & 32
+    return 0;
+#endif
     if ((int32)strlen(path) > NOTE_SIZE - 16)
         return -1;
     memset(note, 0, NOTE_SIZE);
@@ -299,6 +311,9 @@ int32 note_clear(void)
 {
     static char note[NOTE_SIZE];
 
+#if FIXEL_DIAG & 32
+    return 0;
+#endif
     memset(note, 0, NOTE_SIZE);
     strcpy(note, "ONT1\n0\n\n");
     return SaveFile(NOTE_FILE, note, NOTE_SIZE, 0);

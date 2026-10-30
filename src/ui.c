@@ -594,6 +594,9 @@ static int32 art_fetch(const ArtWhere *w, uint16 *pix, int32 stride, ArtAbort ab
 
     *made_one = 0;
     at_read = at_dec = at_save = at_cmds_save = at_len = 0;
+#if FIXEL_DIAG & 4
+    return ART_MISSING;
+#endif
     for (n = 0; art_candidate(w, n); n++) {
         if (ode_file_open(art_try_name, 0) < 0)
             continue;

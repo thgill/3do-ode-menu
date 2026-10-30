@@ -48,6 +48,14 @@
 #define MENU_VERSION    MENU_DATE
 #endif
 
+/* FIXEL_DIAG (diagnostic builds for Fixel's firmware): each bit turns off something the stock menu never does, to
+ * find what makes a game start less reliably than from the stock menu.
+ *   1 the menu's own files (favorites, RECENT, settings)   2 folder indexes        4 covers
+ *   8 looking inside folders (game folders)                16 single-entry checks  32 the NVRAM launch note */
+#ifndef FIXEL_DIAG
+#define FIXEL_DIAG 0
+#endif
+
 /* ---- screen (320 x 240, laid out on a 40 x 30 grid of 8-pixel cells, PicoPak-SMS style) ---- */
 #define SCR_W           320
 #define SCR_H           240

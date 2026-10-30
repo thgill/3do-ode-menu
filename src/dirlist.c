@@ -264,6 +264,13 @@ static void probe_calibrate(void)
 
     int32 off;
 
+#if FIXEL_DIAG & 16
+    if (g_probe_ok == -1) {
+        g_probe_ok = 0;
+        strcpy(g_probe_info, "D1 CHECK: OFF (DIAGNOSTIC BUILD)");
+    }
+    return;
+#endif
     if (g_probe_ok != -1 || g_dir.devlist || g_dir.count == 0)
         return;
     /* the lowest-numbered entry after the first: the first answers the same with or without the shift (D1 index 0
@@ -473,6 +480,12 @@ static int32 detect_all(DirProgress progress)
 {
     int32 i, n = 0, k = 0;
 
+#if FIXEL_DIAG & 8
+    for (i = 0; i < g_dir.count; i++)
+        if (g_dir.ent[i].flags & TF_DIR)
+            g_dir.ent[i].gtype = GT_PLAIN;
+    return 0;
+#endif
     for (i = 0; i < g_dir.count; i++)
         if (g_dir.ent[i].flags & TF_DIR)
             n++;
