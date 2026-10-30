@@ -1757,17 +1757,19 @@ static int32 check_entry(int32 *pi)
     return 1;
 }
 
-static void launch_screen(const char *what, const char *name)
+/* C5 and what follows. Fixel's firmware signals the disc change for only 100 ms, and the console's OS must notice it
+ * then to reboot into the game; if it does not, the console goes on reading the new image as the menu disc and
+ * ends on a black screen after a few seconds. So the screen is drawn before C5 and the menu goes to sleep right
+ * after it (no drawing, no controller reads), as the stock menu does (one line of text, then timer_delay(7, 0)).
+ * (On an FZ-1 a game that failed sat on this screen for seconds before a black screen; one that worked reset at
+ * once.) */
+static void launch_now(const char *what, const char *name)
 {
     char nm[DIR_NAME_MAX];
 
     strncpy(nm, name, sizeof(nm) - 1);
     nm[sizeof(nm) - 1] = 0;
-    /* As the stock menu: the screen is drawn once and the menu sleeps (no drawing, no controller reads), while the
-     * ODE swaps the disc and resets the console. (On an FZ-1 a game that failed sat on this screen for seconds
-     * before a black screen, while one that worked reset at once; the stock menu sleeps here and never failed.) */
-    progress_frame(what, nm, -1, 0);
-    progress_frame(what, nm, -1, 0);        /* (both screens of the double buffer) */
+    ode_c5_launch();                        /* (the screen was drawn by the wait before C3: nothing to draw now) */
     ode_sleep_quiet(LAUNCH_WAIT / 60);
     /* Still here: some games take longer to come up (or the console is still resetting). Send the ODE nothing
      * until asked: a command now (the way back out of a game folder) could reach the ODE while it starts the
@@ -1818,6 +1820,8 @@ static void before_launch(const char *what, const char *name, int32 entry)
         note_save(g_dir.drive, pathbuf);
     strncpy(nm, name, sizeof(nm) - 1);
     nm[sizeof(nm) - 1] = 0;
+    progress_frame(what, nm, -1, 0);        /* drawn now, both screens: nothing is drawn between C3 and C5 */
+    progress_frame(what, nm, -1, 0);
     while ((int32)(gfx_vbl_count() - g_sd_write_vbl) < SETTLE_WRITE ||
            (int32)(gfx_vbl_count() - g_ode_io_vbl) < SETTLE_IO) {
         progress_frame(what, nm, -1, 0);
@@ -1937,9 +1941,8 @@ static void play_discs(int32 first, const int32 *more, int32 n)
 #ifdef LAUNCH_TRACE
     trace_save();
 #endif
-    ode_c5_launch();
     stem(names[0], tmp, sizeof(tmp));
-    launch_screen("STARTING GAME", tmp);
+    launch_now("STARTING GAME", tmp);
 }
 
 /* disc 1 of a game with more discs beside it: offer to queue them all */
@@ -2007,9 +2010,8 @@ static void play_now(int32 i)
             cant_start();
             return;
         }
-        ode_c5_launch();
         stem(nm, tmp, sizeof(tmp));
-        launch_screen("STARTING GAME", tmp);
+        launch_now("STARTING GAME", tmp);
         dir_game_leave();               /* still here: the console did not start the game */
         mark_queue();
         return;
@@ -2075,9 +2077,8 @@ static void play_now(int32 i)
         cant_start();
         return;
     }
-    ode_c5_launch();
     stem(nm, tmp, sizeof(tmp));
-    launch_screen("STARTING GAME", tmp);
+    launch_now("STARTING GAME", tmp);
     mark_queue();
 }
 
@@ -2129,9 +2130,8 @@ static void play_queue(void)
 #ifdef LAUNCH_TRACE
     trace_save();
 #endif
-    ode_c5_launch();
     stem(q_name[0], tmp, sizeof(tmp));
-    launch_screen(q_count > 1 ? "STARTING QUEUE" : "STARTING GAME", tmp);
+    launch_now(q_count > 1 ? "STARTING QUEUE" : "STARTING GAME", tmp);
 }
 
 static void toggle_fav_path(const char *path)
