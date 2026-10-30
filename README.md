@@ -3,8 +3,8 @@
 A new menu for 3DO optical drive emulators: Fixel's FZ-1 ODE and most clones. It's a replacement `boot.iso`: copy it to your card in place of the stock
 one and everything else (the ODE driver, Storage Manager, firmware updates) works as before.
 
-It works with Fixel's ODE and has been tested on one clone. Most clones should work too, but there are too many
-to check them all; if yours has trouble, see [Clones](#clones).
+It works with Fixel's FZ-1 ODE and XPort, and with clones running SataTo3DO-based firmware. See
+[Supported hardware](#supported-hardware) for what has been tested.
 
 Tabs across the top, a game list on the left and an info pane with the box art on the right. The menu's design and
 artwork are mine and not for reuse in other projects; see [NOTICE.md](NOTICE.md).
@@ -105,6 +105,18 @@ All of these are hidden from the menu (names starting with `_`) and safe to dele
   for every entry. Every visit after that is quick, and the Cover Makers can make the indexes ahead of time.
 - Names show in capitals, accents are dropped and Japanese characters show as `?` (the font has no lower case).
 - Up to 4,096 entries per folder.
+
+## Supported hardware
+
+| ODE | Status |
+|---|---|
+| Fixel's FZ-1 ODE (internal) | Tested on an FZ-1 |
+| Fixel's XPort (external) | Tested |
+| Clones with SataTo3DO-based firmware | Tested on one clone in an FZ-1: Gex, Mortal Kombat II, Wolfenstein 3D, Doom and Drug Wars all start |
+| Other clones | Not tested; most should work, see [Clones](#clones) if yours doesn't |
+
+Games start the way they do from Fixel's own menu. If a game starts from the stock menu but not from this one,
+please open an issue.
 
 ## Clones
 
