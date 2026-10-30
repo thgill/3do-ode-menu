@@ -112,7 +112,7 @@ All of these are hidden from the menu (names starting with `_`) and safe to dele
 |---|---|
 | Fixel's FZ-1 ODE (internal) | Tested on an FZ-1 |
 | Fixel's XPort (external) | Tested |
-| Clones with SataTo3DO-based firmware | Tested on one clone in an FZ-1: Gex, Mortal Kombat II, Wolfenstein 3D, Doom and Drug Wars all start |
+| Clones with SataTo3DO-based firmware | Tested on one clone in an FZ-1 |
 | Other clones | Not tested; most should work, see [Clones](#clones) if yours doesn't |
 
 Games start the way they do from Fixel's own menu. If a game starts from the stock menu but not from this one,
