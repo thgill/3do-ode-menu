@@ -132,6 +132,8 @@ All of these are hidden from the menu (names starting with `_`) and safe to dele
 | Clones with SataTo3DO-based firmware | Tested on one clone in an FZ-1 |
 | Other clones | Not tested; most should work, see [Clones](#clones) if yours doesn't |
 
+It runs on NTSC and PAL consoles (on PAL it's centred in the taller picture and runs at the same speed).
+
 Games start the way they do from Fixel's own menu. If a game starts from the stock menu but not from this one,
 please open an issue.
 
