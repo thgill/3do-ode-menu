@@ -50,9 +50,46 @@ static int32 ode_count_units(void)
     return 1;
 }
 
+void ode_wait_usec(int32 usec)
+{
+    IOInfo ioi;
+    TimeVal tv;
+    Item dev, req = -1;
+
+    dev = FindAndOpenDevice("timer");
+    if (dev >= 0)
+        req = CreateIOReq(0, 0, dev, 0);
+    if (req >= 0) {
+        tv.tv_sec = usec / 1000000;
+        tv.tv_usec = usec % 1000000;
+        memset(&ioi, 0, sizeof(ioi));
+        ioi.ioi_Command = TIMERCMD_DELAY;
+        ioi.ioi_Unit = TIMER_UNIT_USEC;
+        ioi.ioi_Send.iob_Buffer = &tv;
+        ioi.ioi_Send.iob_Len = sizeof(tv);
+        DoIO(req, &ioi);
+        DeleteItem(req);
+    }
+    if (dev >= 0)
+        CloseItem(dev);
+}
+
+/* The start-up script loads the ode driver in the background ("$drivers/ode&") and the system starts the menu
+ * straight after, so the driver may not be there yet (seen on an XPort). Wait for it for up to 15 s rather than
+ * giving up at once. (The disc used to start the menu twice, which hid this: the second copy found the driver.) */
+#define ODE_OPEN_TRIES 60
+#define ODE_OPEN_WAIT  250000
+
 int32 ode_io_open(void)
 {
-    ode_dev = FindAndOpenDevice("ode");
+    int32 i;
+
+    for (i = 0;; i++) {
+        ode_dev = FindAndOpenDevice("ode");
+        if (ode_dev >= 0 || i >= ODE_OPEN_TRIES)
+            break;
+        ode_wait_usec(ODE_OPEN_WAIT);
+    }
     if (ode_dev < 0)
         return ode_dev;
     ramp_dev = FindAndOpenDevice("ramp");

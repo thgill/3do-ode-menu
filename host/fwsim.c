@@ -419,6 +419,7 @@ int32 host_fw_cmd(const uint8 *cmd, uint8 *reply, int32 n, uint8 *data, int32 le
 
 /* ODE transport for the host build */
 int32 ode_io_open(void) { return 0; }
+void ode_wait_usec(int32 usec) { (void)usec; }
 int32 g_ode_cmds;
 uint32 g_ode_io_vbl;
 uint32 gfx_vbl_count(void);

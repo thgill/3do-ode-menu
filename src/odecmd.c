@@ -47,9 +47,12 @@ static int32 ext_id(void)
 
 char *ode_init(void)
 {
+    int32 i;
+
     if (ode_io_open() < 0)
         return 0;
-    ext_id();
+    for (i = 0; i < 8 && ext_id() != 0; i++)
+        ode_wait_usec(250000);      /* (a driver that has only just appeared may not answer at once) */
     return ode_name_buf;
 }
 

@@ -112,6 +112,7 @@ int32  ode_c4_queue_add(uint32 toc_id);         /* 0 added, -1 error, -2 not add
 int32  ode_c5_launch(void);
 int32  ode_d1_list(uint32 index, uint32 count, uint8 *buf);   /* 2 KB into buf */
 void   ode_sleep_quiet(int32 secs);   /* the stock menu's 7 s of nothing after C5 */
+void   ode_wait_usec(int32 usec);
 #define ODE_C0_STUCK (-0x2000)  /* a clone would ignore this C0 (see ode_c0_change_dir) */
 int32  ode_file_open(const char *name, int32 write);
 int32  ode_file_write(const uint8 *buf, uint32 len);           /* <= 2 KB per call */
