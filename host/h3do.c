@@ -5,10 +5,11 @@
 #include "h3do.h"
 
 #define W 320
-#define H 240
+#define HMAX 288
+static int32 H = 240;                  /* 288 with FWSIM_PAL=1 (a PAL console) */
 
-static uint16 fb[2][W * H];
-static uint16 shown[W * H];
+static uint16 fb[2][W * HMAX];
+static uint16 shown[W * HMAX];
 int32  host_frame;
 static const char *g_outdir = ".";
 static FILE *g_script;
@@ -55,7 +56,7 @@ Item LoadProgram(char *path)
 
 Item GetVRAMIOReq(void) { return 1; }
 Err OpenGraphicsFolio(void) { return 0; }
-int32 GetDisplayType(void) { return DI_TYPE_NTSC; }
+int32 GetDisplayType(void) { return getenv("FWSIM_PAL") ? DI_TYPE_PAL1 : DI_TYPE_NTSC; }
 Item GetVBLIOReq(void) { return 2; }
 
 Item CreateBasicDisplay(ScreenContext *sc, uint32 type, uint32 n)
@@ -69,11 +70,14 @@ Item CreateBasicDisplay(ScreenContext *sc, uint32 type, uint32 n)
     sc->sc_BitmapItems[1] = 1;
     {
         static Bitmap bm[2];
+        H = type == DI_TYPE_NTSC ? 240 : 288;
+        bm[0].bm_Width = bm[1].bm_Width = W;
+        bm[0].bm_Height = bm[1].bm_Height = H;
         bm[0].bm_Buffer = (uint8 *)fb[0];
         bm[1].bm_Buffer = (uint8 *)fb[1];
         sc->sc_Bitmaps[0] = &bm[0];
         sc->sc_Bitmaps[1] = &bm[1];
-        sc->sc_NumBitmapPages = 75;
+        sc->sc_NumBitmapPages = W * H * 2 / 2048;
         sc->sc_NumBitmapBytes = W * H * 2;
     }
     return 1;

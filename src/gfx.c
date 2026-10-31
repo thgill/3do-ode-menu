@@ -21,6 +21,12 @@ static uint32 vbl_count;
 static uint8 *bgbuf;            /* the cached still parts of the screen, in VRAM */
 static int32  bg_key = -1;      /* what bgbuf holds (the caller's key), -1 nothing */
 static int32  bg_pending = -1;
+/* A PAL console: the screen is 288 lines and runs at 50 fields a second. The menu is laid out for 240 lines, so on
+ * PAL every cel goes down by yoff (24) to centre it, the whole 288 lines are cleared, and the field clock is scaled
+ * to 60 a second so every wait and animation takes the same time as on NTSC. On NTSC yoff is 0 and pal 0: nothing
+ * changes there. */
+static int32  yoff;
+static int32  pal;
 
 #define NCCB        448
 #define NTXT        128
@@ -129,6 +135,7 @@ static CCB *new_ccb(void)
 
 static void queue(CCB *c)
 {
+    c->ccb_YPos += yoff << 16;
     c->ccb_NextPtr = 0;
     c->ccb_Flags |= CCB_LAST;
     if (tail) {
@@ -218,6 +225,12 @@ static int32 display_open(void)
     display = CreateBasicDisplay(g_sc, type, 2);
     if (display < 0)
         return -5;
+    if (type == DI_TYPE_PAL1) {
+        pal = 1;
+        yoff = (g_sc->sc_Bitmaps[0]->bm_Height - SCR_H) / 2;
+        if (yoff < 0)
+            yoff = 0;
+    }
     vbl_ioreq = GetVBLIOReq();
     return 0;
 }
@@ -300,7 +313,7 @@ int32 gfx_frame_begin_bg(int32 key)
         return 0;
     }
     gfx_wait_vbl();
-    rect_rgb(0, 0, SCR_W, SCR_H, colors[0][P_BG]);
+    rect_rgb(0, -yoff, SCR_W, SCR_H + 2 * yoff, colors[0][P_BG]);   /* (on PAL the bands above and below too) */
     if (key >= 0 && bgbuf)
         bg_pending = key;
     return 1;
@@ -376,7 +389,8 @@ uint32 gfx_vbl_count(void)
     extern int32 host_frame;
     return (uint32)host_frame;
 #else
-    return GrafBase->gf_VBLNumber / vbl_div;
+    uint32 n = GrafBase->gf_VBLNumber / vbl_div;
+    return pal ? n / 5 * 6 + n % 5 * 6 / 5 : n;     /* PAL: 50 fields a second counted as 60 */
 #endif
 }
 
@@ -384,12 +398,14 @@ void gfx_clock_init(void)
 {
 #ifndef HOST_BUILD
     uint32 v0, v1;
+    int32 i;
 
     if (vbl_ioreq < 0)
         return;
     gfx_wait_vbl();
     v0 = GrafBase->gf_VBLNumber;
-    gfx_delay(8);
+    for (i = 0; i < 8; i++)
+        gfx_wait_vbl();
     v1 = GrafBase->gf_VBLNumber;
     vbl_div = (v1 - v0 >= 12) ? 2 : 1;
 #endif
@@ -397,6 +413,10 @@ void gfx_clock_init(void)
 
 void gfx_delay(int32 frames)
 {
+#ifndef HOST_BUILD
+    if (pal)
+        frames = (frames * 5 + 3) / 6;      /* frames are 60ths of a second */
+#endif
     while (frames-- > 0)
         gfx_wait_vbl();
 }

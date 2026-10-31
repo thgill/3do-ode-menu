@@ -60,7 +60,7 @@ struct CCB {
     int32    h_bpp, h_coded, h_rowbytes;
 };
 
-typedef struct Bitmap { uint8 *bm_Buffer; } Bitmap;
+typedef struct Bitmap { uint8 *bm_Buffer; int32 bm_Width, bm_Height; } Bitmap;
 
 typedef struct ScreenContext {
     Item   sc_ScreenGroup;

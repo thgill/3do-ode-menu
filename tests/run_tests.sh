@@ -195,11 +195,12 @@ grep -q "^Games2/Doom/$" "$T/disc/nvram_ODEMenu" && ok "a game folder's launch g
 # (a SataTo3DO-based clone creates any file the menu opens, so an empty one is fine there)
 [ ! -s "$G/Doom/_cover.img" ] && ok "browsing a game folder makes no _cover.img" || bad "browsing wrote _cover.img"
 python3 -c "
-d=open('$T/g2.ppm','rb').read().split(b'\n',3)[3]
+h=open('$T/g2.ppm','rb').read().split(b'\n',3)
+d=h[3]; yo=(int(h[1].split()[1])-240)//2   # (PAL: the menu sits 24 lines lower)
 # 5 rows expected (.., Multi, Nested, Doom, Wing): row 6 (y=96) must be empty panel, row 5 (y=88) text
 import sys
 row=lambda y: set(bytes(d[(y*320+x)*3:(y*320+x)*3+3]) for x in range(40,200))
-sys.exit(0 if len(row(105))==1 and len(row(97))>1 else 1)" && ok "only folders and games listed (readme.jpeg hidden)" || bad "hidden files (see $T/g2.ppm)"
+sys.exit(0 if len(row(105+yo))==1 and len(row(97+yo))>1 else 1)" && ok "only folders and games listed (readme.jpeg hidden)" || bad "hidden files (see $T/g2.ppm)"
 grep -q "^OMC3" "$G/_odemenu.idx" 2>/dev/null; python3 -c "
 d=open('$G/_odemenu.idx','rb').read()
 import sys; sys.exit(0 if b'doom_1994_ID_Software.cue' in d else 1)" && ok "the folder index keeps the game folder" || bad "index game folder"
