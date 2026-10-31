@@ -153,13 +153,14 @@ The hidden extras (both Konami codes, the eject-count picture, and the XPort RAM
 
 ## Hardware findings (FZ-1, October 2026)
 
-- **Two copies of the menu.** `AppStartup` runs `$boot/LaunchMe`, and the system starts it again after the script,
-  so two copies ran side by side. With the stock menu that is invisible; with an animated menu the display jumps
-  between both copies' screens. The menu registers a named message port and every copy but the first quits. That
-  made the system's own copy (the title program) quit a moment after it started, with the script's copy carrying
-  on as the menu; on an FZ-1 a game (Gex) then started only about half the time, while from the stock menu (both
-  copies running) it always did. So `make_disc.sh` now takes the `$boot/LaunchMe` line out of `AppStartup`: only
-  the system's copy starts, it is the menu, and it never exits.
+- **Two copies of the menu.** `AppStartup` runs `$boot/LaunchMe`, and on an FZ-1 the system starts it again after
+  the script, so two copies run side by side. With the stock menu that is invisible; with an animated menu the
+  display jumps between both copies' screens. The menu registers a named message port and only the first copy is
+  the menu. At first the later copy quit, but on an FZ-1 that copy is the system's own (the title program), and with
+  it gone a game (Gex) started only about half the time, while from the stock menu (both copies running) it always
+  did. Taking the `$boot/LaunchMe` line out of `AppStartup` fixed that on the FZ-1 but broke the XPort: there only
+  the script's copy runs, so the menu never started (splash, then a black screen). So the line stays, and a later
+  copy now stays running without doing anything (it waits on a signal nobody sends) instead of quitting.
 - **One IOReq per ODE command**, as in the stock menu. A reused IOReq stays "in progress" in the ode driver and the
   next command fails with ER_IONotDone (seen as "could not open this folder").
 - **Nothing written on the card at launch.** Card writes (or the trip to the root to make them) just before C3/C4/C5

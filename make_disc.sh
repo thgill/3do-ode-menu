@@ -23,11 +23,10 @@ cp assets_gen/BannerScreen "$TMP/disc/BannerScreen"     # our own boot banner (t
       "$TMP/disc/System/Programs/MAUS" "$TMP/disc/System/Programs/WALKER" \
       "$TMP/disc/System/Drivers/TUNERS/access.tuner"
 rmdir "$TMP/disc/System/Drivers/TUNERS" 2>/dev/null || true
-# AppStartup ends with $boot/LaunchMe, and the system starts $boot/LaunchMe itself after the script: two copies.
-# The menu lets only one stay, which made the system's own copy (the title program) quit at once. Only the system's
-# copy is started now (the script line goes), so the title program is the menu and never exits: when the ODE swaps
-# the disc, the system reboots into the game as it does with the stock menu (games did not always start before).
-[ -n "$KEEP_SCRIPT_LAUNCH" ] || python3 - "$TMP/disc/AppStartup" <<'PY'
+# AppStartup ends with $boot/LaunchMe, and on an FZ-1 the system starts $boot/LaunchMe again after the script (two
+# copies; the later one stays idle, see main.c). The line stays: on an XPort the script's copy is the only one, and
+# without it the menu never started (splash, then a black screen). STRIP_SCRIPT_LAUNCH=1 takes it out (test only).
+[ -z "$STRIP_SCRIPT_LAUNCH" ] || python3 - "$TMP/disc/AppStartup" <<'PY'
 import sys
 p = sys.argv[1]
 d = open(p, 'rb').read()

@@ -11,9 +11,11 @@
 extern void kprintf(const char *fmt, ...);
 #endif
 
-/* AppStartup runs $boot/LaunchMe, and the system then starts $boot/LaunchMe again after the script, so two copies
- * of the menu can end up running side by side, each drawing its own screens and talking to the ODE. Only one may
- * stay: each copy registers a named message port, and every copy but the oldest leaves. */
+/* AppStartup runs $boot/LaunchMe, and on an FZ-1 the system then starts $boot/LaunchMe again after the script, so
+ * two copies run side by side; on an XPort only the script's copy was seen to run. Only one copy may draw and talk
+ * to the ODE: each registers a named message port and the oldest is the menu. A later copy must not quit, though:
+ * on an FZ-1 the later one is the system's own (the title program), and with it gone a game started only about
+ * half the time. So it stays, waiting on a signal that never comes, as the stock menu's second copy stayed. */
 #define INSTANCE_PORT "3DOODEMenu"
 
 static int32 another_copy_runs(void)
@@ -25,6 +27,16 @@ static int32 another_copy_runs(void)
         return 0;
     first = FindMsgPort(INSTANCE_PORT);
     return first >= 0 && first != mine;
+}
+
+static void stay_quiet(void)
+{
+#ifndef HOST_BUILD
+    int32 sig = AllocSignal(0);
+
+    for (;;)
+        WaitSignal(sig > 0 ? (uint32)sig : 0x80000000u);    /* nothing ever sends it: no screen, no ODE, no CPU */
+#endif
 }
 
 static void splash(const char *msg)
@@ -74,8 +86,10 @@ int main(void)
     int32 s;
     uint32 ev, held;
 
-    if (another_copy_runs())
+    if (another_copy_runs()) {
+        stay_quiet();
         return 0;
+    }
     DIAG_STEP(0x001f, 0);                       /* blue: the menu program started */
     name = ode_init();
     if (name == 0) {
