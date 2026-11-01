@@ -19,11 +19,16 @@ artwork are mine and not for reuse in other projects; see [NOTICE.md](NOTICE.md)
 - A game kept in its own folder (`Doom/Doom.cue` + `.bin`) shows up as the game itself, no need to open the folder
 - Multi-disc games: start disc 1 and the menu offers to queue the rest (see [Multi-disc games](#multi-disc-games))
 - Favorites, recently played and a play queue
+- X picks a random game (from the whole card after TOOLS > SCAN CARD, otherwise from the folder you're in)
+- Hide games you don't want in the list (demos, duplicates) without deleting them; Options > Show Hidden Games
+  brings them back
+- Five colour themes (Synth, Navy, Moss, Wine, Grey), sound effects and a screensaver, all in Options
 - Big folders open quickly after the first visit
 - Hold up/down to scroll (it speeds up), L/R to switch tabs, left/right to jump by letter
 - All the original tools: NVRAM save and load, ROM and RAM dumps, ODE firmware update, Storage Manager
 
-The version is the build date, shown under Options > About.
+The screensaver starts after 5 minutes without a button press (Options > Screensaver: off, 1, 5 or 30 minutes);
+any button brings the menu back. The version is the build date, shown under Options > About.
 
 ## Screenshots
 
@@ -54,10 +59,11 @@ To go back, copy the original `boot.iso` back.
 
 | Button | What it does |
 |---|---|
-| A | Open a folder, or open the game menu (start, favorite, queue) |
+| A | Open a folder, or open the game menu (start, favorite, queue, hide) |
 | B | Up a folder, or back to Games from the other tabs |
 | C | Show or hide the info pane |
 | P | Start the queue, or the selected game if the queue is empty |
+| X | A random game |
 | L / R | Previous / next tab |
 | Up / Down | Move (hold to scroll faster) |
 | Left / Right | Jump to the previous / next letter; change a setting in Options |
@@ -115,6 +121,8 @@ All of these are hidden from the menu (names starting with `_`) and safe to dele
 - `_odemenu.idx` in each folder: the saved folder listing (Options > Folder Index turns it off)
 - `_cover.img` in a game's folder, or `_art/<game>.img` next to loose game files: the covers
 - `_odemenu.fav`, `_odemenu.rec`, `_odemenu.opt` in the root: favorites, recently played and settings
+- `_odemenu.hid` in the root: hidden games
+- `_odemenu.all` in the root: every game on the card, for X (written by TOOLS > SCAN CARD)
 
 ## Known limits
 
@@ -158,7 +166,8 @@ host/build_host.sh && tests/run_tests.sh             # tests on a PC, with a sim
 ```
 
 `tools/mkui.py` rebuilds the font, icons and menu logo (it needs the author's art sources), and
-`tools/mkbanner.py` the boot banner (only needed when the art changes).
+`tools/mkbanner.py` the boot banner (only needed when the art changes). `tools/mksaver.py` makes the screensaver's
+shapes and `tools/mksfx.py` the sound effects (`src/saver_tab.h`, `src/sfx_tab.h`).
 [docs/NOTES.md](docs/NOTES.md) has the technical notes: how the folder index works, what was learned on hardware,
 and the fixes to the original tools.
 
@@ -183,7 +192,8 @@ harness and simulator.
 - the menu's design: its layout, look and behavior;
 - `src/`, the menu itself (it also started from the reconstruction of Fixel's menu, which doesn't have a license
   yet; Fixel has said he means to open-source the menu);
-- the artwork: icons, badges, buttons, the 3DO ODE logo and boot banner, and `tools/mkui.py`, which draws them.
+- the artwork: icons, badges, buttons, the 3DO ODE logo and boot banner, and `tools/mkui.py`, which draws them;
+- the screensaver and the sound effects, and `tools/mksaver.py` and `tools/mksfx.py`, which make them.
 
 `boot.iso` isn't in this repository: it contains files from Fixel's disc and the 3DO SDK. The font (Press Start 2P,
 SIL Open Font License), tinf (zlib) and picojpeg (public domain) keep their own licenses. Cover pictures the tools

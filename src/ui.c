@@ -2453,7 +2453,7 @@ static void list_tab_a(void)
     }
 }
 
-/* X: a random game. From the card list (_odemenu.all, made by TOOLS > SCAN CARD or the Cover Maker) when there is
+/* X: a random game. From the card list (_odemenu.all, made by TOOLS > SCAN CARD) when there is
  * one, otherwise from the folder open. The menu goes to the game and opens its game menu. */
 static void random_game(void)
 {

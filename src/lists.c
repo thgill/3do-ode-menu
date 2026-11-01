@@ -4,7 +4,7 @@
  *   _odemenu.rec   recently played, newest first
  *   _odemenu.opt   settings, "key=value" lines
  *   _odemenu.hid   games hidden from the lists (GAMES > a game > HIDE GAME), paths as above, no '/' at the end
- *   _odemenu.all   every game on the card, for X (random game): written by TOOLS > SCAN CARD and the Cover Makers
+ *   _odemenu.all   every game on the card, for X (random game): written by TOOLS > SCAN CARD
  *
  * The firmware opens files relative to its current folder, so the menu takes it up to the root for these
  * (dir_root_begin) and back down after. On the device list (both drives fitted) there is no drive to write to:
