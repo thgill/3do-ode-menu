@@ -89,6 +89,9 @@ def main():
         L.append('    ' + ', '.join(str(v) for v in vals[i:i + 16]) + ',')
     L.append('};')
     L.append('')
+    L.append('/* how many of each shape\'s SV_NE edges are its own (the rest repeat them, for the morphs) */')
+    L.append('static const uint8 sv_nedges[SV_NSHAPES] = { %s };' % ', '.join(str(len(E)) for n, E in SHAPES))
+    L.append('')
     L.append('/* each shape\'s edges: x0, y0, z0, x1, y1, z1 (Q12) */')
     L.append('static const int16 sv_shape[SV_NSHAPES][SV_NE][6] = {')
     for name, E in SHAPES:

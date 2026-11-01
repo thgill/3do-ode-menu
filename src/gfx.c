@@ -500,6 +500,29 @@ static int32 isqrt(uint32 v)
     return (int32)r;
 }
 
+/* A quadrilateral from (x0, y0) along (dx, dy) and across (px, py), 1/16 pixels: a line whose width is already
+ * worked out (no division here, for the screensaver's many lines). */
+void gfx_quad_rgb(int32 x0, int32 y0, int32 dx, int32 dy, int32 px, int32 py, int32 rgb)
+{
+    CCB *k;
+
+    if (dx > 16 * 1024 || dx < -16 * 1024 || dy > 16 * 1024 || dy < -16 * 1024)
+        return;
+    k = new_ccb();
+    *k = *rect_tmpl;
+    k->ccb_PLUTPtr = (void *)(size_t)((uint32)(rgb ? rgb : 1) << 16);
+    k->ccb_SourcePtr = (CelData *)&k->ccb_PLUTPtr;
+    k->ccb_XPos = (x0 - px / 2) << 12;
+    k->ccb_YPos = (y0 - py / 2) << 12;
+    k->ccb_HDX = dx << 16;
+    k->ccb_HDY = dy << 16;
+    k->ccb_VDX = px << 12;
+    k->ccb_VDY = py << 12;
+    k->ccb_HDDX = 0;
+    k->ccb_HDDY = 0;
+    queue(k);
+}
+
 /* A line from (x0, y0) to (x1, y1), wq wide, in a 15-bit colour; all in 1/16 pixels. The 1x1 cel is mapped onto
  * the line's parallelogram: HDX/HDY along it, VDX/VDY across it. */
 void gfx_line_rgb(int32 x0, int32 y0, int32 x1, int32 y1, int32 wq, int32 rgb)

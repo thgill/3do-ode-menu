@@ -1235,6 +1235,11 @@ static int32 make_hints(Hint *h, int32 brief)
         h[n].role = P_ORANGE;
         h[n].word = brief ? "QUEUE" : "START QUEUE";
         n++;
+    } else if ((tab == T_GAMES || tab == T_FAVS || tab == T_RECENT) && !g_dir.devlist) {
+        h[n].label = 'X';
+        h[n].role = P_ACCENT;
+        h[n].word = "RANDOM";       /* (dropped again by the footer when the chips need the room) */
+        n++;
     }
     return n;
 }
@@ -1356,6 +1361,10 @@ static void draw_footer(void)
     for (k = 0; k < nc; k++)
         x += chip_at(x, CHIP_Y, t[k], roles[k]) + 6;
     w = hints_width(h, nh, 6);
+    if (312 - w < x + 4 && nh > 0 && h[nh - 1].label == 'X') {
+        nh--;                       /* the X legend only where it fits */
+        w = hints_width(h, nh, 6);
+    }
     draw_hints(312 - w, HINT_Y, h, nh, 6);
 #elif FOOTER_LAYOUT == 3
     nh = make_hints(h, 0);

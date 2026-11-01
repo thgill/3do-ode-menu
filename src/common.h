@@ -286,6 +286,7 @@ void   gfx_line_rgb(int32 x0, int32 y0, int32 x1, int32 y1, int32 wq, int32 rgb)
 void   sound_init(void);
 void   sound_play(int32 which);                 /* nothing when OPTIONS > SOUND EFFECTS is off */
 void   saver_run(void);                         /* the screensaver, until a button (swallowed) */
+void   gfx_quad_rgb(int32 x0, int32 y0, int32 dx, int32 dy, int32 px, int32 py, int32 rgb);
 void   gfx_set_dim(int32 on);                   /* draw what follows in the dimmed palette */
 void   gfx_set_bar(int32 rgb15);                /* the selection bar's color this frame */
 int32  gfx_color(int32 role);

@@ -73,6 +73,9 @@ static const int16 sv_sin[SV_SIN_N] = {
     -1606, -1506, -1406, -1306, -1205, -1105, -1005, -904, -804, -704, -603, -503, -402, -302, -201, -101,
 };
 
+/* how many of each shape's SV_NE edges are its own (the rest repeat them, for the morphs) */
+static const uint8 sv_nedges[SV_NSHAPES] = { 12, 12, 30, 12, 30, 6 };
+
 /* each shape's edges: x0, y0, z0, x1, y1, z1 (Q12) */
 static const int16 sv_shape[SV_NSHAPES][SV_NE][6] = {
     {   /* CUBE, 12 edges */

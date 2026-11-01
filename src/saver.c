@@ -17,8 +17,9 @@
 #include "common.h"
 #include "saver_tab.h"
 
-#define TRAIL       5           /* poses kept for the trail */
-#define TRAIL_EVERY 2           /* fields between them */
+#define TRAIL       3           /* poses kept for the trail */
+#define TRAIL_EVERY 4           /* fields between them */
+#define FRAME_FIELDS 2          /* a new picture every 2 fields (30 a second), always: steady rather than ragged */
 #define NSPARK      40
 #define NRING       3
 #define NSTAR       48
@@ -26,11 +27,14 @@
 #define FOCQ        (210 * 16)  /* perspective: 7 units from the eye, 30 pixels a unit, in 1/16 pixels */
 #define EYE         (7 * 4096)
 
-typedef struct { int16 x0, y0, x1, y1; uint8 r, g, b, pad; } Seg;     /* 1/16 pixels; colour at full brightness */
+/* an edge on screen: from (x0, y0) along (dx, dy), 1/16 pixels; (nx, ny) across it, Q8 of a unit; its colour */
+typedef struct { int16 x0, y0, dx, dy, nx, ny; uint8 r, g, b, pad; } Seg;
 
 static Seg    trail[TRAIL][SV_NE];
+static int32  trail_ne[TRAIL];          /* edges in each pose */
 static int32  trail_n, trail_head;
 static Seg    now[SV_NE];
+static int32  now_ne;                   /* edges drawn this pose: the shape's own, or all SV_NE while it morphs */
 
 static int32  px, py, vx, vy;           /* position and speed, 1/256 pixel */
 static int32  ax, ay, az;               /* angles, 1/256 of a SV_SIN_N step */
@@ -73,14 +77,18 @@ static void hsv(int32 h, int32 s, int32 v, uint8 *r, uint8 *g, uint8 *b)
 {
     int32 sec, f, p, q, t;
 
-    h %= 1536;
-    if (h < 0)
+    while (h >= 1536)
+        h -= 1536;
+    while (h < 0)
         h += 1536;
     sec = h >> 8;
     f = h & 255;
-    p = v * (255 - s) / 255;
-    q = v * (255 - s * f / 255) / 255;
-    t = v * (255 - s * (255 - f) / 255) / 255;
+    p = v * (256 - s) >> 8;
+    q = v * (256 - (s * f >> 8)) >> 8;
+    t = v * (256 - (s * (255 - f) >> 8)) >> 8;
+    if (p > 255) p = 255;
+    if (q > 255) q = 255;
+    if (t > 255) t = 255;
     switch (sec) {
     case 0:  *r = v; *g = t; *b = p; break;
     case 1:  *r = q; *g = v; *b = p; break;
@@ -122,9 +130,11 @@ static void morph_pt(const int16 *p, const int16 *q, int32 t, int32 *o)
     for (i = 0; i < 3; i++)
         o[i] = p[i] + ((q[i] - p[i]) * t >> 8);
     n = isqrt32((uint32)(o[0] * o[0] + o[1] * o[1] + o[2] * o[2]));
-    if (n > 64)
+    if (n > 64) {
+        n = (SV_RAD << 12) / n;                 /* one division, then multiplies */
         for (i = 0; i < 3; i++)
-            o[i] = o[i] * SV_RAD / n;
+            o[i] = o[i] * n >> 12;
+    }
 }
 
 static int32 ease(int32 t)                  /* Q8 smoothstep */
@@ -167,11 +177,12 @@ static void pose(int32 *bx0, int32 *by0, int32 *bx1, int32 *by1)
     int32 k, e, p[2][3], c[3], sa = sn(ax), ca = cs(ax), sb = sn(ay), cb = cs(ay), sc = sn(az), cc = cs(az);
     int32 t = morph_t >= 0 ? ease(morph_t * 256 / MORPH_T) : 0;
     int32 scale = 256 + (pulse * 56 >> 8);       /* swells by up to 22 % */
-    int32 x, y, z, depth, v;
+    int32 x, y, z, depth, v, inv, sx[2], sy[2], dx, dy, len;
 
     *bx0 = *by0 = 0x7fffffff;
     *bx1 = *by1 = -0x7fffffff;
-    for (k = 0; k < SV_NE; k++) {
+    now_ne = morph_t >= 0 ? SV_NE : sv_nedges[shape];     /* (the repeats only matter while it morphs) */
+    for (k = 0; k < now_ne; k++) {
         if (morph_t >= 0) {
             morph_pt(&sv_morph[shape][k][0], &sv_morph[shape][k][6], t, p[0]);
             morph_pt(&sv_morph[shape][k][3], &sv_morph[shape][k][9], t, p[1]);
@@ -200,22 +211,31 @@ static void pose(int32 *bx0, int32 *by0, int32 *bx1, int32 *by1)
             x = c[0];
             y = c[1];
             depth += z;
-            x = (px >> 4) + x * FOCQ / (EYE + z);
-            y = (py >> 4) + y * FOCQ / (EYE + z);
-            if (e == 0) {
-                now[k].x0 = (int16)x;
-                now[k].y0 = (int16)y;
-            } else {
-                now[k].x1 = (int16)x;
-                now[k].y1 = (int16)y;
-            }
-            if (x < *bx0) *bx0 = x;
-            if (x > *bx1) *bx1 = x;
-            if (y < *by0) *by0 = y;
-            if (y > *by1) *by1 = y;
+            inv = (FOCQ << 14) / (EYE + z);         /* one division a corner */
+            sx[e] = (px >> 4) + (x * inv >> 14);
+            sy[e] = (py >> 4) + (y * inv >> 14);
+            if (sx[e] < *bx0) *bx0 = sx[e];
+            if (sx[e] > *bx1) *bx1 = sx[e];
+            if (sy[e] < *by0) *by0 = sy[e];
+            if (sy[e] > *by1) *by1 = sy[e];
+        }
+        dx = sx[1] - sx[0];
+        dy = sy[1] - sy[0];
+        now[k].x0 = (int16)sx[0];
+        now[k].y0 = (int16)sy[0];
+        now[k].dx = (int16)dx;
+        now[k].dy = (int16)dy;
+        len = isqrt32((uint32)(dx * dx + dy * dy));
+        if (len < 4) {
+            now[k].nx = 0;
+            now[k].ny = 256;
+        } else {
+            inv = 65536 / len;
+            now[k].nx = (int16)(-dy * inv >> 8);
+            now[k].ny = (int16)(dx * inv >> 8);
         }
         /* nearer edges brighter; each edge a little further round the wheel */
-        v = 255 - (((depth / 2) + SV_RAD) * 128 / (2 * SV_RAD));
+        v = 255 - (((depth >> 1) + SV_RAD) * 128 >> 14);
         if (v < 100)
             v = 100;
         if (v > 255)
@@ -290,11 +310,13 @@ static void step(void)
     az += (SV_SIN_N * 256 / 698) * spin >> 8;
     px += vx;
     py += vy;
-    hue_frac += 9;
-    if (hue_frac >= 6) {
-        hue += hue_frac / 6;
-        hue_frac %= 6;
+    hue_frac += 3;                              /* 1.5 a field */
+    if (hue_frac >= 2) {
+        hue += hue_frac >> 1;
+        hue_frac &= 1;
     }
+    while (hue >= 1536)
+        hue -= 1536;
     pulse = pulse * 242 >> 8;
     for (i = 0; i < NSPARK; i++)
         if (sparks[i].life > 0) {
@@ -318,8 +340,8 @@ static void step(void)
 
 static void draw(int32 bright)          /* bright Q8: the fade in and out */
 {
-    static const int32 trail_k[TRAIL] = { 150, 92, 56, 34, 20 };
-    int32 i, k, t, r, w, c;
+    static const int32 trail_k[TRAIL] = { 120, 64, 30 };
+    int32 i, k, t, r, w, c, x0, y0, x1, y1, ca0, sa0, ca1, sa1, cm, sm;
     uint8 cr, cg, cb;
 
     gfx_frame_begin();                  /* clears to the theme's background */
@@ -328,37 +350,51 @@ static void draw(int32 bright)          /* bright Q8: the fade in and out */
         gfx_rect_rgb(stars[i].x >> 8, stars[i].y, 1, 1, RGB15(c, c, c + 25 > 255 ? 255 : c + 25));
     }
     for (t = trail_n - 1; t >= 0; t--) {
-        const Seg *s = trail[(trail_head - 1 - t + TRAIL) % TRAIL];
-        for (k = 0; k < SV_NE; k++)
-            gfx_line_rgb(s[k].x0, s[k].y0, s[k].x1, s[k].y1, 20,
-                         rgb_scaled(s[k].r, s[k].g, s[k].b, trail_k[t] * bright >> 8));
+        int32 slot = (trail_head - 1 - t + TRAIL) % TRAIL;
+        const Seg *sg = trail[slot];
+        for (k = 0; k < trail_ne[slot]; k++)
+            gfx_quad_rgb(sg[k].x0, sg[k].y0, sg[k].dx, sg[k].dy, sg[k].nx * 20 >> 8, sg[k].ny * 20 >> 8,
+                         rgb_scaled(sg[k].r, sg[k].g, sg[k].b, trail_k[t] * bright >> 8));
     }
     w = 24 + (pulse * 20 >> 8);                         /* 1.5 pixels, thicker after a hit */
-    for (k = 0; k < SV_NE; k++)
-        gfx_line_rgb(now[k].x0, now[k].y0, now[k].x1, now[k].y1, w, rgb_scaled(now[k].r, now[k].g, now[k].b, bright));
+    for (k = 0; k < now_ne; k++)
+        gfx_quad_rgb(now[k].x0, now[k].y0, now[k].dx, now[k].dy, now[k].nx * w >> 8, now[k].ny * w >> 8,
+                     rgb_scaled(now[k].r, now[k].g, now[k].b, bright));
     c = 255 * bright >> 8;
-    for (k = 0; k < SV_NE; k++) {                       /* the corners lit */
+    for (k = 0; k < now_ne; k++) {                      /* the corners lit */
         gfx_rect_rgb((now[k].x0 >> 4) - 1, (now[k].y0 >> 4) - 1, 2, 2, RGB15(c, c, c));
-        gfx_rect_rgb((now[k].x1 >> 4) - 1, (now[k].y1 >> 4) - 1, 2, 2, RGB15(c, c, c));
+        gfx_rect_rgb(((now[k].x0 + now[k].dx) >> 4) - 1, ((now[k].y0 + now[k].dy) >> 4) - 1, 2, 2, RGB15(c, c, c));
     }
     for (i = 0; i < NRING; i++) {
         if (rings[i].age < 0)
             continue;
         r = rings[i].age * 40;                          /* 2.5 pixels a field, in 1/16 */
-        hsv(rings[i].hue, 128, (40 - rings[i].age) * 255 / 40 * bright >> 8, &cr, &cg, &cb);
+        hsv(rings[i].hue, 128, ((40 - rings[i].age) * 410 >> 6) * bright >> 8, &cr, &cg, &cb);
         for (k = 0; k < 24; k++) {
-            int32 a0 = k * (SV_SIN_N / 24) << 8, a1 = (k + 1) * (SV_SIN_N / 24) << 8;
-            gfx_line_rgb(rings[i].x * 16 + (cs(a0) * r >> 14), rings[i].y * 16 + (sn(a0) * r >> 14),
-                         rings[i].x * 16 + (cs(a1) * r >> 14), rings[i].y * 16 + (sn(a1) * r >> 14), 24,
-                         RGB15(cr, cg, cb));
+            ca0 = cs(k * (SV_SIN_N / 24) << 8);
+            sa0 = sn(k * (SV_SIN_N / 24) << 8);
+            ca1 = cs((k + 1) * (SV_SIN_N / 24) << 8);
+            sa1 = sn((k + 1) * (SV_SIN_N / 24) << 8);
+            cm = cs((2 * k + 1) * (SV_SIN_N / 48) << 8);  /* across a piece of ring: the radius through its middle */
+            sm = sn((2 * k + 1) * (SV_SIN_N / 48) << 8);
+            x0 = rings[i].x * 16 + (ca0 * r >> 14);
+            y0 = rings[i].y * 16 + (sa0 * r >> 14);
+            x1 = rings[i].x * 16 + (ca1 * r >> 14);
+            y1 = rings[i].y * 16 + (sa1 * r >> 14);
+            gfx_quad_rgb(x0, y0, x1 - x0, y1 - y0, cm * 24 >> 14, sm * 24 >> 14, RGB15(cr, cg, cb));
         }
     }
     for (i = 0; i < NSPARK; i++) {
+        int32 dx, dy;
         if (sparks[i].life <= 0)
             continue;
         hsv(sparks[i].hue, 150, sparks[i].life * bright >> 8, &cr, &cg, &cb);
-        gfx_line_rgb(sparks[i].x >> 4, sparks[i].y >> 4, (sparks[i].x - sparks[i].vx * 3) >> 4,
-                     (sparks[i].y - sparks[i].vy * 3) >> 4, 16, RGB15(cr, cg, cb));
+        dx = -(sparks[i].vx * 3) >> 4;
+        dy = -(sparks[i].vy * 3) >> 4;
+        if ((dx < 0 ? -dx : dx) > (dy < 0 ? -dy : dy))   /* a short streak: across it is up or down */
+            gfx_quad_rgb(sparks[i].x >> 4, sparks[i].y >> 4, dx, dy, 0, 16, RGB15(cr, cg, cb));
+        else
+            gfx_quad_rgb(sparks[i].x >> 4, sparks[i].y >> 4, dx, dy, 16, 0, RGB15(cr, cg, cb));
     }
     gfx_frame_end();
 }
@@ -366,25 +402,19 @@ static void draw(int32 bright)          /* bright Q8: the fade in and out */
 /* Run until a button is pressed; the press is swallowed (nothing happens until every button is let go). */
 void saver_run(void)
 {
-    uint32 v0, v, held;
+    uint32 held, due;
     int32 fields = 0, n, fade = 0, out = -1;
 
     start();
-    v0 = gfx_vbl_count();
+    due = gfx_vbl_count() + FRAME_FIELDS;
     for (;;) {
         if (out < 0 && input_poll(&held) != 0)
             out = 0;                                    /* woken: fade out, then back to the menu */
-        v = gfx_vbl_count();
-        n = (int32)(v - v0);
-        v0 = v;
-        if (n < 1)
-            n = 1;
-        if (n > 6)
-            n = 6;
-        while (n-- > 0) {
+        for (n = 0; n < FRAME_FIELDS; n++) {            /* the same motion every picture: smooth, never jumpy */
             step();
             if (++fields % TRAIL_EVERY == 0) {
-                memcpy(trail[trail_head], now, sizeof(now));
+                memcpy(trail[trail_head], now, now_ne * sizeof(Seg));
+                trail_ne[trail_head] = now_ne;
                 trail_head = (trail_head + 1) % TRAIL;
                 if (trail_n < TRAIL)
                     trail_n++;
@@ -394,9 +424,15 @@ void saver_run(void)
             else if (fade < 256)
                 fade += 8;                              /* half a second in */
         }
-        if (out >= 0 && out >= 15)
+        if (out >= 15)
             break;
+        /* a picture every FRAME_FIELDS fields: wait till one field before it is due (drawing waits for that one) */
+        while ((int32)(gfx_vbl_count() - due) < -1)
+            gfx_wait_vbl();
+        if ((int32)(gfx_vbl_count() - due) > 0)
+            due = gfx_vbl_count();                      /* fell behind: start counting again from now */
         draw(out >= 0 ? fade * (15 - out) / 15 : fade);
+        due += FRAME_FIELDS;
     }
     do {
         gfx_wait_vbl();
