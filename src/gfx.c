@@ -476,6 +476,61 @@ static void rect_rgb(int32 x, int32 y, int32 w, int32 h, int32 c)
     queue(k);
 }
 
+/* a rectangle in a 15-bit colour (the screensaver) */
+void gfx_rect_rgb(int32 x, int32 y, int32 w, int32 h, int32 rgb)
+{
+    rect_rgb(x, y, w, h, rgb ? rgb : 1);
+}
+
+static int32 isqrt(uint32 v)
+{
+    uint32 r = 0, b = 1u << 30;
+
+    while (b > v)
+        b >>= 2;
+    while (b) {
+        if (v >= r + b) {
+            v -= r + b;
+            r = (r >> 1) + b;
+        } else {
+            r >>= 1;
+        }
+        b >>= 2;
+    }
+    return (int32)r;
+}
+
+/* A line from (x0, y0) to (x1, y1), wq wide, in a 15-bit colour; all in 1/16 pixels. The 1x1 cel is mapped onto
+ * the line's parallelogram: HDX/HDY along it, VDX/VDY across it. */
+void gfx_line_rgb(int32 x0, int32 y0, int32 x1, int32 y1, int32 wq, int32 rgb)
+{
+    CCB *k;
+    int32 dx = x1 - x0, dy = y1 - y0, len, px, py;
+
+    if (dx > 16 * 1024 || dx < -16 * 1024 || dy > 16 * 1024 || dy < -16 * 1024)
+        return;
+    len = isqrt((uint32)(dx * dx + dy * dy));
+    if (len < 4) {
+        rect_rgb((x0 - wq / 2) >> 4, (y0 - wq / 2) >> 4, (wq + 15) >> 4, (wq + 15) >> 4, rgb ? rgb : 1);
+        return;
+    }
+    px = -dy * wq / len;
+    py = dx * wq / len;
+    k = new_ccb();
+    *k = *rect_tmpl;
+    k->ccb_PLUTPtr = (void *)(size_t)((uint32)(rgb ? rgb : 1) << 16);
+    k->ccb_SourcePtr = (CelData *)&k->ccb_PLUTPtr;
+    k->ccb_XPos = (x0 - px / 2) << 12;
+    k->ccb_YPos = (y0 - py / 2) << 12;
+    k->ccb_HDX = dx << 16;
+    k->ccb_HDY = dy << 16;
+    k->ccb_VDX = px << 12;
+    k->ccb_VDY = py << 12;
+    k->ccb_HDDX = 0;
+    k->ccb_HDDY = 0;
+    queue(k);
+}
+
 void gfx_rect(int32 x, int32 y, int32 w, int32 h, int32 role)
 {
     rect_rgb(x, y, w, h, colors[dim][role]);

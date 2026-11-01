@@ -3036,6 +3036,16 @@ int32 ui_frame(uint32 ev, uint32 held)
     } else {
         idle++;
     }
+    if (g_set.saver > 0) {
+        static const int32 mins[4] = { 0, 1, 5, 30 };
+        if ((int32)(gfx_vbl_count() - last_ev_vbl) >= mins[g_set.saver & 3] * 3600) {
+            saver_run();
+            last_ev_vbl = gfx_vbl_count();
+            idle = 0;
+            dirty = 1;
+            return dirty;
+        }
+    }
     tick_clock();
     tick_bar();
     tick_shine();

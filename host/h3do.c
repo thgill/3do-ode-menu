@@ -409,6 +409,34 @@ static void draw_one(uint16 *dst, CCB *c)
     const uint8 *src = c->ccb_SourcePtr;
     const uint16 *plut = c->ccb_PLUTPtr;
 
+    if (c->h_bpp == 16 && c->ccb_SourcePtr == (CelData *)&c->ccb_PLUTPtr &&
+        (c->ccb_HDY || c->ccb_VDX || (c->ccb_HDX & 0xfffff) || (c->ccb_VDY & 0xffff) || (c->ccb_XPos & 0xffff) ||
+         (c->ccb_YPos & 0xffff))) {
+        /* a 1x1 cel mapped onto a parallelogram (the screensaver's lines): fill the pixels whose centres are in it */
+        double ox = c->ccb_XPos / 65536.0, oy = c->ccb_YPos / 65536.0;
+        double hx = c->ccb_HDX / 1048576.0, hy = c->ccb_HDY / 1048576.0;
+        double vx = c->ccb_VDX / 65536.0, vy = c->ccb_VDY / 65536.0;
+        double det = hx * vy - hy * vx, xs[4] = { ox, ox + hx, ox + hx + vx, ox + vx }, ys[4] = { oy, oy + hy, oy + hy + vy, oy + vy };
+        double mnx = xs[0], mxx = xs[0], mny = ys[0], mxy = ys[0];
+        uint16 v = (uint16)((uint32)(size_t)c->ccb_PLUTPtr >> 16);
+        int32 i;
+        if (det == 0)
+            return;
+        for (i = 1; i < 4; i++) {
+            if (xs[i] < mnx) mnx = xs[i];
+            if (xs[i] > mxx) mxx = xs[i];
+            if (ys[i] < mny) mny = ys[i];
+            if (ys[i] > mxy) mxy = ys[i];
+        }
+        for (y = (int32)mny - 1; y <= (int32)mxy + 1; y++)
+            for (x = (int32)mnx - 1; x <= (int32)mxx + 1; x++) {
+                double px = x + 0.5 - ox, py = y + 0.5 - oy;
+                double u = (px * vy - py * vx) / det, t = (hx * py - hy * px) / det;
+                if (u >= 0 && u < 1 && t >= 0 && t < 1)
+                    put_px(dst, c, x, y, v);
+            }
+        return;
+    }
     if (c->h_bpp == 16 && c->ccb_SourcePtr == (CelData *)&c->ccb_PLUTPtr) {
         uint16 v = (uint16)((uint32)(size_t)c->ccb_PLUTPtr >> 16);
         w = c->ccb_HDX >> 20;

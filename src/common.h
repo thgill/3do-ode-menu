@@ -272,6 +272,9 @@ void   gfx_delay(int32 frames);
 void   gfx_set_theme(int32 t);                  /* Options > THEME: recolours every role */
 int32  gfx_theme_bar(void);
 const char *gfx_theme_name(int32 t);
+void   gfx_rect_rgb(int32 x, int32 y, int32 w, int32 h, int32 rgb);
+void   gfx_line_rgb(int32 x0, int32 y0, int32 x1, int32 y1, int32 wq, int32 rgb);   /* 1/16 pixels */
+void   saver_run(void);                         /* the screensaver, until a button (swallowed) */
 void   gfx_set_dim(int32 on);                   /* draw what follows in the dimmed palette */
 void   gfx_set_bar(int32 rgb15);                /* the selection bar's color this frame */
 int32  gfx_color(int32 role);

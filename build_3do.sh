@@ -12,7 +12,7 @@ CFLAGS="$EXTRA -DMENU_DATE=\"$MENU_DATE\" -O2 -zpno_check_stack -bigend -za1 -zi
 B=${B:-build/3do}; mkdir -p $B
 OBJS=""
 # third/: tinf (zlib license) and picojpeg (public domain), for PNG and JPG pictures; see src/third/README.third
-for f in main odeio odecmd dirlist input gfx ui lists tools crc rampatch artdec jpgprog third/tinflate third/picojpeg; do
+for f in main odeio odecmd dirlist input gfx ui lists saver tools crc rampatch artdec jpgprog third/tinflate third/picojpeg; do
     o="$B/$(basename "$f").o"
     rm -f "./$o"
     armcc $INC $CFLAGS -c src/$f.c -o "$o" 2>&1 | tee "$o.log" | grep -v "apcs /wide" || true

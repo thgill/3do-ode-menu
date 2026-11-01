@@ -299,6 +299,18 @@ r,g,b=d[(5*320+5)*3:(5*320+5)*3+3]
 import sys; sys.exit(0 if r==0 and b>0 else 1)" && ok "THEME recolours the screen (NAVY background)" || bad "theme"
 hopt ""
 
+# the screensaver: after a minute idle it runs; the press that wakes it does nothing else
+hopt "saver=1
+"
+printf '30 shot sv0\n3700 shot sv1\n3900 pad A\n3902 pad -\n4000 shot sv2\n4010 end\n' > "$H/saver.txt"
+out=$(hrun "$H/saver.txt")
+if ! cmp -s "$H/sv0.ppm" "$H/sv1.ppm" && cmp -s "$H/sv0.ppm" "$H/sv2.ppm" && ! echo "$out" | grep -q "C0 "; then
+    ok "SCREENSAVER starts when idle; the waking press is swallowed"
+else
+    bad "screensaver"
+fi
+hopt ""
+
 # SataTo3DO-based clone (FWSIM_CLONE=7): its firmware ignores C0 to the id it already holds, so a folder whose only
 # entry is a folder with the same number (entry 1 in entry 1) can not be opened: the menu must say so and stay in
 # step (it did not, and wrote one folder's listing as the root's index)
