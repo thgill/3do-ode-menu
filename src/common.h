@@ -194,7 +194,8 @@ int32       name_compare(const char *a, const char *b);
 int32       dir_to_root(DirProgress progress);  /* up to the drive root and list it (stays on the device list) */
 int32       dir_to_devlist(DirProgress progress);
 int32       dir_root_begin(void);               /* firmware to the drive root for a file access (-1 on the device list) */
-void        dir_root_end(void);                 /* and back to the folder the menu is in */
+void        dir_root_end(void);
+void        dir_refilter(void);                 /* hidden games changed: hide or show them again */                 /* and back to the folder the menu is in */
 int32       dir_ode_test(char lines[][40], int32 max);    /* TOOLS > ODE TEST: raw answers, for clones */
 int32       dir_open_path(int32 drive, const char *path, DirProgress progress);  /* index of the file, or < 0 */
 int32       name_is_game(const char *name);     /* .iso or .cue */
@@ -267,6 +268,10 @@ void   gfx_wait_vbl(void);
 void   gfx_clock_init(void);                    /* measures the field clock; after the screen is up */
 uint32 gfx_vbl_count(void);                     /* video fields waited for so far: the clock for animation */
 void   gfx_delay(int32 frames);
+#define THEME_COUNT 5
+void   gfx_set_theme(int32 t);                  /* Options > THEME: recolours every role */
+int32  gfx_theme_bar(void);
+const char *gfx_theme_name(int32 t);
 void   gfx_set_dim(int32 on);                   /* draw what follows in the dimmed palette */
 void   gfx_set_bar(int32 rgb15);                /* the selection bar's color this frame */
 int32  gfx_color(int32 role);
@@ -296,6 +301,7 @@ void  ui_message(const char *title, const char *msg);
 #define LIST_PATH_MAX   200
 #define FAV_MAX         64
 #define REC_MAX         12
+#define HID_MAX         64
 typedef struct PathList {
     int32 n, max, dirty;
     char  (*p)[LIST_PATH_MAX];      /* paths from the drive root, '/' separated */
@@ -309,9 +315,19 @@ typedef struct Settings {
     int32 index;        /* folder index files */
     int32 remember;     /* start in the last folder */
     int32 scanned;      /* the card scan was offered */
+    int32 theme;        /* colour theme, 0 .. THEME_COUNT - 1 */
+    int32 sound;        /* menu sound effects */
+    int32 saver;        /* screensaver: 0 off, 1 = 1 min, 2 = 5 min, 3 = 30 min */
+    int32 showhid;      /* show hidden games (dimmed) */
     int32 dirty;
 } Settings;
 extern Settings g_set;
+extern PathList g_hidden;
+int32 lists_entry_hidden(int32 i);              /* entry i is a game the player hid (and hidden games are not shown) */
+int32 lists_path_hidden(const char *path);
+uint32 lists_rand(void);
+int32 lists_random_game(char *out);             /* 1 a game, 0 none left, -1 no card list (_odemenu.all) */
+int32 lists_write_all(char *buf, int32 len, int32 cap);
 void  lists_init(void);
 void  lists_load(void);                         /* from the root of the drive the menu is in */
 void  lists_save(int32 at_root);                /* writes what changed (at_root: the firmware is already there) */

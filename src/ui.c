@@ -13,6 +13,7 @@
 #include "uiart.h"
 
 enum { T_GAMES, T_FAVS, T_RECENT, T_TOOLS, T_OPTIONS, T_COUNT };
+enum { O_PANE, O_THEME, O_BAR, O_SHINE, O_SOUND, O_SAVER, O_HIDDEN, O_INDEX, O_ABOUT, O_COUNT };   /* OPTIONS rows */
 
 /* layout, in cells and pixels (mock3do.py / mock_synth.py) */
 /* Vertical layout. LOGO_Y and TAB_Y place the logo and the tab strip; everything below follows from TAB_Y and
@@ -88,6 +89,9 @@ static int32 idle;                  /* frames since the last button event */
 static uint32 last_ev_vbl;          /* video field of the last button event */
 
 static char  toast[48];
+
+static void show_hidden_changed(void);
+static int32 entry_hidden_listed(int32 i);
 static int32 toast_timer;
 static char  jump_ch;
 static int32 jump_timer;
@@ -186,7 +190,7 @@ static int32 tab_count(int32 t)
     case T_FAVS:    return g_favs.n;
     case T_RECENT:  return g_recent.n;
     case T_TOOLS:   return 13;
-    default:        return 5;
+    default:        return O_COUNT;
     }
 }
 
@@ -280,12 +284,18 @@ static int32 is_fav_path(const char *path)
     return list_find(&g_favs, path) >= 0;
 }
 
+static int32 theme_shown = -1;
+
 static void bar_color(void)
 {
     int32 k, t, c[3], i;
 
+    if (g_set.theme != theme_shown) {
+        gfx_set_theme(g_set.theme);
+        theme_shown = g_set.theme;
+    }
     if (g_set.bar == 0) {
-        gfx_set_bar(RGB15(ring[0][0], ring[0][1], ring[0][2]));
+        gfx_set_bar(gfx_theme_bar());
         return;
     }
     k = bar_phase / 18;
@@ -760,13 +770,18 @@ static const char *tools_label(int32 i)
 static const char *opt_label(int32 i, const char **value)
 {
     static const char *bars[4] = { "OFF", "SLOW", "MED", "FAST" };
+    static const char *savers[4] = { "OFF", "1 MIN", "5 MIN", "30 MIN" };
 
     switch (i) {
-    case 0:  *value = g_set.pane ? "ON" : "OFF"; return "INFO PANE";
-    case 1:  *value = bars[g_set.bar & 3]; return "BAR COLOR CYCLE";
-    case 2:  *value = g_set.shine ? "ON" : "OFF"; return "LOGO SHINE";
-    case 3:  *value = g_set.index ? "ON" : "OFF"; return "FOLDER INDEX";
-    default: *value = 0; return "ABOUT";
+    case O_PANE:   *value = g_set.pane ? "ON" : "OFF"; return "INFO PANE";
+    case O_THEME:  *value = gfx_theme_name(g_set.theme); return "THEME";
+    case O_BAR:    *value = bars[g_set.bar & 3]; return "BAR COLOR CYCLE";
+    case O_SHINE:  *value = g_set.shine ? "ON" : "OFF"; return "LOGO SHINE";
+    case O_SOUND:  *value = g_set.sound ? "ON" : "OFF"; return "SOUND EFFECTS";
+    case O_SAVER:  *value = savers[g_set.saver & 3]; return "SCREENSAVER";
+    case O_HIDDEN: *value = g_set.showhid ? "ON" : "OFF"; return "SHOW HIDDEN GAMES";
+    case O_INDEX:  *value = g_set.index ? "ON" : "OFF"; return "FOLDER INDEX";
+    default:       *value = 0; return "ABOUT";
     }
 }
 
@@ -826,6 +841,8 @@ static void get_row(int32 t, int32 r, Row *w)
         }
         if (w->queued)
             w->text_role = P_ORANGE;
+        if (g_set.showhid && g_hidden.n > 0 && entry_hidden_listed(i))
+            w->text_role = P_DIM;           /* a hidden game, shown because SHOW HIDDEN GAMES is on */
         return;
     case T_FAVS:
     case T_RECENT:
@@ -1385,7 +1402,7 @@ void ui_draw(void)
 
 /* ---------------------------------------------------------------- boxes: dialogs and progress */
 
-#define DLG_MAX_OPTS  6
+#define DLG_MAX_OPTS  7
 #define DLG_MAX_LINES 8
 
 typedef struct Dialog {
@@ -2167,48 +2184,88 @@ static const char *nvram_result(int32 r, const char *ok)
 }
 
 
+/* GAMES > a game > HIDE GAME: off the lists (OPTIONS > SHOW HIDDEN GAMES shows it again, dimmed) */
+static int32 entry_hidden_listed(int32 i)
+{
+    return list_path_of(i, pathbuf, LIST_PATH_MAX) == 0 && list_find(&g_hidden, pathbuf) >= 0;
+}
+
+static void toggle_hidden(int32 i)
+{
+    int32 k;
+
+    if (list_path_of(i, pathbuf, LIST_PATH_MAX) < 0) {
+        ui_toast("Path too long to hide");
+        return;
+    }
+    k = list_find(&g_hidden, pathbuf);
+    if (k >= 0) {
+        list_remove(&g_hidden, k);
+        ui_toast("Game shown again");
+    } else if (g_hidden.n >= g_hidden.max) {
+        ui_toast("Too many hidden games");
+        return;
+    } else {
+        list_add_front(&g_hidden, pathbuf);
+        ui_toast(g_set.showhid ? "Hidden (SHOW HIDDEN is on)" : "Game hidden");
+    }
+    g_hidden.dirty = 1;
+    lists_save(0);
+    show_hidden_changed();
+}
+
+enum { GA_START, GA_FAV, GA_QUEUE, GA_START_Q, GA_CLEAR_Q, GA_HIDE, GA_FOLDER };
+
 static void game_dialog(int32 i)
 {
     Dialog d;
     char title[DIR_NAME_MAX], qtext[24];
-    int32 r, fav;
+    int32 r, fav, act[DLG_MAX_OPTS + 2];
 
     stem(dir_name(i), title, sizeof(title));
     fav = entry_path(i, pathbuf, LIST_PATH_MAX) == 0 && is_fav_path(pathbuf);
     dialog_init(&d, title);
-    d.opts[0] = "START GAME";
-    d.opts[1] = fav ? "REMOVE FROM FAVS" : "ADD TO FAVS";
+    d.nopts = 0;
+    act[d.nopts] = GA_START;
+    d.opts[d.nopts++] = "START GAME";
+    act[d.nopts] = GA_FAV;
+    d.opts[d.nopts++] = fav ? "REMOVE FROM FAVS" : "ADD TO FAVS";
     if (g_dir.ent[i].queued)
         sprintf(qtext, "IN QUEUE (%d/%d)", (int)g_dir.ent[i].queued, (int)q_count);
     else
         sprintf(qtext, "ADD TO QUEUE (%d/%d)", (int)q_count, QMAX);
-    d.opts[2] = qtext;
     if (g_dir.ent[i].queued || q_count >= QMAX)
-        d.disabled |= 1u << 2;
-    d.nopts = 3;
+        d.disabled |= 1u << d.nopts;
+    act[d.nopts] = GA_QUEUE;
+    d.opts[d.nopts++] = qtext;
     if (q_count > 0) {
-        d.opts[3] = "START QUEUE";
-        d.opts[4] = "CLEAR QUEUE";
-        d.nopts = 5;
+        act[d.nopts] = GA_START_Q;
+        d.opts[d.nopts++] = "START QUEUE";
+        act[d.nopts] = GA_CLEAR_Q;
+        d.opts[d.nopts++] = "CLEAR QUEUE";
     }
-    if (dir_is_game_folder(i))
+    act[d.nopts] = GA_HIDE;
+    d.opts[d.nopts++] = entry_hidden_listed(i) ? "UNHIDE GAME" : "HIDE GAME";
+    if (dir_is_game_folder(i) && d.nopts < DLG_MAX_OPTS) {
+        act[d.nopts] = GA_FOLDER;
         d.opts[d.nopts++] = "OPEN FOLDER";     /* for anything else kept with the game (saves) */
-    r = dialog_run(&d);
-    if (r == d.nopts - 1 && dir_is_game_folder(i)) {
-        open_folder(i);
-        return;
     }
-    switch (r) {
-    case 0: play_now(i); break;
-    case 1:
+    r = dialog_run(&d);
+    if (r < 0 || r >= d.nopts)
+        return;
+    switch (act[r]) {
+    case GA_START:   play_now(i); break;
+    case GA_FAV:
         if (entry_path(i, pathbuf, LIST_PATH_MAX) < 0)
             ui_toast("Path too long for favorites");
         else
             toggle_fav_path(pathbuf);
         break;
-    case 2: queue_add(i); break;
-    case 3: play_queue(); break;
-    case 4: queue_clear(); ui_toast("Queue cleared"); break;
+    case GA_QUEUE:   queue_add(i); break;
+    case GA_START_Q: play_queue(); break;
+    case GA_CLEAR_Q: queue_clear(); ui_toast("Queue cleared"); break;
+    case GA_HIDE:    toggle_hidden(i); break;
+    case GA_FOLDER:  open_folder(i); break;
     }
 }
 
@@ -2363,6 +2420,51 @@ static void list_tab_a(void)
     }
 }
 
+/* X: a random game. From the card list (_odemenu.all, made by TOOLS > SCAN CARD or the Cover Maker) when there is
+ * one, otherwise from the folder open. The menu goes to the game and opens its game menu. */
+static void random_game(void)
+{
+    static char path[LIST_PATH_MAX];
+    int32 r, i, n, k, pick;
+
+    if (g_dir.devlist) {
+        ui_toast("Open a drive first");
+        return;
+    }
+    r = lists_random_game(path);
+    if (r == 1) {
+        i = goto_game(path);
+        if (i < 0)
+            return;
+        tab = T_GAMES;
+        dirty = 1;
+        game_dialog(i);
+        return;
+    }
+    if (r == 0) {
+        ui_toast("No games to pick from");
+        return;
+    }
+    for (i = n = 0; i < g_dir.count; i++)
+        if (dir_is_game(i) && !entry_hidden_listed(i))
+            n++;
+    if (n == 0) {
+        ui_toast("No games here (SCAN CARD for all)");
+        return;
+    }
+    pick = (int32)(lists_rand() % (uint32)n);
+    for (i = k = 0; i < g_dir.count; i++)
+        if (dir_is_game(i) && !entry_hidden_listed(i) && k++ == pick)
+            break;
+    tab = T_GAMES;
+    cur[T_GAMES] = i + has_up();
+    top[T_GAMES] = cur[T_GAMES] - LIST_ROWS / 2;
+    clamp_view(T_GAMES);
+    ui_toast("Picked from this folder");
+    dirty = 1;
+    game_dialog(i);
+}
+
 static void after_tool(int32 changed_folder)
 {
     char keep[DIR_NAME_MAX];
@@ -2488,6 +2590,34 @@ static void scan_cover(int32 i)
         g_dir.ent[i].art &= ~(ART_NONE | ART_FAIL);
 }
 
+/* the list of every game the scan finds (_odemenu.all, for X), grown as needed */
+static char *all_buf;
+static int32 all_len, all_cap;
+
+static void all_add(int32 i)
+{
+    int32 n;
+    char *b;
+
+    if (all_buf == 0 || entry_path(i, pathbuf, LIST_PATH_MAX) < 0)
+        return;
+    n = strlen(pathbuf);
+    if (all_len + n + 1 + 8 > all_cap) {
+        if (all_cap >= 1024 * 1024)
+            return;                     /* (over a megabyte of names: the list keeps what it has) */
+        b = (char *)AllocMem(all_cap * 2, MEMTYPE_ANY);
+        if (b == 0)
+            return;
+        memcpy(b, all_buf, all_len);
+        FreeMem(all_buf, all_cap);
+        all_buf = b;
+        all_cap *= 2;
+    }
+    memcpy(all_buf + all_len, pathbuf, n);
+    all_len += n;
+    all_buf[all_len++] = '\n';
+}
+
 static void scan_card(void)
 {
     static int32 nexti[DIR_MAX_DEPTH + 1];
@@ -2504,6 +2634,13 @@ static void scan_card(void)
     }
     scan_games = scan_covers = scan_bad = scan_stop = 0;
     scan_name[0] = 0;
+    all_len = 0;
+    all_cap = 64 * 1024;
+    all_buf = (char *)AllocMem(all_cap, MEMTYPE_ANY);
+    if (all_buf) {
+        strcpy(all_buf, "OMA1\n");
+        all_len = 5;
+    }
     input_flush();
     scan_show();
     if (dir_to_root(scan_progress) < 0)
@@ -2521,6 +2658,7 @@ static void scan_card(void)
         nexti[d] = i + 1;
         if (dir_is_game(i)) {
             scan_games++;
+            all_add(i);
             stem(dir_name(i), scan_name, sizeof(scan_name));
             scan_show();
             scan_cover(i);
@@ -2534,6 +2672,12 @@ static void scan_card(void)
     }
     if (g_dir.depth > 0)
         dir_to_root(load_progress);
+    if (all_buf) {
+        if (!scan_stop)
+            lists_write_all(all_buf, all_len, all_cap);  /* the whole card was looked at: the list for X */
+        FreeMem(all_buf, all_cap);
+        all_buf = 0;
+    }
     art_forget();
     after_load(0);
     sprintf(tmp, "%s %d games found, %d covers made.", scan_stop ? "Stopped." : "Done.", (int)scan_games,
@@ -2654,13 +2798,30 @@ static void about(void)
     dialog_run(&d);
 }
 
+static void show_hidden_changed(void)
+{
+    char keep[DIR_NAME_MAX];
+    int32 i = entry_of(cur[T_GAMES]);
+
+    keep[0] = 0;
+    if (i >= 0 && i < g_dir.count)
+        strcpy(keep, dir_name(i));
+    fallback_cur = i;                   /* a game just hidden: stay on the row it was on */
+    dir_refilter();
+    after_load(keep);
+}
+
 static void option_change(int32 dir)
 {
     switch (cur[T_OPTIONS]) {
-    case 0: g_set.pane = !g_set.pane; break;
-    case 1: g_set.bar = (g_set.bar + (dir > 0 ? 1 : 3)) & 3; break;
-    case 2: g_set.shine = !g_set.shine; shine_wait = 30; shine_pos = -30; break;
-    case 3: g_set.index = !g_set.index; g_dir.use_cache = g_set.index; break;
+    case O_PANE:   g_set.pane = !g_set.pane; break;
+    case O_THEME:  g_set.theme = (g_set.theme + (dir > 0 ? 1 : THEME_COUNT - 1)) % THEME_COUNT; break;
+    case O_BAR:    g_set.bar = (g_set.bar + (dir > 0 ? 1 : 3)) & 3; break;
+    case O_SHINE:  g_set.shine = !g_set.shine; shine_wait = 30; shine_pos = -30; break;
+    case O_SOUND:  g_set.sound = !g_set.sound; break;
+    case O_SAVER:  g_set.saver = (g_set.saver + (dir > 0 ? 1 : 3)) & 3; break;
+    case O_HIDDEN: g_set.showhid = !g_set.showhid; show_hidden_changed(); break;
+    case O_INDEX:  g_set.index = !g_set.index; g_dir.use_cache = g_set.index; break;
     default:
         if (dir > 0)
             about();
@@ -2791,6 +2952,11 @@ static void frame_input(uint32 ev)
         else if (ev & BTN_LEFT)
             option_change(-1);
         break;
+    }
+    if ((fresh & BTN_X) && (tab == T_GAMES || tab == T_FAVS || tab == T_RECENT)) {
+        random_game();
+        dirty = 1;
+        return;
     }
     if ((ev & BTN_P) && tab != T_GAMES && q_count > 0)
         play_queue();           /* the P legend shows on every tab while there is a queue */

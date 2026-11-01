@@ -855,7 +855,9 @@ static int32 is_hidden(int32 i)
     if (g_dir.depth == 0 && is_menu_disc(i))
         return 1;
     if (dir_name(i)[0] == '_')
-        return 1;                   /* the menu's own files and folders (_art): Fixel's firmware hides them, a clone
+        return 1;
+    if (lists_entry_hidden(i))
+        return 1;                   /* a game the player hid (OPTIONS > SHOW HIDDEN shows them again) */                   /* the menu's own files and folders (_art): Fixel's firmware hides them, a clone
                                      * (SataTo3DO-based) lists folders whatever their name */
     return !(e->flags & TF_DIR) && !(e->flags & (TF_NVM | TF_ODE)) && !name_is_game_n(dir_name(i), e->name_len);
 }
@@ -881,6 +883,17 @@ static void hide_menu_disc(void)
 }
 
 static int32 load_listing(DirProgress progress, int32 force_scan);
+
+/* hidden games were hidden or shown again: put every entry back, sort, and hide again */
+void dir_refilter(void)
+{
+    if (g_dir.devlist)
+        return;
+    g_dir.count += g_dir.hidden;
+    g_dir.hidden = 0;
+    sort_entries();
+    hide_menu_disc();
+}
 
 int32 dir_load(DirProgress progress, int32 force_scan)
 {

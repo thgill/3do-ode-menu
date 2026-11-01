@@ -3,6 +3,8 @@
  *   _odemenu.fav   favorites, one path per line from the drive root ("3DO/USA/Doom (USA).iso")
  *   _odemenu.rec   recently played, newest first
  *   _odemenu.opt   settings, "key=value" lines
+ *   _odemenu.hid   games hidden from the lists (GAMES > a game > HIDE GAME), paths as above, no '/' at the end
+ *   _odemenu.all   every game on the card, for X (random game): written by TOOLS > SCAN CARD and the Cover Makers
  *
  * The firmware opens files relative to its current folder, so the menu takes it up to the root for these
  * (dir_root_begin) and back down after. On the device list (both drives fitted) there is no drive to write to:
@@ -10,16 +12,21 @@
  */
 #include "common.h"
 
+extern int32 g_ode_cmds;
+
 #define FAV_FILE "_odemenu.fav"
 #define REC_FILE "_odemenu.rec"
 #define OPT_FILE "_odemenu.opt"
+#define HID_FILE "_odemenu.hid"
+#define ALL_FILE "_odemenu.all"
 #define FILE_MAX (FAV_MAX * LIST_PATH_MAX + 2 * ODE_XFER)
 
-PathList g_favs, g_recent;
+PathList g_favs, g_recent, g_hidden;
 Settings g_set;
 
 static char fav_store[FAV_MAX][LIST_PATH_MAX];
 static char rec_store[REC_MAX][LIST_PATH_MAX];
+static char hid_store[HID_MAX][LIST_PATH_MAX];
 static char fbuf[FILE_MAX + 1];
 
 void lists_init(void)
@@ -30,13 +37,20 @@ void lists_init(void)
     g_recent.p = rec_store;
     g_recent.max = REC_MAX;
     g_recent.file = REC_FILE;
-    g_favs.n = g_recent.n = 0;
+    g_hidden.p = hid_store;
+    g_hidden.max = HID_MAX;
+    g_hidden.file = HID_FILE;
+    g_favs.n = g_recent.n = g_hidden.n = 0;
     g_set.pane = 1;
     g_set.bar = 1;
     g_set.shine = 0;
     g_set.index = 1;
     g_set.remember = 1;
     g_set.scanned = 0;
+    g_set.theme = 0;
+    g_set.sound = 1;
+    g_set.saver = 2;            /* 5 minutes */
+    g_set.showhid = 0;
 }
 
 const char *path_base(const char *path)
@@ -233,6 +247,10 @@ void lists_load(void)
         parse_list(&g_recent, fbuf);
     else
         g_recent.n = 0;
+    if (read_file(HID_FILE, fbuf, FILE_MAX) > 0)
+        parse_list(&g_hidden, fbuf);
+    else
+        g_hidden.n = 0;
     if (read_file(OPT_FILE, fbuf, FILE_MAX) > 0 && strncmp(fbuf, "OMO1\n", 5) == 0) {
         g_set.pane = opt_value(fbuf, "pane", 1, 1);
         g_set.bar = opt_value(fbuf, "bar", 1, 3);
@@ -240,10 +258,14 @@ void lists_load(void)
         g_set.index = opt_value(fbuf, "index", 1, 1);
         g_set.remember = opt_value(fbuf, "remember", 1, 1);
         g_set.scanned = opt_value(fbuf, "scanned", 0, 1);
+        g_set.theme = opt_value(fbuf, "theme", 0, THEME_COUNT - 1);
+        g_set.sound = opt_value(fbuf, "sound", 1, 1);
+        g_set.saver = opt_value(fbuf, "saver", 2, 3);
+        g_set.showhid = opt_value(fbuf, "showhid", 0, 1);
     }
     dir_root_end();
     g_dir.use_cache = g_set.index;
-    g_favs.dirty = g_recent.dirty = g_set.dirty = 0;
+    g_favs.dirty = g_recent.dirty = g_hidden.dirty = g_set.dirty = 0;
 }
 
 static int32 save_list(PathList *l)
@@ -266,7 +288,7 @@ void lists_save(int32 at_root)
 #if FIXEL_DIAG & 1
     return;
 #endif
-    if (!g_favs.dirty && !g_recent.dirty && !g_set.dirty)
+    if (!g_favs.dirty && !g_recent.dirty && !g_hidden.dirty && !g_set.dirty)
         return;
     if (!at_root && dir_root_begin() < 0)
         return;                 /* device list: keep the changes for later */
@@ -274,14 +296,150 @@ void lists_save(int32 at_root)
         g_favs.dirty = 0;
     if (g_recent.dirty && save_list(&g_recent) == 0)
         g_recent.dirty = 0;
+    if (g_hidden.dirty && save_list(&g_hidden) == 0)
+        g_hidden.dirty = 0;
     if (g_set.dirty) {
-        sprintf(fbuf, "OMO1\npane=%d\nbar=%d\nshine=%d\nindex=%d\nremember=%d\nscanned=%d\n", (int)g_set.pane,
-                (int)g_set.bar, (int)g_set.shine, (int)g_set.index, (int)g_set.remember, (int)g_set.scanned);
+        sprintf(fbuf, "OMO1\npane=%d\nbar=%d\nshine=%d\nindex=%d\nremember=%d\nscanned=%d\ntheme=%d\nsound=%d\n"
+                "saver=%d\nshowhid=%d\n", (int)g_set.pane, (int)g_set.bar, (int)g_set.shine, (int)g_set.index,
+                (int)g_set.remember, (int)g_set.scanned, (int)g_set.theme, (int)g_set.sound, (int)g_set.saver,
+                (int)g_set.showhid);
         if (write_file(OPT_FILE, fbuf, strlen(fbuf)) == 0)
             g_set.dirty = 0;
     }
     if (!at_root)
         dir_root_end();
+}
+
+/* ------------------------------------------------------------------ hidden games */
+
+/* entry i of the folder open is a game the player hid, and hidden games are not being shown */
+int32 lists_entry_hidden(int32 i)
+{
+    static char p[LIST_PATH_MAX];
+
+    if (g_set.showhid || g_hidden.n == 0)
+        return 0;
+    return list_path_of(i, p, LIST_PATH_MAX) == 0 && list_find(&g_hidden, p) >= 0;
+}
+
+/* a path from FAVS, RECENT or the card list (a game folder ends in '/') is hidden */
+int32 lists_path_hidden(const char *path)
+{
+    static char p[LIST_PATH_MAX];
+    int32 n = strlen(path);
+
+    if (g_hidden.n == 0 || n >= LIST_PATH_MAX)
+        return 0;
+    strcpy(p, path);
+    if (n > 0 && p[n - 1] == '/')
+        p[n - 1] = 0;
+    return list_find(&g_hidden, p) >= 0;
+}
+
+/* ------------------------------------------------------------------ the card list (_odemenu.all), for X
+ * "OMA1", then one game per line as FAVS keeps them ("3DO/Doom (USA).iso", "3DO/Gex/" for a game folder), then
+ * LIST_END. It is read a chunk at a time and one line is kept (reservoir sampling), so its size does not matter. */
+
+static uint32 rnd_state;
+
+uint32 lists_rand(void)
+{
+    if (rnd_state == 0)
+        rnd_state = 0x2545f491u ^ gfx_vbl_count() ^ ((uint32)g_ode_cmds << 16);
+    rnd_state ^= rnd_state << 13;
+    rnd_state ^= rnd_state >> 17;
+    rnd_state ^= rnd_state << 5;
+    return rnd_state;
+}
+
+static int32 rnd_seen;
+static char  rnd_line[LIST_PATH_MAX];
+
+static void rnd_offer(const char *p, int32 n)
+{
+    static char line[LIST_PATH_MAX];
+
+    if (n <= 0 || n >= LIST_PATH_MAX)
+        return;
+    memcpy(line, p, n);
+    line[n] = 0;
+    if (lists_path_hidden(line))
+        return;
+    rnd_seen++;
+    if (lists_rand() % (uint32)rnd_seen == 0)
+        strcpy(rnd_line, line);
+}
+
+/* a random game from the card list into out; 1 found, 0 the list has no game, -1 there is no list */
+int32 lists_random_game(char *out)
+{
+    static uint8 chunk[ODE_XFER], prev[ODE_XFER];
+    static char carry[LIST_PATH_MAX + 8];
+    uint32 got;
+    int32 nc = 0, k, st = 0, have_prev = 0, done = 0, header = 0;
+
+    rnd_seen = 0;
+    rnd_line[0] = 0;
+    if (dir_root_begin() < 0)
+        return -1;
+    if (ode_file_open(ALL_FILE, 0) < 0) {
+        dir_root_end();
+        return -1;
+    }
+    while (!done) {
+        if (ode_file_read(chunk, ODE_XFER, &got) < 0 || got == 0)
+            break;
+        if (got == ODE_XFER && have_prev && memcmp(chunk, prev, ODE_XFER) == 0)
+            break;                      /* a clone's end of file: the last chunk again */
+        memcpy(prev, chunk, ODE_XFER);
+        have_prev = 1;
+        for (k = 0; k < (int32)got && !done; k++) {
+            char c = (char)chunk[k];
+            if (c != '\n' && c != '\r') {
+                if (nc < (int32)sizeof(carry) - 1)
+                    carry[nc++] = c;
+                continue;
+            }
+            if (nc == 0)
+                continue;
+            carry[nc] = 0;
+            if (!header) {
+                header = 1;
+                if (strcmp(carry, "OMA1") != 0)
+                    done = st = 1;      /* not a card list */
+            } else if (strcmp(carry, LIST_END) == 0 || strncmp(carry, "OMA1", 4) == 0) {
+                done = 1;               /* its end, or the file again (a clone's stale tail) */
+            } else {
+                rnd_offer(carry, nc);
+            }
+            nc = 0;
+        }
+        if (got < ODE_XFER)
+            break;
+    }
+    ode_file_close();
+    dir_root_end();
+    if (st || !header)
+        return -1;
+    if (rnd_seen == 0)
+        return 0;
+    strcpy(out, rnd_line);
+    return 1;
+}
+
+/* the scan's list of every game: "OMA1", the paths (each ending in a newline), LIST_END */
+int32 lists_write_all(char *buf, int32 len, int32 cap)
+{
+    int32 n = strlen(LIST_END) + 1, err;
+
+    if (len + n > cap)
+        return -1;
+    memcpy(buf + len, LIST_END "\n", n);
+    if (dir_root_begin() < 0)
+        return -1;
+    err = write_file(ALL_FILE, buf, len + n);
+    dir_root_end();
+    return err;
 }
 
 /* ------------------------------------------------------------------ the last launch, in the console's NVRAM

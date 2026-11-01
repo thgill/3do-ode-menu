@@ -256,6 +256,49 @@ run "$T/first.txt" > /dev/null
 grep -q "^scanned=1$" "$T/sd/_odemenu.opt" 2>/dev/null && ok "first start offers the scan once (scanned=1 kept)" || { bad "first-start offer"; cat "$T/sd/_odemenu.opt"; }
 mv "$T/opt.keep" "$T/sd/_odemenu.opt"
 
+# hide a game, show hidden games, random game (X), the scan's card list, themes
+H="$T/h"; mkdir -p "$H/sd/Lib" "$H/disc/assets"; cp "$T/disc/assets/logo.img" "$H/disc/assets/"; touch "$H/sd/boot.iso"
+for g in Alpha Beta Gamma Delta; do touch "$H/sd/Lib/$g (USA).iso"; done
+hopt() { printf 'OMO1\npane=1\nbar=0\nshine=0\nindex=1\nscanned=1\n%s' "$1" > "$H/sd/_odemenu.opt"; }
+hrun() { $M --sd "$H/sd" --out "$H" --disc "$H/disc" --script "$1" 2>&1; }
+hopt ""
+keys "A w A D D D A w" 20 40 > "$H/hide.txt"                    # Lib, Alpha's menu, HIDE GAME
+hrun "$H/hide.txt" > /dev/null
+grep -q "^Lib/Alpha (USA).iso$" "$H/sd/_odemenu.hid" 2>/dev/null && ok "HIDE GAME keeps the game in _odemenu.hid" || { bad "hide game"; cat "$H/sd/_odemenu.hid" 2>/dev/null; }
+keys "A w A A" 20 600 > "$H/first.txt"                          # Lib, first game's menu, START
+out=$(hrun "$H/first.txt")
+echo "$out" | grep -q "C5 launch: .*Lib/Beta (USA).iso" && ok "a hidden game is off the list (the first game is now Beta)" || { bad "hidden game still listed"; echo "$out" | grep C5; }
+hopt "showhid=1
+"
+out=$(hrun "$H/first.txt")
+echo "$out" | grep -q "C5 launch: .*Lib/Alpha (USA).iso" && ok "SHOW HIDDEN GAMES lists it again" || { bad "show hidden"; echo "$out" | grep C5; }
+hopt ""
+printf 'OMA1\nLib/Alpha (USA).iso\nLib/Delta (USA).iso\n-END-\n' > "$H/sd/_odemenu.all"
+keys "X w A" 20 600 > "$H/rnd.txt"                              # X at the root, START
+ok_all=1
+for k in 1 2 3; do
+    out=$(hrun "$H/rnd.txt")
+    echo "$out" | grep -q "C5 launch: .*Lib/Delta (USA).iso" || { ok_all=0; echo "$out" | grep -E "C5|toast"; }
+done
+[ $ok_all = 1 ] && ok "X picks from the card list, never a hidden game" || bad "random game from the card list"
+rm -f "$H/sd/_odemenu.all"
+keys "A w X w A" 20 600 > "$H/rnd2.txt"                         # in Lib with no card list: X picks from the folder
+out=$(hrun "$H/rnd2.txt")
+echo "$out" | grep -q "C5 launch: .*Lib/\(Beta\|Gamma\|Delta\) (USA).iso" && ok "X without a card list picks from the folder open" || { bad "random game from the folder"; echo "$out" | grep C5; }
+keys "$SCAN" 20 300 > "$H/scan.txt"
+hrun "$H/scan.txt" > /dev/null
+{ head -1 "$H/sd/_odemenu.all" | grep -q "^OMA1$" && grep -q "^Lib/Gamma (USA).iso$" "$H/sd/_odemenu.all" && grep -q "^-END-$" "$H/sd/_odemenu.all"; } 2>/dev/null &&
+    ok "SCAN CARD writes the card list (_odemenu.all)" || { bad "scan card list"; cat "$H/sd/_odemenu.all" 2>/dev/null | head; }
+hopt "theme=1
+"
+printf '20 shot theme\n30 end\n' > "$H/theme.txt"
+hrun "$H/theme.txt" > /dev/null
+python3 -c "
+d=open('$H/theme.ppm','rb').read().split(b'\n',3)[3]
+r,g,b=d[(5*320+5)*3:(5*320+5)*3+3]
+import sys; sys.exit(0 if r==0 and b>0 else 1)" && ok "THEME recolours the screen (NAVY background)" || bad "theme"
+hopt ""
+
 # SataTo3DO-based clone (FWSIM_CLONE=7): its firmware ignores C0 to the id it already holds, so a folder whose only
 # entry is a folder with the same number (entry 1 in entry 1) can not be opened: the menu must say so and stay in
 # step (it did not, and wrote one folder's listing as the root's index)

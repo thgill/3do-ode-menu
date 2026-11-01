@@ -52,21 +52,31 @@ static CCB   *spr_tmpl[SPRITE_COUNT];
 static uint16 *pluts;               /* [2][P_COUNT][4] */
 static int32  colors[2][P_COUNT];
 
-static const uint8 synth[P_COUNT][3] = {
-    {8, 2, 20},         /* P_BG */
-    {36, 14, 70},       /* P_PANEL */
-    {110, 50, 170},     /* P_EDGE */
-    {160, 130, 200},    /* P_DIM */
-    {245, 235, 255},    /* P_TEXT */
-    {60, 230, 255},     /* P_ACCENT */
-    {255, 200, 80},     /* P_FOLDER */
-    {255, 80, 170},     /* P_HEART */
-    {255, 140, 80},     /* P_ORANGE */
-    {90, 255, 180},     /* P_GREEN */
-    {190, 120, 255},    /* P_VIOLET */
-    {30, 8, 60},        /* P_BARTEXT */
-    {255, 120, 220},    /* P_BAR */
+/* The colour themes (Options > THEME). Each gives every palette role; the first is the original look. */
+static const uint8 themes[THEME_COUNT][P_COUNT][3] = {
+    {   /* SYNTH */
+        {8, 2, 20}, {36, 14, 70}, {110, 50, 170}, {160, 130, 200}, {245, 235, 255}, {60, 230, 255},
+        {255, 200, 80}, {255, 80, 170}, {255, 140, 80}, {90, 255, 180}, {190, 120, 255}, {30, 8, 60}, {255, 120, 220},
+    },
+    {   /* NAVY */
+        {2, 6, 22}, {12, 30, 72}, {50, 100, 180}, {140, 170, 215}, {235, 245, 255}, {255, 210, 90},
+        {255, 200, 80}, {255, 90, 140}, {255, 140, 80}, {90, 255, 180}, {150, 170, 255}, {6, 18, 48}, {90, 200, 255},
+    },
+    {   /* MOSS */
+        {4, 14, 6}, {20, 48, 24}, {70, 140, 70}, {150, 190, 140}, {240, 255, 235}, {255, 220, 110},
+        {255, 200, 80}, {255, 110, 130}, {255, 150, 80}, {150, 240, 110}, {170, 210, 255}, {10, 34, 12}, {150, 230, 110},
+    },
+    {   /* WINE */
+        {18, 2, 8}, {60, 12, 30}, {150, 50, 90}, {210, 150, 170}, {255, 240, 245}, {255, 200, 120},
+        {255, 200, 80}, {255, 110, 160}, {255, 150, 90}, {120, 240, 180}, {200, 150, 255}, {50, 6, 20}, {255, 110, 140},
+    },
+    {   /* GREY */
+        {10, 10, 12}, {40, 40, 46}, {110, 110, 122}, {170, 170, 182}, {245, 245, 245}, {90, 200, 255},
+        {255, 200, 80}, {255, 100, 150}, {255, 150, 80}, {110, 240, 170}, {180, 160, 255}, {28, 28, 32}, {220, 220, 232},
+    },
 };
+static int32 theme;
+
 
 static int32 dimmed(int32 c)
 {
@@ -93,6 +103,32 @@ int32 gfx_color(int32 role)
 void gfx_set_dim(int32 on)
 {
     dim = on ? 1 : 0;
+}
+
+void gfx_set_theme(int32 t)
+{
+    int32 i;
+
+    if (t < 0 || t >= THEME_COUNT)
+        t = 0;
+    theme = t;
+    if (pluts == 0)
+        return;
+    for (i = 0; i < P_COUNT; i++)
+        set_role(i, RGB15(themes[t][i][0], themes[t][i][1], themes[t][i][2]));
+    bg_key = -1;                /* the cached still parts were drawn in the old colours */
+}
+
+/* the theme's own bar colour, for BAR COLOR CYCLE: OFF */
+int32 gfx_theme_bar(void)
+{
+    return RGB15(themes[theme][P_BAR][0], themes[theme][P_BAR][1], themes[theme][P_BAR][2]);
+}
+
+const char *gfx_theme_name(int32 t)
+{
+    static const char *names[THEME_COUNT] = { "SYNTH", "NAVY", "MOSS", "WINE", "GREY" };
+    return names[t >= 0 && t < THEME_COUNT ? t : 0];
 }
 
 void gfx_set_bar(int32 rgb15)
@@ -263,7 +299,7 @@ int32 gfx_init(void)
         return -6;
     memset(pluts, 0, 2 * P_COUNT * 4 * sizeof(uint16));
     for (i = 0; i < P_COUNT; i++)
-        set_role(i, RGB15(synth[i][0], synth[i][1], synth[i][2]));
+        set_role(i, RGB15(themes[0][i][0], themes[0][i][1], themes[0][i][2]));
     DIAG_STEP(0x0010, 5);
     for (i = 0; i < SPRITE_COUNT; i++) {
         if ((i & 7) == 0)
