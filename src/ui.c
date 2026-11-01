@@ -1364,15 +1364,28 @@ static void draw_footer(void)
     nc = chip_texts(t, roles, 1);
     if (q_count > 0 && nc > 2)
         nc = 2;                 /* no room: the P legend stands for the queue */
-    x = 16;
+    /* chips from the panel's left edge, legends to its right edge; when they would meet (a folder of 1000 or
+     * more), the drive chip goes first, then the X legend */
+    w = hints_width(h, nh, 4);
+    x = 8;
     for (k = 0; k < nc; k++)
-        x += chip_at(x, CHIP_Y, t[k], roles[k]) + 6;
-    w = hints_width(h, nh, 6);
-    if (312 - w < x + 4 && nh > 0 && h[nh - 1].label == 'X') {
-        nh--;                       /* the X legend only where it fits */
-        w = hints_width(h, nh, 6);
+        x += (int32)strlen(t[k]) * 8 + 12 + 4;
+    if (312 - w < x + 2 && nc > 1 && roles[1] == P_ACCENT && (t[1][0] == 'S' || t[1][0] == 'U')) {
+        x -= (int32)strlen(t[1]) * 8 + 12 + 4;
+        for (k = 1; k < nc - 1; k++) {          /* no drive chip */
+            strcpy(t[k], t[k + 1]);
+            roles[k] = roles[k + 1];
+        }
+        nc--;
     }
-    draw_hints(312 - w, HINT_Y, h, nh, 6);
+    if (312 - w < x + 2 && nh > 0 && h[nh - 1].label == 'X') {
+        nh--;                                   /* the X legend only where it fits */
+        w = hints_width(h, nh, 4);
+    }
+    x = 8;
+    for (k = 0; k < nc; k++)
+        x += chip_at(x, CHIP_Y, t[k], roles[k]) + 4;
+    draw_hints(312 - w, HINT_Y, h, nh, 4);
 #elif FOOTER_LAYOUT == 3
     nh = make_hints(h, 0);
     nc = chip_texts(t, roles, 0);
