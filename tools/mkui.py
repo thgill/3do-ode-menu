@@ -74,6 +74,41 @@ def q5(v):
     return max(0, min(31, (v + 4) >> 3))
 
 
+# The colour themes (Options > THEME), as in src/gfx.c: name, background, edge. The logo is composited onto each
+# theme's background, and from NAVY on its purple outline takes the theme's edge hue (Todd, 2026-11-01). The
+# planes follow the base image in logo.img: "OLGT", the number of planes, then one w x h plane per theme.
+THEMES = [('SYNTH', (8, 2, 20), None), ('NAVY', (2, 6, 22), (50, 100, 180)), ('MOSS', (4, 14, 6), (70, 140, 70)),
+          ('WINE', (18, 2, 8), (150, 50, 90)), ('GREY', (10, 10, 12), (110, 110, 122))]
+
+
+def recolour(px, edge):
+    """the logo's purples moved to the edge colour's hue (kept greyish for a grey edge)"""
+    import colorsys
+    eh, es, _ = colorsys.rgb_to_hsv(*[c / 255 for c in edge])
+    r, g, b, a = px
+    h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+    if s > 0.25 and 0.6 < h < 0.95:
+        r, g, b = (int(c * 255) for c in colorsys.hsv_to_rgb(eh, s * (0.4 if es < 0.2 else 1.0), v))
+    return r, g, b, a
+
+
+def logo_plane(lg, bg, edge, stride):
+    w, h = lg.size
+    pix = bytearray()
+    for y in range(h):
+        row = bytearray()
+        for x in range(w):
+            r, g, b, a = lg.getpixel((x, y))
+            if edge:
+                r, g, b, a = recolour((r, g, b, a), edge)
+            t = a / 255.0
+            c = [int(r * t + bg[0] * (1 - t)), int(g * t + bg[1] * (1 - t)), int(b * t + bg[2] * (1 - t))]
+            v = (q5(c[0]) << 10) | (q5(c[1]) << 5) | q5(c[2])
+            row += struct.pack('>H', v or 1)
+        pix += row.ljust(stride, b'\0')
+    return pix
+
+
 def build_logo(path, out):
     src = Image.open(path).convert('RGBA')
     box = src.getchannel('A').point(lambda v: 255 if v > 90 else 0).getbbox()
@@ -97,17 +132,26 @@ def build_logo(path, out):
                 mrow[x >> 3] |= 0x80 >> (x & 7)
         pix += row.ljust(stride, b'\0')
         mask += mrow
+    planes = b''.join(logo_plane(lg, bg, edge, stride) for _, bg, edge in THEMES)
     with open(out, 'wb') as f:
-        f.write(b'OLG1' + struct.pack('>HH', w, LOGO_H) + pix + mask)
+        f.write(b'OLG1' + struct.pack('>HH', w, LOGO_H) + pix + mask + b'OLGT' + struct.pack('>H', len(THEMES)) +
+                b'\0\0' + planes)
     return w
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--picopak', required=True)
+    ap.add_argument('--picopak')
     ap.add_argument('--logo', required=True)
+    ap.add_argument('--logo-only', action='store_true', help='only assets_gen/logo.img (no PicoPak-SMS needed)')
     ap.add_argument('--out', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
     a = ap.parse_args()
+    if a.logo_only:
+        w = build_logo(a.logo, os.path.join(a.out, 'assets_gen', 'logo.img'))
+        print('logo.img %dx%d, %d theme planes' % (w, LOGO_H, len(THEMES)))
+        return
+    if not a.picopak:
+        ap.error('--picopak is needed (or --logo-only)')
     sys.path.insert(0, a.picopak)
     sys.path.insert(0, os.path.join(a.picopak, 'tools'))
     import art as A

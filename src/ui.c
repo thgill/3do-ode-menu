@@ -293,6 +293,13 @@ static void bar_color(void)
     if (g_set.theme != theme_shown) {
         gfx_set_theme(g_set.theme);
         theme_shown = g_set.theme;
+        if (logo && g_set.theme < logo->nthemes) {
+            /* the logo drawn for this theme (its background, and the outline in the theme's colour) */
+            int32 n = logo->stride * logo->h;
+            memcpy(logo->pix, logo->themes + g_set.theme * n, n * 2);
+            if (logo_orig)
+                memcpy(logo_orig, logo->pix, n * 2);
+        }
     }
     if (g_set.bar == 0) {
         gfx_set_bar(gfx_theme_bar());

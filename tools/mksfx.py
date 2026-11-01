@@ -63,7 +63,7 @@ def main():
     for i, n in enumerate(NAMES):
         L.append('#define SFX_%s %d' % (n, i))
     for n in NAMES:
-        x = snd[n] / peak * 0.9
+        x = snd[n] / peak * 0.675     # (0.45 was the first level; Todd: half as loud again)
         d = np.round(x * 32767).astype(int)
         if len(d) % 2:
             d = np.append(d, 0)             # an even number of frames (whole words)

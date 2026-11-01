@@ -856,6 +856,24 @@ GfxImage *gfx_image_load(const char *path)
         if (im->mask)
             memcpy(im->mask, f + 8 + fstride * h, im->mstride * h);
     }
+    /* the logo's theme planes: "OLGT", count, 2 spare bytes, then count planes like the image above */
+    y = 8 + fstride * h + im->mstride * h;
+    if (y + 8 <= size && memcmp(f + y, "OLGT", 4) == 0) {
+        int32 n = be16(f + y + 4), k;
+        if (n > 0 && n <= 8 && y + 8 + n * fstride * h <= size) {
+            im->themes = (uint16 *)AllocMem(n * im->stride * h * 2, MEMTYPE_ANY);
+            if (im->themes) {
+                im->nthemes = n;
+                for (k = 0; k < n; k++)
+                    for (x = 0; x < h; x++) {
+                        int32 i;
+                        for (i = 0; i < w; i++)
+                            im->themes[(k * h + x) * im->stride + i] =
+                                (uint16)be16(f + y + 8 + k * fstride * h + x * fstride + i * 2);
+                    }
+            }
+        }
+    }
 out:
     UnloadFile(f);
     return im;

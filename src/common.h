@@ -252,6 +252,8 @@ typedef struct GfxImage {
     CCB    *ccb;
     uint16 *pix;            /* w x h RGB555, rows of stride pixels */
     uint8  *mask;           /* optional 1-bpp mask of solid pixels (the logo's shine) */
+    uint16 *themes;         /* optional: the image again for each colour theme (the logo), nthemes planes */
+    int32   nthemes;
     int32   w, h, stride, mstride;
 } GfxImage;
 
