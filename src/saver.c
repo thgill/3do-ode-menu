@@ -20,7 +20,7 @@
 #define TRAIL       3           /* poses kept for the trail */
 #define TRAIL_EVERY 4           /* fields between them */
 #define FRAME_FIELDS 2          /* a new picture every 2 fields (30 a second), always: steady rather than ragged */
-#define NSPARK      40
+#define NSPARK      24
 #define NRING       3
 #define NSTAR       48
 #define MORPH_T     54          /* fields a morph takes (0.9 s) */
@@ -281,11 +281,29 @@ static void hit(int32 hx, int32 hy, int32 side_x, int32 side_y)
 }
 
 /* one field of motion */
+/* the outline of the last pose, from the shape's centre (1/16 pixels): the bounce between poses uses it */
+static int32 ox0, oy0, ox1, oy1;
+
+static void take_pose(void)
+{
+    int32 bx0, by0, bx1, by1;
+
+    pose(&bx0, &by0, &bx1, &by1);
+    ox0 = bx0 - (px >> 4);
+    ox1 = bx1 - (px >> 4);
+    oy0 = by0 - (py >> 4);
+    oy1 = by1 - (py >> 4);
+}
+
+/* one field of motion; the shape itself is worked out once a picture (take_pose), not every field */
 static void step(void)
 {
     int32 bx0, by0, bx1, by1, sx = 0, sy = 0, hx, hy, i, spin;
 
-    pose(&bx0, &by0, &bx1, &by1);
+    bx0 = (px >> 4) + ox0;
+    bx1 = (px >> 4) + ox1;
+    by0 = (py >> 4) + oy0;
+    by1 = (py >> 4) + oy1;
     if (bx0 < 0 && vx < 0) { vx = -vx; sx = -1; }
     if (bx1 > SCR_W * 16 && vx > 0) { vx = -vx; sx = 1; }
     if (by0 < 0 && vy < 0) { vy = -vy; sy = -1; }
@@ -304,7 +322,7 @@ static void step(void)
         shape = (shape + 1) % SV_NSHAPES;
     }
     spin = 256 + (morph_t >= 0 ? 563 : 0) + (pulse * 384 >> 8);     /* faster while it morphs and after a hit */
-    roll += (troll - roll) * 8 / 256 + (troll > roll ? 1 : troll < roll ? -1 : 0);
+    roll += ((troll - roll) * 8 >> 8) + (troll > roll ? 1 : troll < roll ? -1 : 0);
     ax += (SV_SIN_N * 256 / 419) * spin >> 8;      /* 0.015 radians a field */
     ay += ((SV_SIN_N * 256 / 262) * spin >> 8) * roll >> 8;
     az += (SV_SIN_N * 256 / 698) * spin >> 8;
@@ -361,7 +379,7 @@ static void draw(int32 bright)          /* bright Q8: the fade in and out */
         gfx_quad_rgb(now[k].x0, now[k].y0, now[k].dx, now[k].dy, now[k].nx * w >> 8, now[k].ny * w >> 8,
                      rgb_scaled(now[k].r, now[k].g, now[k].b, bright));
     c = 255 * bright >> 8;
-    for (k = 0; k < now_ne; k++) {                      /* the corners lit */
+    for (k = 0; k < (morph_t >= 0 ? sv_nedges[shape] : now_ne); k++) {   /* the corners lit (not the repeats) */
         gfx_rect_rgb((now[k].x0 >> 4) - 1, (now[k].y0 >> 4) - 1, 2, 2, RGB15(c, c, c));
         gfx_rect_rgb(((now[k].x0 + now[k].dx) >> 4) - 1, ((now[k].y0 + now[k].dy) >> 4) - 1, 2, 2, RGB15(c, c, c));
     }
@@ -406,24 +424,27 @@ void saver_run(void)
     int32 fields = 0, n, fade = 0, out = -1;
 
     start();
+    take_pose();
     due = gfx_vbl_count() + FRAME_FIELDS;
     for (;;) {
         if (out < 0 && input_poll(&held) != 0)
             out = 0;                                    /* woken: fade out, then back to the menu */
+        if ((fields / FRAME_FIELDS) % (TRAIL_EVERY / FRAME_FIELDS) == 0 && fields > 0) {
+            memcpy(trail[trail_head], now, now_ne * sizeof(Seg));    /* the last picture's pose joins the trail */
+            trail_ne[trail_head] = now_ne;
+            trail_head = (trail_head + 1) % TRAIL;
+            if (trail_n < TRAIL)
+                trail_n++;
+        }
         for (n = 0; n < FRAME_FIELDS; n++) {            /* the same motion every picture: smooth, never jumpy */
             step();
-            if (++fields % TRAIL_EVERY == 0) {
-                memcpy(trail[trail_head], now, now_ne * sizeof(Seg));
-                trail_ne[trail_head] = now_ne;
-                trail_head = (trail_head + 1) % TRAIL;
-                if (trail_n < TRAIL)
-                    trail_n++;
-            }
+            fields++;
             if (out >= 0)
                 out++;
             else if (fade < 256)
                 fade += 8;                              /* half a second in */
         }
+        take_pose();
         if (out >= 15)
             break;
         /* a picture every FRAME_FIELDS fields: wait till one field before it is due (drawing waits for that one) */
