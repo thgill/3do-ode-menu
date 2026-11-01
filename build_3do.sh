@@ -12,7 +12,7 @@ CFLAGS="$EXTRA -DMENU_DATE=\"$MENU_DATE\" -O2 -zpno_check_stack -bigend -za1 -zi
 B=${B:-build/3do}; mkdir -p $B
 OBJS=""
 # third/: tinf (zlib license) and picojpeg (public domain), for PNG and JPG pictures; see src/third/README.third
-for f in main odeio odecmd dirlist input gfx ui lists saver tools crc rampatch artdec jpgprog third/tinflate third/picojpeg; do
+for f in main odeio odecmd dirlist input gfx ui lists saver sound tools crc rampatch artdec jpgprog third/tinflate third/picojpeg; do
     o="$B/$(basename "$f").o"
     rm -f "./$o"
     armcc $INC $CFLAGS -c src/$f.c -o "$o" 2>&1 | tee "$o.log" | grep -v "apcs /wide" || true
@@ -23,7 +23,7 @@ for f in main odeio odecmd dirlist input gfx ui lists saver tools crc rampatch a
 done
 armlink -o $B/LaunchMe -match 0x1 -nodebug -noscanlib -nozeropad -remove -aif -reloc -dupok -ro-base 0 \
     $LIB/cstartup.o $OBJS \
-    $LIB/exampleslib.lib $LIB/lib3do.lib $LIB/graphics.lib $LIB/input.lib $LIB/filesystem.lib \
+    $LIB/exampleslib.lib $LIB/lib3do.lib $LIB/audio.lib $LIB/graphics.lib $LIB/input.lib $LIB/filesystem.lib \
     $LIB/operamath.lib $LIB/clib.lib $LIB/swi.lib
 modbin --debug --name=LaunchMe --stack=16384 $B/LaunchMe $B/LaunchMe
 ls -l $B/LaunchMe

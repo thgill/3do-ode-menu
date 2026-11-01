@@ -1533,7 +1533,8 @@ static int32 dialog_run(Dialog *d)
     while (r == -2) {
         frame_with_box(d);
         ev = input_poll(&held);
-        if (ev & (BTN_UP | BTN_DOWN)) {
+        if ((ev & (BTN_UP | BTN_DOWN)) && d->nopts > 1) {
+            sound_play(SFX_MOVE);
             for (k = 0; k < d->nopts; k++) {
                 d->sel = (d->sel + ((ev & BTN_UP) ? d->nopts - 1 : 1)) % d->nopts;
                 if (!(d->disabled & (1u << d->sel)))
@@ -1543,8 +1544,10 @@ static int32 dialog_run(Dialog *d)
         if (ev & BTN_A) {
             if (!(d->disabled & (1u << d->sel)))
                 r = d->sel;
+            sound_play(r >= 0 ? SFX_SELECT : SFX_NOPE);
         } else if (ev & BTN_B) {
             r = -1;
+            sound_play(SFX_BACK);
         }
     }
     input_flush();
@@ -1834,6 +1837,7 @@ static void before_launch(const char *what, const char *name, int32 entry)
 {
     char nm[DIR_NAME_MAX];
 
+    sound_play(SFX_START);
     if (launch_note)
         note_save(g_dir.drive, launch_note);
     else if (entry >= 0 && entry_path(entry, pathbuf, LIST_PATH_MAX) == 0)
@@ -2892,6 +2896,8 @@ static void list_input(uint32 ev)
 
     if (n == 0)
         return;
+    if ((ev & (BTN_UP | BTN_DOWN)) && n > 1)
+        sound_play(SFX_MOVE);
 
     if (ev & BTN_UP) {
         if (cur[tab] == 0 && (fresh & BTN_UP))
@@ -2913,6 +2919,7 @@ static void frame_input(uint32 ev)
 
     if (fresh & (BTN_L | BTN_R)) {
         tab = (tab + ((fresh & BTN_R) ? 1 : T_COUNT - 1)) % T_COUNT;
+        sound_play(SFX_TAB);
         clamp_view(tab);
         mq_key = -1;
         dirty = 1;
@@ -2921,12 +2928,17 @@ static void frame_input(uint32 ev)
     list_input(ev);
     switch (tab) {
     case T_GAMES:
-        if (ev & (BTN_LEFT | BTN_RIGHT))
+        if (ev & (BTN_LEFT | BTN_RIGHT)) {
+            sound_play(SFX_MOVE);
             letter_jump(ev);
-        if (ev & BTN_A)
+        }
+        if (ev & BTN_A) {
+            sound_play(SFX_SELECT);
             games_a();
-        else if (ev & BTN_B)
+        } else if (ev & BTN_B) {
+            sound_play(g_dir.depth > 0 || g_dir.both_drives ? SFX_BACK : SFX_NOPE);
             go_back();
+        }
         else if (ev & BTN_P) {
             int32 i = entry_of(cur[T_GAMES]);
             if (q_count > 0)
@@ -2937,23 +2949,32 @@ static void frame_input(uint32 ev)
         break;
     case T_FAVS:
     case T_RECENT:
-        if (ev & BTN_A)
+        if (ev & BTN_A) {
+            sound_play(tab_count(tab) ? SFX_SELECT : SFX_NOPE);
             list_tab_a();
-        else if (ev & BTN_B)
+        } else if (ev & BTN_B) {
+            sound_play(SFX_BACK);
             tab = T_GAMES;
+        }
         break;
     case T_TOOLS:
-        if (ev & BTN_A)
+        if (ev & BTN_A) {
+            sound_play(SFX_SELECT);
             tools_a();
+        }
         break;
     default:
-        if (ev & (BTN_A | BTN_RIGHT))
+        if (ev & (BTN_A | BTN_RIGHT)) {
             option_change(1);
-        else if (ev & BTN_LEFT)
+            sound_play(SFX_SELECT);         /* after: turning SOUND EFFECTS on is heard */
+        } else if (ev & BTN_LEFT) {
             option_change(-1);
+            sound_play(SFX_SELECT);
+        }
         break;
     }
     if ((fresh & BTN_X) && (tab == T_GAMES || tab == T_FAVS || tab == T_RECENT)) {
+        sound_play(SFX_RANDOM);
         random_game();
         dirty = 1;
         return;

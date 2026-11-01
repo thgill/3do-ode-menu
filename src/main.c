@@ -112,6 +112,7 @@ int main(void)
     DIAG_STEP(0x7fe0, 0);                       /* yellow: graphics ready */
     gfx_clock_init();
     input_init();
+    sound_init();               /* (silent if the audio folio or its instruments can not be had) */
 #ifdef RULER
     ruler();
 #endif

@@ -274,6 +274,17 @@ int32  gfx_theme_bar(void);
 const char *gfx_theme_name(int32 t);
 void   gfx_rect_rgb(int32 x, int32 y, int32 w, int32 h, int32 rgb);
 void   gfx_line_rgb(int32 x0, int32 y0, int32 x1, int32 y1, int32 wq, int32 rgb);   /* 1/16 pixels */
+/* sound.c: the sound effects (tools/mksfx.py makes the samples, same numbers) */
+#define SFX_COUNT 7
+#define SFX_MOVE 0
+#define SFX_SELECT 1
+#define SFX_BACK 2
+#define SFX_TAB 3
+#define SFX_START 4
+#define SFX_NOPE 5
+#define SFX_RANDOM 6
+void   sound_init(void);
+void   sound_play(int32 which);                 /* nothing when OPTIONS > SOUND EFFECTS is off */
 void   saver_run(void);                         /* the screensaver, until a button (swallowed) */
 void   gfx_set_dim(int32 on);                   /* draw what follows in the dimmed palette */
 void   gfx_set_bar(int32 rgb15);                /* the selection bar's color this frame */

@@ -299,6 +299,16 @@ r,g,b=d[(5*320+5)*3:(5*320+5)*3+3]
 import sys; sys.exit(0 if r==0 and b>0 else 1)" && ok "THEME recolours the screen (NAVY background)" || bad "theme"
 hopt ""
 
+# sound effects: a move and a select are heard; with SOUND EFFECTS off nothing is
+keys "A w D" 20 30 > "$H/sfx.txt"
+out=$(hrun "$H/sfx.txt")
+echo "$out" | grep -q "sfx 0" && echo "$out" | grep -q "sfx 1" && ok "SOUND EFFECTS: moves and selects make their sounds" || bad "sound effects"
+hopt "sound=0
+"
+out=$(hrun "$H/sfx.txt")
+echo "$out" | grep -q "sfx " && bad "SOUND EFFECTS off still plays" || ok "SOUND EFFECTS off: silent"
+hopt ""
+
 # the screensaver: after a minute idle it runs; the press that wakes it does nothing else
 hopt "saver=1
 "
