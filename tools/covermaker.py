@@ -42,7 +42,7 @@ import urllib.request
 import webbrowser
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageDraw
 except ImportError:
     sys.exit('This needs Pillow, the Python picture library. Install it with:\n\n'
              '    python3 -m pip install pillow\n\n(on Windows: py -m pip install pillow) and run this again.')
@@ -531,6 +531,29 @@ def write_cover(job, data):
     return w, h
 
 
+FOLDER_PANEL = (32, 8, 65)
+
+
+def folder_montage(pics):
+    """a folder's pane art: a stack of a few of its covers -- a full-size front with the edges of up to two more
+    peeking behind. `pics` are PIL images (front first). Returns PNG bytes, to go through cover()/encode8()."""
+    bw, bh = 176, 244                    # 2x the pane; cover() shrinks it to 88 x 122
+    cw, ch = 148, 204
+    im = Image.new('RGB', (bw, bh), FOLDER_PANEL)
+    edges = pics[1:3]
+    for i, c in enumerate(reversed(edges)):          # furthest first
+        card = c.convert('RGB').resize((cw, ch))
+        ImageDraw.Draw(card).rectangle([0, 0, cw - 1, ch - 1], outline=(15, 15, 25), width=3)
+        off = 14 * (len(edges) - i)
+        im.paste(card, (off, int(off * 1.4)))
+    front = pics[0].convert('RGB').resize((cw, ch))
+    ImageDraw.Draw(front).rectangle([0, 0, cw - 1, ch - 1], outline=(15, 15, 25), width=2)
+    im.paste(front, (0, 0))
+    b = io.BytesIO()
+    im.save(b, 'PNG')
+    return b.getvalue()
+
+
 def mark_scanned(root):
     p = os.path.join(root, '_odemenu.opt')
     text = open(p, encoding='latin-1').read() if os.path.exists(p) else ''
@@ -617,6 +640,7 @@ def main():
     ap.add_argument('--meta', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', '3do_meta.json'),
                     help='the game metadata file (3do_meta.json) for the info-side sidecars')
     ap.add_argument('--no-info', action='store_true', help='don\'t write the info-side (_info.txt) sidecars')
+    ap.add_argument('--no-folder-art', action='store_true', help='don\'t make the per-folder cover stacks (_folder.img)')
     ap.add_argument('--dry-run', action='store_true', help='show the plan, write nothing')
     ap.add_argument('--fix', action='store_true', help='afterwards, go through the games with no picture')
     ap.add_argument('--yes', '-y', action='store_true', help='don\'t ask before writing')
@@ -714,10 +738,35 @@ def main():
         try:
             data = open(j['own'], 'rb').read() if j['what'] == 'own' else download(server, j['src'])
             write_cover(j, data)
+            if not a.no_folder_art:
+                try:
+                    j['_pic'] = Image.open(io.BytesIO(data)).convert('RGB')
+                except Exception:            # noqa: BLE001
+                    j['_pic'] = None
             made += 1
         except Exception as e:                                 # noqa: BLE001 - report and go on
             j['what'] = 'miss'
             failed.append('%s (%s)' % (j['label'], e))
+    folder_made = 0
+    if not a.no_folder_art:
+        groups = {}
+        for j in todo:
+            pic = j.get('_pic')
+            if pic is None:
+                continue
+            parent = os.path.dirname(os.path.dirname(j['dst']))   # loose: the game's folder; game-folder: its parent
+            if os.path.normpath(parent) == os.path.normpath(card):
+                continue                                          # the card root isn't a folder you select
+            groups.setdefault(parent, []).append(pic)
+        for parent, pics in groups.items():
+            try:
+                px, w, h = cover(folder_montage(pics[:3]))
+                with open(os.path.join(parent, '_folder.img'), 'wb') as f:
+                    f.write(encode8(px, w, h))
+                folder_made += 1
+            except Exception:                # noqa: BLE001
+                pass
+
     info_made = 0
     for j in info_todo:
         try:
@@ -750,6 +799,8 @@ def main():
         print('  failed: ' + f)
     if meta:
         print('Info sidecars: %d written.' % info_made)
+    if not a.no_folder_art:
+        print('Folder cover stacks: %d written.' % folder_made)
     if not a.no_index:
         same = sum(1 for x in idx if x['state'] == 'same')
         kept = [x for x in idx if x['state'] == 'kept']
