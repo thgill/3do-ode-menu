@@ -74,7 +74,7 @@
 },
 "alone in the dark": {
 "developer": "I-Motion, Krisalis Software",
-"genre": "",
+"genre": "Survival horror",
 "mode": "",
 "publisher": "Interplay Productions",
 "regions": [
@@ -82,7 +82,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Alone in the Dark",
 "year": 1994
 },
 "alone in the dark 2": {
@@ -96,7 +95,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Alone in the Dark 2",
 "year": 1995
 },
 "anno mitsumasa pepperon mura no shiki": {
@@ -112,7 +110,6 @@
 "regions": [
 "Europe"
 ],
-"wikipedia": "Another World",
 "year": 1994
 },
 "aqua world umi monogatari": {
@@ -128,7 +125,6 @@
 "regions": [
 "Korea"
 ],
-"wikipedia": "Armageddon",
 "year": 1996
 },
 "autobahn tokio": {
@@ -139,7 +135,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "AutoBahn Tokio",
 "year": 1995
 },
 "bakushou all yoshimoto quiz ou ketteisen": {
@@ -155,7 +150,6 @@
 "regions": [
 "World"
 ],
-"wikipedia": "Ballz: The Director's Cut",
 "year": 1995
 },
 "battle blues": {
@@ -166,20 +160,18 @@
 "regions": [
 "Korea"
 ],
-"wikipedia": "Battle Blues",
 "year": 1996
 },
 "battle chess": {
 "developer": "Krisalis Software",
-"genre": "",
-"mode": "",
+"genre": "Chess",
+"mode": "Single-player, Multiplayer",
 "publisher": "Interplay Productions Electronic Arts Victor",
 "regions": [
 "Europe",
 "Japan",
 "USA"
 ],
-"wikipedia": "Battle Chess",
 "year": 1994
 },
 "battle pinball": {
@@ -190,30 +182,27 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Battle Pinball",
 "year": 1994
 },
 "battlesport": {
 "developer": "Cyclone Studios",
-"genre": "",
-"mode": "",
+"genre": "Sports",
+"mode": "Single-player, multiplayer",
 "publisher": "The 3DO Company",
 "regions": [
 "Europe",
 "USA"
 ],
-"wikipedia": "BattleSport",
 "year": 1995
 },
 "bc racers": {
 "developer": "Core Design",
-"genre": "",
-"mode": "",
+"genre": "Racing",
+"mode": "Single-player, multiplayer",
 "publisher": "GoldStar / LG Electronics",
 "regions": [
 "USA"
 ],
-"wikipedia": "BC Racers",
 "year": 1995
 },
 "belzerion": {
@@ -224,7 +213,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Belzerion",
 "year": 1994
 },
 "bfs blue forest story": {
@@ -239,8 +227,8 @@
 },
 "blade force": {
 "developer": "Studio 3DO",
-"genre": "",
-"mode": "",
+"genre": "Simulation, third-person shooter",
+"mode": "Single-player",
 "publisher": "The 3DO Company",
 "regions": [
 "Europe",
@@ -248,7 +236,6 @@
 "Korea",
 "USA"
 ],
-"wikipedia": "Blade Force",
 "year": 1995
 },
 "blonde justice": {
@@ -274,31 +261,28 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Bonogurashi",
 "year": 1995
 },
 "braindead 13": {
 "developer": "ReadySoft",
-"genre": "",
-"mode": "",
+"genre": "Interactive movie",
+"mode": "Single-player",
 "publisher": "ReadySoft",
 "regions": [
 "USA"
 ],
-"wikipedia": "Brain Dead 13",
 "year": 1995
 },
 "burning soldier": {
 "developer": "Genki",
-"genre": "",
-"mode": "",
+"genre": "Rail shooter",
+"mode": "Single-player, multiplayer",
 "publisher": "Panasonic Pack-In-Video",
 "regions": [
 "USA",
 "Europe",
 "Japan"
 ],
-"wikipedia": "Burning Soldier",
 "year": 1994
 },
 "bust a move": {
@@ -309,7 +293,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Bust-a-Move",
 "year": 1995
 },
 "cannon fodder": {
@@ -321,13 +304,12 @@
 "Europe",
 "USA"
 ],
-"wikipedia": "Cannon Fodder",
 "year": 1994
 },
 "captain quazar": {
 "developer": "Cyclone Studios",
-"genre": "",
-"mode": "",
+"genre": "Third-person shooter",
+"mode": "Single-player, multiplayer",
 "publisher": "The 3DO Company",
 "regions": [
 "Europe",
@@ -335,7 +317,6 @@
 "Korea",
 "USA"
 ],
-"wikipedia": "Captain Quazar",
 "year": 1996
 },
 "carrier fortress at sea": {
@@ -346,7 +327,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Carrier: Fortress at Sea",
 "year": 1995
 },
 "casper": {
@@ -357,7 +337,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Casper",
 "year": 1996
 },
 "chiki chiki machine mou race 2 in space": {
@@ -372,25 +351,23 @@
 },
 "club 3do station invasion": {
 "developer": "Studio 3DO",
-"genre": "",
-"mode": "",
+"genre": "Educational",
+"mode": "Single-player, multiplayer",
 "publisher": "The 3DO Company",
 "regions": [
 "USA"
 ],
-"wikipedia": "Club 3DO: Station Invasion",
 "year": 1994
 },
 "corpse killer": {
 "developer": "Digital Pictures",
-"genre": "",
-"mode": "",
+"genre": "Rail shooter, interactive movie",
+"mode": "Single-player",
 "publisher": "Acclaim Distribution",
 "regions": [
 "Japan",
 "USA"
 ],
-"wikipedia": "Corpse Killer",
 "year": 1995
 },
 "coven": {
@@ -406,7 +383,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Cowboy Casino",
 "year": 1995
 },
 "crash n burn": {
@@ -418,7 +394,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Crash 'n Burn",
 "year": 1993
 },
 "crayon shin chan puzzle daimaou no nazo": {
@@ -429,18 +404,16 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Crayon Shin-chan: Puzzle Daimaou no Nazo",
 "year": 1995
 },
 "creature shock": {
 "developer": "Argonaut Software",
-"genre": "",
-"mode": "",
+"genre": "Dungeon crawler, rail shooter",
+"mode": "Single-player",
 "publisher": "Virgin Interactive",
 "regions": [
 "USA"
 ],
-"wikipedia": "Creature Shock",
 "year": 1996
 },
 "crime patrol": {
@@ -451,18 +424,16 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Crime Patrol",
 "year": 1994
 },
 "cyberdillo": {
 "developer": "Pixel Technologies",
-"genre": "",
-"mode": "",
+"genre": "First-person shooter",
+"mode": "Single-player",
 "publisher": "Panasonic",
 "regions": [
 "USA"
 ],
-"wikipedia": "Cyberdillo",
 "year": 1996
 },
 "cyberia": {
@@ -475,7 +446,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Cyberia",
 "year": 1996
 },
 "d": {
@@ -503,7 +473,6 @@
 "Korea",
 "USA"
 ],
-"wikipedia": "The Daedalus Encounter",
 "year": 1995
 },
 "daedalus encounter episode 1 nanpasen no alien": {
@@ -532,7 +501,6 @@
 "Japan",
 "Korea"
 ],
-"wikipedia": "Defcon 5",
 "year": 1996
 },
 "demolition man": {
@@ -544,7 +512,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Demolition Man",
 "year": 1994
 },
 "dennis miller that s news to me": {
@@ -564,13 +531,12 @@
 },
 "dinopark tycoon": {
 "developer": "Manley & Associates",
-"genre": "",
-"mode": "",
+"genre": "Business simulation",
+"mode": "Single-player",
 "publisher": "MECC",
 "regions": [
 "USA"
 ],
-"wikipedia": "DinoPark Tycoon",
 "year": 1994
 },
 "diving spot guide marine tour": {
@@ -580,13 +546,12 @@
 },
 "doctor hauzer": {
 "developer": "Riverhillsoft",
-"genre": "",
-"mode": "",
+"genre": "Adventure, survival horror",
+"mode": "Single-player",
 "publisher": "Panasonic",
 "regions": [
 "Japan"
 ],
-"wikipedia": "Doctor Hauzer",
 "year": 1994
 },
 "doom": {
@@ -597,7 +562,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Doom",
 "year": 1996
 },
 "dragon lore the legend begins": {
@@ -608,7 +572,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Dragon Lore: The Legend Begins",
 "year": 1995
 },
 "dragon s lair": {
@@ -621,7 +584,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Dragon's Lair",
 "year": 1994
 },
 "dragon tycoon edge": {
@@ -632,7 +594,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Dragon Tycoon Edge",
 "year": 1995
 },
 "drug wars": {
@@ -643,7 +604,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Drug Wars",
 "year": 1994
 },
 "emit vol 1 toki no maigo": {
@@ -654,7 +614,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Emit Vol. 1: Toki no Maigo",
 "year": 1995
 },
 "emit vol 2 inochigake no tabi": {
@@ -665,7 +624,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Emit Vol. 2: Inochigake no Tabi",
 "year": 1995
 },
 "emit vol 3 watashi ni sayonara o": {
@@ -676,7 +634,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Emit Vol. 3: Watashi ni Sayonara o",
 "year": 1995
 },
 "endlessly": {
@@ -686,15 +643,14 @@
 },
 "escape from monster manor": {
 "developer": "Studio 3DO",
-"genre": "",
-"mode": "",
+"genre": "First-person shooter",
+"mode": "Single-player",
 "publisher": "Electronic Arts Electronic Arts Victor",
 "regions": [
 "Europe",
 "Korea",
 "USA"
 ],
-"wikipedia": "Escape from Monster Manor",
 "year": 1994
 },
 "espn baseball hitting": {
@@ -745,7 +701,6 @@
 "regions": [
 "Korea"
 ],
-"wikipedia": "The Eye of Typhoon",
 "year": 1996
 },
 "f1gp": {
@@ -756,30 +711,27 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "F1GP",
 "year": 1995
 },
 "family feud": {
 "developer": "Eurocom",
-"genre": "",
+"genre": "Game show",
 "mode": "",
 "publisher": "GameTek",
 "regions": [
 "USA"
 ],
-"wikipedia": "Family Feud",
 "year": 1994
 },
 "fatty bear s birthday surprise": {
 "developer": "Humongous Entertainment",
-"genre": "",
-"mode": "",
+"genre": "Adventure",
+"mode": "Single-player",
 "publisher": "Humongous Entertainment",
 "regions": [
 "Japan",
 "USA"
 ],
-"wikipedia": "Fatty Bear's Birthday Surprise",
 "year": 1994
 },
 "fatty bear s fun pack": {
@@ -790,7 +742,6 @@
 "regions": [
 "Korea"
 ],
-"wikipedia": "Fatty Bear's Fun Pack",
 "year": 1994
 },
 "fatty bear s funpack": {
@@ -802,7 +753,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Fatty Bear's Fun Pack",
 "year": 1994
 },
 "fb battery navi ver ii": {
@@ -812,14 +762,13 @@
 },
 "fifa international soccer": {
 "developer": "Extended Play Productions",
-"genre": "",
-"mode": "",
+"genre": "Sports (association football)",
+"mode": "Single-player, multiplayer",
 "publisher": "EA Sports",
 "regions": [
 "Europe",
 "USA"
 ],
-"wikipedia": "FIFA International Soccer",
 "year": 1994
 },
 "fire ball": {
@@ -846,7 +795,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Flashback: The Quest for Identity",
 "year": 1995
 },
 "flopon world": {
@@ -856,26 +804,24 @@
 },
 "flying nightmares": {
 "developer": "Life Like Productions, Simis Limited",
-"genre": "",
-"mode": "",
+"genre": "Combat flight simulator",
+"mode": "Single-player",
 "publisher": "Domark Software",
 "regions": [
 "Europe",
 "USA"
 ],
-"wikipedia": "Flying Nightmares",
 "year": 1995
 },
 "foes of ali": {
 "developer": "Gray Matter",
-"genre": "",
-"mode": "",
+"genre": "Sports game",
+"mode": "Single player, multiplayer",
 "publisher": "EA Sports",
 "regions": [
 "Europe",
 "USA"
 ],
-"wikipedia": "Foes of Ali",
 "year": 1995
 },
 "footie": {
@@ -885,13 +831,12 @@
 },
 "fun n games": {
 "developer": "Williams Entertainment",
-"genre": "",
-"mode": "",
+"genre": "Edutainment Maze Shooter game",
+"mode": "Single-player",
 "publisher": "Panasonic",
 "regions": [
 "USA"
 ],
-"wikipedia": "Fun 'n Games",
 "year": 1995
 },
 "fun n games soft no omochabako": {
@@ -912,7 +857,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Game no Tatsujin",
 "year": 1995
 },
 "gateway to english eigo de go": {
@@ -929,7 +873,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Gex",
 "year": 1994
 },
 "ghost hunter series kuroki shi no kamen": {
@@ -945,7 +888,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Goal FH",
 "year": 1995
 },
 "great soccer kid": {
@@ -955,15 +897,14 @@
 },
 "gridders": {
 "developer": "Tetragon",
-"genre": "",
-"mode": "",
+"genre": "Puzzle",
+"mode": "Single-player",
 "publisher": "The 3DO Company",
 "regions": [
 "Europe",
 "Japan",
 "USA"
 ],
-"wikipedia": "Gridders",
 "year": 1994
 },
 "grimm meisaku gekijou vol 1 bremen no ongakutai": {
@@ -983,13 +924,12 @@
 },
 "guardian war": {
 "developer": "Microcabin",
-"genre": "",
-"mode": "",
+"genre": "Tactical role-playing game",
+"mode": "Single player",
 "publisher": "Panasonic",
 "regions": [
 "USA"
 ],
-"wikipedia": "Guardian War",
 "year": 1994
 },
 "hatsubai 1 shuunen 3do real tokubetsu premium cd": {
@@ -1005,7 +945,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Hell: A Cyberpunk Thriller",
 "year": 1994
 },
 "hello kitty asobi no omochabako": {
@@ -1016,7 +955,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Hello Kitty: Asobi no Omochabako",
 "year": 1995
 },
 "hirata shougo interactive ehon aesop monogatari vol 1": {
@@ -1064,7 +1002,6 @@
 "USA",
 "World"
 ],
-"wikipedia": "The Horde",
 "year": 1994
 },
 "icebreaker": {
@@ -1075,7 +1012,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Icebreaker",
 "year": 1995
 },
 "icebreaker ii": {
@@ -1096,7 +1032,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Idol Janshi Suchie-Pai Special",
 "year": 1995
 },
 "idol mahjong final romance 2 hyper edition": {
@@ -1107,7 +1042,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Idol Mahjong Final Romance 2: Hyper Edition",
 "year": 1996
 },
 "igo time trial shikatsu daihyakka": {
@@ -1118,7 +1052,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Igo Time Trial: Shikatsu Daihyakka",
 "year": 1995
 },
 "igo time trial tsumego i": {
@@ -1128,24 +1061,22 @@
 },
 "immercenary": {
 "developer": "Five Miles Out",
-"genre": "",
-"mode": "",
+"genre": "First-person shooter, role-playing",
+"mode": "Single-player",
 "publisher": "Electronic Arts Electronic Arts Victor",
 "regions": [
 "Europe"
 ],
-"wikipedia": "Immercenary",
 "year": 1995
 },
 "immercenary combat in a digital world": {
 "developer": "Five Miles Out",
-"genre": "",
-"mode": "",
+"genre": "First-person shooter, role-playing",
+"mode": "Single-player",
 "publisher": "Electronic Arts Electronic Arts Victor",
 "regions": [
 "USA"
 ],
-"wikipedia": "Immercenary",
 "year": 1995
 },
 "immortal desire": {
@@ -1162,7 +1093,6 @@
 "Europe",
 "USA"
 ],
-"wikipedia": "The Incredible Machine",
 "year": 1994
 },
 "incredible machine pararancho": {
@@ -1182,25 +1112,23 @@
 },
 "iron angel of the apocalypse tetsujin": {
 "developer": "Synergy, Inc.",
-"genre": "",
-"mode": "",
+"genre": "First-person shooter",
+"mode": "Single-player",
 "publisher": "Panasonic",
 "regions": [
 "Europe",
 "USA"
 ],
-"wikipedia": "Iron Angel of the Apocalypse",
 "year": 1995
 },
 "iron angel of the apocalypse the return": {
 "developer": "Synergy, Inc.",
-"genre": "",
-"mode": "",
+"genre": "First-person shooter",
+"mode": "Single-player",
 "publisher": "Synergy Interactive",
 "regions": [
 "USA"
 ],
-"wikipedia": "Iron Angel of the Apocalypse: The Return",
 "year": 1995
 },
 "ishida yoshio kudan no igo seiha": {
@@ -1211,7 +1139,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Ishida Yoshio Kudan no Igo Seiha",
 "year": 1995
 },
 "j b harold blue chicago blues": {
@@ -1222,7 +1149,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "J.B. Harold: Blue Chicago Blues",
 "year": 1995
 },
 "j league virtual stadium": {
@@ -1233,7 +1159,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "J.League Virtual Stadium",
 "year": 1994
 },
 "j league virtual stadium 95": {
@@ -1244,18 +1169,16 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "J.League Virtual Stadium '95",
 "year": 1995
 },
 "jammit": {
 "developer": "GTE Vantage",
-"genre": "",
-"mode": "",
+"genre": "Sports",
+"mode": "Single-player, multiplayer",
 "publisher": "GTE Entertainment",
 "regions": [
 "USA"
 ],
-"wikipedia": "Jammit",
 "year": 1994
 },
 "jiei shoubou katsudou no gakushuu 3do tes": {
@@ -1276,7 +1199,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Jikki Pachi-Slot Simulator Vol. 1",
 "year": 1995
 },
 "john madden football": {
@@ -1287,7 +1209,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "John Madden Football",
 "year": 1994
 },
 "john madden nfl football": {
@@ -1297,26 +1218,24 @@
 },
 "johnny bazookatone": {
 "developer": "Arc Developments",
-"genre": "",
-"mode": "",
+"genre": "Platform",
+"mode": "Single-player",
 "publisher": "U.S. Gold",
 "regions": [
 "Europe",
 "USA"
 ],
-"wikipedia": "Johnny Bazookatone",
 "year": 1996
 },
 "jurassic park interactive": {
 "developer": "Studio 3DO",
-"genre": "",
-"mode": "",
+"genre": "Action",
+"mode": "Single player",
 "publisher": "Universal Interactive Studios Panasonic",
 "regions": [
 "Japan",
 "USA"
 ],
-"wikipedia": "Jurassic Park Interactive",
 "year": 1994
 },
 "kakinoki shougi": {
@@ -1337,7 +1256,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Kero Kero Keroppi to Origami no Tabibito",
 "year": 1995
 },
 "killing time": {
@@ -1349,7 +1267,6 @@
 "Europe",
 "USA"
 ],
-"wikipedia": "Killing Time",
 "year": 1995
 },
 "kingdom the far reaches": {
@@ -1360,18 +1277,16 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Kingdom: The Far Reaches",
 "year": 1995
 },
 "konpeki no kantai": {
 "developer": "Microcabin",
-"genre": "",
+"genre": "Alternate history",
 "mode": "",
 "publisher": "Tokuma Shoten",
 "regions": [
 "Japan"
 ],
-"wikipedia": "Konpeki no Kantai",
 "year": 1995
 },
 "kyuumei kyuukyuu teate no abc": {
@@ -1392,7 +1307,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "The Last Bounty Hunter",
 "year": 1995
 },
 "lemmings": {
@@ -1404,7 +1318,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Lemmings",
 "year": 1994
 },
 "life stage virtual house": {
@@ -1480,13 +1393,12 @@
 },
 "lost eden": {
 "developer": "Cryo Interactive",
-"genre": "",
-"mode": "",
+"genre": "Adventure",
+"mode": "Single player",
 "publisher": "Virgin Interactive",
 "regions": [
 "USA"
 ],
-"wikipedia": "Lost Eden",
 "year": 1995
 },
 "lost files of sherlock holmes": {
@@ -1498,7 +1410,6 @@
 "Europe",
 "USA"
 ],
-"wikipedia": "The Lost Files of Sherlock Holmes",
 "year": 1994
 },
 "love bites": {
@@ -1508,35 +1419,32 @@
 },
 "lucienne s quest": {
 "developer": "Microcabin",
-"genre": "",
-"mode": "",
+"genre": "Role-playing",
+"mode": "Single-player",
 "publisher": "Panasonic",
 "regions": [
 "USA"
 ],
-"wikipedia": "Lucienne's Quest",
 "year": 1996
 },
 "mad dog ii the lost gold": {
 "developer": "American Laser Games",
-"genre": "",
-"mode": "",
+"genre": "Interactive movie, light gun shooter",
+"mode": "Single-player",
 "publisher": "American Laser Games",
 "regions": [
 "USA"
 ],
-"wikipedia": "Mad Dog II: The Lost Gold",
 "year": 1994
 },
 "mad dog mccree": {
 "developer": "American Laser Games",
-"genre": "",
-"mode": "",
+"genre": "Interactive movie, light gun shooter",
+"mode": "Single-player",
 "publisher": "American Laser Games",
 "regions": [
 "USA"
 ],
-"wikipedia": "Mad Dog McCree",
 "year": 1994
 },
 "mahjong gokuu tenjiku": {
@@ -1572,20 +1480,18 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Mazer",
 "year": 1995
 },
 "megarace": {
 "developer": "Cryo Interactive",
-"genre": "",
-"mode": "",
+"genre": "Vehicular combat",
+"mode": "Single-player",
 "publisher": "Mindscape Multisoft",
 "regions": [
 "Europe",
 "Japan",
 "USA"
 ],
-"wikipedia": "MegaRace",
 "year": 1994
 },
 "memory gwanli cd": {
@@ -1602,7 +1508,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Microcosm",
 "year": 1994
 },
 "mind teazzer": {
@@ -1613,7 +1518,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Mind Teazzer",
 "year": 1994
 },
 "mirai shounen conan digital library": {
@@ -1628,13 +1532,12 @@
 },
 "montana jones": {
 "developer": "Future Pirates",
-"genre": "",
+"genre": "Adventure, Comedy",
 "mode": "",
 "publisher": "Future Pirates",
 "regions": [
 "Japan"
 ],
-"wikipedia": "Montana Jones",
 "year": 1995
 },
 "moon cradle igyou no hanayome": {
@@ -1659,15 +1562,14 @@
 },
 "myst": {
 "developer": "Microcabin",
-"genre": "",
-"mode": "",
+"genre": "Adventure",
+"mode": "Single-player",
 "publisher": "Panasonic Microcabin",
 "regions": [
 "Germany",
 "Japan",
 "USA"
 ],
-"wikipedia": "Myst",
 "year": 1995
 },
 "n o b": {
@@ -1707,13 +1609,12 @@
 },
 "neurodancer journey into the neuronet": {
 "developer": "Electric Dreams Inc.",
-"genre": "",
-"mode": "",
+"genre": "Action, adult, maze",
+"mode": "Single-player",
 "publisher": "PIXIS Interactive",
 "regions": [
 "USA"
 ],
-"wikipedia": "NeuroDancer: Journey Into the Neuronet!",
 "year": 1994
 },
 "new how s 1 front how s": {
@@ -1733,14 +1634,13 @@
 },
 "night trap": {
 "developer": "Digital Pictures",
-"genre": "",
-"mode": "",
+"genre": "Interactive movie",
+"mode": "Single-player",
 "publisher": "Virgin Interactive Virgin Games",
 "regions": [
 "Japan",
 "USA"
 ],
-"wikipedia": "Night Trap",
 "year": 1994
 },
 "nishimura kyoutarou travel mystery akugyaku no kisetsu tokyo nanki shirahama renzoku satsujin jiken": {
@@ -1761,7 +1661,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Nontan to Issho: Hoshino Okurimono",
 "year": 1995
 },
 "nontan to issho nohara de asobo": {
@@ -1772,29 +1671,26 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Nontan to Issho: Nohara de Asobo",
 "year": 1994
 },
 "nova storm": {
 "developer": "Psygnosis",
-"genre": "",
-"mode": "",
+"genre": "Action",
+"mode": "Single-player",
 "publisher": "T&E Soft",
 "regions": [
 "Japan"
 ],
-"wikipedia": "Novastorm",
 "year": 1994
 },
 "novastorm": {
 "developer": "Psygnosis",
-"genre": "",
-"mode": "",
+"genre": "Action",
+"mode": "Single-player",
 "publisher": "Psygnosis",
 "regions": [
 "USA"
 ],
-"wikipedia": "Novastorm",
 "year": 1994
 },
 "oceans below": {
@@ -1813,7 +1709,6 @@
 "Korea",
 "USA"
 ],
-"wikipedia": "Off-World Interceptor",
 "year": 1994
 },
 "ogura hyakunin isshu": {
@@ -1828,13 +1723,12 @@
 },
 "olympic soccer": {
 "developer": "Silicon Dreams, Tiertex Design Studios",
-"genre": "",
-"mode": "",
+"genre": "Sports",
+"mode": "Single-player, multiplayer",
 "publisher": "Eidos Interactive, Panasonic, U.S. Gold",
 "regions": [
 "USA"
 ],
-"wikipedia": "Olympic Soccer",
 "year": 1996
 },
 "olympic summer games": {
@@ -1845,7 +1739,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Olympic Summer Games",
 "year": 1996
 },
 "oneesan to issho janken paradise": {
@@ -1856,7 +1749,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Oneesan to Issho! Janken Paradise",
 "year": 1994
 },
 "oneesan to issho kisekae paradise": {
@@ -1867,7 +1759,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Oneesan to Issho! Kisekae Paradise",
 "year": 1995
 },
 "onside soccer": {
@@ -1893,7 +1784,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Another World",
 "year": 1994
 },
 "outer world": {
@@ -1909,7 +1799,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Oyaji Hunter Mahjong",
 "year": 1995
 },
 "paddock note 95": {
@@ -1956,20 +1845,18 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Panzer General",
 "year": 1995
 },
 "pataank": {
 "developer": "PF.Magic",
-"genre": "",
-"mode": "",
+"genre": "Pinball",
+"mode": "Single-player, multiplayer",
 "publisher": "PF.Magic BMG Interactive",
 "regions": [
 "Japan",
 "Korea",
 "USA"
 ],
-"wikipedia": "PaTaank",
 "year": 1994
 },
 "pebble beach golf links": {
@@ -1980,7 +1867,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Pebble Beach Golf Links",
 "year": 1994
 },
 "penthouse interactive virtual photo shoot vol 1": {
@@ -1996,7 +1882,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "The Perfect General",
 "year": 1996
 },
 "perfect world combat in a digital world": {
@@ -2011,14 +1896,13 @@
 },
 "pga tour 96": {
 "developer": "Hitmen Productions, NuFX",
-"genre": "",
-"mode": "",
+"genre": "Sports",
+"mode": "Single-player, multiplayer",
 "publisher": "EA Sports",
 "regions": [
 "Europe",
 "USA"
 ],
-"wikipedia": "PGA Tour 96",
 "year": 1995
 },
 "phoenix 3": {
@@ -2030,40 +1914,36 @@
 "Europe",
 "USA"
 ],
-"wikipedia": "Phoenix 3",
 "year": 1995
 },
 "plumbers don t wear ties": {
 "developer": "United Pixtures",
-"genre": "",
-"mode": "",
+"genre": "Adventure",
+"mode": "Single-player",
 "publisher": "Kirin Entertainment",
 "regions": [
 "USA"
 ],
-"wikipedia": "Plumbers Don't Wear Ties",
 "year": 1994
 },
 "po ed": {
 "developer": "Any Channel",
-"genre": "",
-"mode": "",
+"genre": "First-person shooter",
+"mode": "Single-player",
 "publisher": "Any Channel",
 "regions": [
 "USA"
 ],
-"wikipedia": "PO'ed",
 "year": 1995
 },
 "policenauts": {
 "developer": "Konami",
-"genre": "",
-"mode": "",
+"genre": "Adventure, visual novel, interactive movie",
+"mode": "Single-player",
 "publisher": "Konami",
 "regions": [
 "Japan"
 ],
-"wikipedia": "Policenauts",
 "year": 1995
 },
 "policenauts pilot disk": {
@@ -2090,29 +1970,26 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Pretty Soldier Sailor Moon S",
 "year": 1995
 },
 "primal rage": {
 "developer": "Probe Entertainment",
-"genre": "",
-"mode": "",
+"genre": "Fighting",
+"mode": "Single-player, multiplayer",
 "publisher": "GoldStar / LG Electronics",
 "regions": [
 "USA"
 ],
-"wikipedia": "Primal Rage",
 "year": 1995
 },
 "princess maker 2": {
 "developer": "Gainax",
-"genre": "",
-"mode": "",
+"genre": "Raising simulation",
+"mode": "Single player",
 "publisher": "Microcabin",
 "regions": [
 "Japan"
 ],
-"wikipedia": "Princess Maker 2",
 "year": 1995
 },
 "pro stadium": {
@@ -2123,7 +2000,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Pro Stadium",
 "year": 1995
 },
 "pro yakyuu virtual stadium professional baseball": {
@@ -2140,7 +2016,6 @@
 "Europe",
 "USA"
 ],
-"wikipedia": "Psychic Detective",
 "year": 1995
 },
 "puppet tale": {
@@ -2151,30 +2026,27 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Puppet Tale",
 "year": 1994
 },
 "putt putt goes to the moon": {
 "developer": "Humongous Entertainment",
-"genre": "",
-"mode": "",
+"genre": "Adventure",
+"mode": "Single-player",
 "publisher": "Humongous Entertainment",
 "regions": [
 "USA"
 ],
-"wikipedia": "Putt-Putt Goes to the Moon",
 "year": 1994
 },
 "putt putt joins the parade": {
 "developer": "Humongous Entertainment",
-"genre": "",
-"mode": "",
+"genre": "Adventure",
+"mode": "Single-player",
 "publisher": "Humongous Entertainment",
 "regions": [
 "Japan",
 "USA"
 ],
-"wikipedia": "Putt-Putt Joins the Parade",
 "year": 1994
 },
 "putt putt s fun pack": {
@@ -2186,7 +2058,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Putt-Putt's Fun Pack",
 "year": 1994
 },
 "puzzle bobble": {
@@ -2202,7 +2073,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Pyramid Intruder",
 "year": 1995
 },
 "quarantine": {
@@ -2213,7 +2083,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Quarantine",
 "year": 1995
 },
 "quarterback attack": {
@@ -2230,7 +2099,6 @@
 "USA",
 "Europe"
 ],
-"wikipedia": "Real Pinball",
 "year": 1994
 },
 "remute 3d": {
@@ -2240,14 +2108,13 @@
 },
 "return fire": {
 "developer": "Silent Software",
-"genre": "",
-"mode": "",
+"genre": "Action, shooter",
+"mode": "Single-player, multiplayer",
 "publisher": "Prolific Publishing The 3DO Company",
 "regions": [
 "Japan",
 "USA"
 ],
-"wikipedia": "Return Fire",
 "year": 1995
 },
 "return fire maps o death": {
@@ -2259,24 +2126,22 @@
 "Europe",
 "USA"
 ],
-"wikipedia": "Return Fire: Maps O' Death (expansion)",
 "year": 1995
 },
 "rise of the robots": {
 "developer": "Art Data Interactive",
-"genre": "",
-"mode": "",
+"genre": "Fighting",
+"mode": "Single-player, multiplayer",
 "publisher": "Absolute Entertainment",
 "regions": [
 "Europe",
 "USA"
 ],
-"wikipedia": "Rise of the Robots",
 "year": 1995
 },
 "road rash": {
 "developer": "Monkey Do Productions, New Level Software",
-"genre": "",
+"genre": "Racing, vehicular combat",
 "mode": "",
 "publisher": "Electronic Arts Electronic Arts Victor",
 "regions": [
@@ -2284,7 +2149,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Road Rash",
 "year": 1994
 },
 "road track presents overdrivin": {
@@ -2301,18 +2165,16 @@
 "Korea",
 "USA"
 ],
-"wikipedia": "Road & Track Presents: The Need for Speed",
 "year": 1994
 },
 "robinson s requiem": {
 "developer": "Silmarils",
-"genre": "",
-"mode": "",
+"genre": "Survival, simulation",
+"mode": "Single-player",
 "publisher": "ReadySoft",
 "regions": [
 "USA"
 ],
-"wikipedia": "Robinson's Requiem",
 "year": 1996
 },
 "royal pro wrestling jikkyou live": {
@@ -2334,7 +2196,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Samurai Shodown",
 "year": 1994
 },
 "san diego zoo presents the animals": {
@@ -2350,20 +2211,18 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Sangokushi IV",
 "year": 1995
 },
 "scramble cobra": {
 "developer": "Genki",
-"genre": "",
-"mode": "",
+"genre": "Combat flight simulator",
+"mode": "Single-player",
 "publisher": "Panasonic Pack-In-Video",
 "regions": [
 "Europe",
 "Japan",
 "USA"
 ],
-"wikipedia": "Scramble Cobra",
 "year": 1995
 },
 "scramble cobra premium version": {
@@ -2373,13 +2232,12 @@
 },
 "seal of the pharaoh": {
 "developer": "System Sacom",
-"genre": "",
-"mode": "",
+"genre": "Role-playing video game, dungeon crawler",
+"mode": "Single-player",
 "publisher": "Panasonic",
 "regions": [
 "USA"
 ],
-"wikipedia": "Seal of the Pharaoh",
 "year": 1994
 },
 "secre fuumin no omochabako": {
@@ -2406,18 +2264,16 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Sesame Street: Numbers",
 "year": 1994
 },
 "sewer shark": {
 "developer": "Digital Pictures",
-"genre": "",
-"mode": "",
+"genre": "Interactive movie, rail shooter",
+"mode": "Single-player",
 "publisher": "Hasbro",
 "regions": [
 "USA"
 ],
-"wikipedia": "Sewer Shark",
 "year": 1994
 },
 "sex": {
@@ -2427,13 +2283,12 @@
 },
 "shadow war of succession": {
 "developer": "Tribeca Digital Studios",
-"genre": "",
-"mode": "",
+"genre": "Fighting",
+"mode": "Single-player, multiplayer",
 "publisher": "Tribeca Digital Studios",
 "regions": [
 "USA"
 ],
-"wikipedia": "Shadow: War of Succession",
 "year": 1994
 },
 "shadow warriors": {
@@ -2448,13 +2303,12 @@
 },
 "shanghai triple threat": {
 "developer": "Activision, Success",
-"genre": "",
-"mode": "",
+"genre": "Mahjong solitaire",
+"mode": "Single-player, multiplayer",
 "publisher": "Activision",
 "regions": [
 "USA"
 ],
-"wikipedia": "Shanghai: Triple-Threat",
 "year": 1995
 },
 "shelley duvall s it s a bird s life": {
@@ -2465,7 +2319,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Shelley Duvall's It's a Bird's Life",
 "year": 1994
 },
 "shock wave": {
@@ -2479,7 +2332,6 @@
 "Korea",
 "USA"
 ],
-"wikipedia": "Shock Wave",
 "year": 1994
 },
 "shock wave operation jumpgate": {
@@ -2491,7 +2343,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Shock Wave: Operation JumpGate (expansion)",
 "year": 1994
 },
 "shockwave 2 beyond the gate": {
@@ -2503,7 +2354,6 @@
 "Europe",
 "USA"
 ],
-"wikipedia": "Shock Wave 2: Beyond the Gate",
 "year": 1995
 },
 "shootout at old tucson": {
@@ -2523,14 +2373,13 @@
 },
 "slam n jam 95": {
 "developer": "Left Field Productions",
-"genre": "",
-"mode": "",
+"genre": "Sports (basketball)",
+"mode": "Single-player, multiplayer",
 "publisher": "Crystal Dynamics",
 "regions": [
 "Japan",
 "USA"
 ],
-"wikipedia": "Slam 'N Jam '95",
 "year": 1995
 },
 "slayer": {
@@ -2552,14 +2401,13 @@
 },
 "soccer kid": {
 "developer": "Team17",
-"genre": "",
-"mode": "",
+"genre": "Platform",
+"mode": "Single-player",
 "publisher": "The 3DO Company",
 "regions": [
 "Europe",
 "USA"
 ],
-"wikipedia": "Soccer Kid",
 "year": 1994
 },
 "sotsugyou graduation final": {
@@ -2574,25 +2422,23 @@
 },
 "space ace": {
 "developer": "ReadySoft",
-"genre": "",
-"mode": "",
+"genre": "Interactive movie",
+"mode": "Up to 2 players alternating turns",
 "publisher": "ReadySoft",
 "regions": [
 "USA"
 ],
-"wikipedia": "Space Ace",
 "year": 1995
 },
 "space hulk vengeance of the blood angels": {
 "developer": "Key Game",
-"genre": "",
-"mode": "",
+"genre": "Real-time tactical first-person shooter",
+"mode": "Single-player, multiplayer",
 "publisher": "Electronic Arts Electronic Arts Victor",
 "regions": [
 "Europe",
 "USA"
 ],
-"wikipedia": "Space Hulk: Vengeance of the Blood Angels",
 "year": 1995
 },
 "space pirates": {
@@ -2603,7 +2449,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Space Pirates",
 "year": 1995
 },
 "space shuttle": {
@@ -2614,18 +2459,16 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Space Shuttle",
 "year": 1994
 },
 "star control ii": {
 "developer": "Toys For Bob",
-"genre": "",
-"mode": "",
+"genre": "Adventure, shoot 'em up",
+"mode": "Single player, multiplayer",
 "publisher": "Crystal Dynamics",
 "regions": [
 "USA"
 ],
-"wikipedia": "Star Control II",
 "year": 1994
 },
 "star control ii the ur quan masters": {
@@ -2641,19 +2484,17 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Star Fighter",
 "year": 1995
 },
 "star wars rebel assault": {
 "developer": "LucasArts",
-"genre": "",
-"mode": "",
+"genre": "Rail shooter, interactive movie",
+"mode": "Single-player",
 "publisher": "LucasArts",
 "regions": [
 "Japan",
 "USA"
 ],
-"wikipedia": "Star Wars: Rebel Assault",
 "year": 1994
 },
 "starblade": {
@@ -2666,19 +2507,17 @@
 "Europe",
 "Japan"
 ],
-"wikipedia": "Starblade",
 "year": 1994
 },
 "stellar 7 draxon s revenge": {
 "developer": "Dynamix",
-"genre": "",
-"mode": "",
+"genre": "First-person shooter",
+"mode": "Single-player",
 "publisher": "Dynamix",
 "regions": [
 "Japan",
 "USA"
 ],
-"wikipedia": "Stellar 7: Draxon's Revenge",
 "year": 1994
 },
 "storage manager memory kanri": {
@@ -2695,7 +2534,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Strahl",
 "year": 1995
 },
 "striker world cup special": {
@@ -2706,7 +2544,6 @@
 "regions": [
 "Europe"
 ],
-"wikipedia": "Striker: World Cup Special",
 "year": 1995
 },
 "super model gail mckenna": {
@@ -2727,7 +2564,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Super Real Mahjong P V",
 "year": 1995
 },
 "super real mahjong piv aishou shindan": {
@@ -2737,15 +2573,14 @@
 },
 "super street fighter ii turbo": {
 "developer": "Capcom",
-"genre": "",
-"mode": "",
+"genre": "Fighting",
+"mode": "Single-player, multiplayer",
 "publisher": "Panasonic Capcom JP",
 "regions": [
 "Europe",
 "Germany",
 "USA"
 ],
-"wikipedia": "Super Street Fighter II Turbo",
 "year": 1994
 },
 "super street fighter ii x grand master challenge": {
@@ -2764,7 +2599,6 @@
 "Korea",
 "USA"
 ],
-"wikipedia": "Super Wing Commander",
 "year": 1994
 },
 "supermodels go wild": {
@@ -2774,14 +2608,13 @@
 },
 "supreme warrior": {
 "developer": "Digital Pictures",
-"genre": "",
-"mode": "",
+"genre": "Beat 'em up",
+"mode": "Single-player",
 "publisher": "Acclaim Distribution",
 "regions": [
 "Japan",
 "USA"
 ],
-"wikipedia": "Supreme Warrior",
 "year": 1994
 },
 "sword sorcery": {
@@ -2799,7 +2632,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Syndicate",
 "year": 1995
 },
 "system catalog kigyou muke system no goannai": {
@@ -2873,7 +2705,6 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Theme Park",
 "year": 1995
 },
 "theo the dinosaur": {
@@ -2907,7 +2738,6 @@
 "Korea",
 "USA"
 ],
-"wikipedia": "Total Eclipse",
 "year": 1994
 },
 "totsugeki karakuri megadas": {
@@ -2928,7 +2758,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "The Tower",
 "year": 1996
 },
 "toyopet outdoor world": {
@@ -2953,13 +2782,12 @@
 },
 "trip d": {
 "developer": "Warp",
-"genre": "",
-"mode": "",
+"genre": "Puzzle",
+"mode": "Single-player, multiplayer",
 "publisher": "Panasonic Sanei Shobo Publishing",
 "regions": [
 "USA"
 ],
-"wikipedia": "Trip'd",
 "year": 1995
 },
 "true golf classics pebble beach golf links": {
@@ -2980,7 +2808,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Twinkle Knights",
 "year": 1995
 },
 "twisted": {
@@ -2990,14 +2817,13 @@
 },
 "twisted the game show": {
 "developer": "Studio 3DO",
-"genre": "",
-"mode": "",
+"genre": "Party",
+"mode": "Single-player, multiplayer",
 "publisher": "Electronic Arts Electronic Arts Victor",
 "regions": [
 "Europe",
 "USA"
 ],
-"wikipedia": "Twisted: The Game Show",
 "year": 1994
 },
 "uchuu seibutsu flopon kun": {
@@ -3008,7 +2834,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Uchuu Seibutsu Flopon-kun",
 "year": 1994
 },
 "ultraman powered": {
@@ -3019,7 +2844,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "Ultraman Powered",
 "year": 1994
 },
 "v goal soccer 96": {
@@ -3030,7 +2854,6 @@
 "regions": [
 "Japan"
 ],
-"wikipedia": "V-Goal Soccer '96",
 "year": 1996
 },
 "virtual cameraman part 1 naomi sawada anna juri": {
@@ -3088,19 +2911,17 @@
 "Japan",
 "USA"
 ],
-"wikipedia": "Virtuoso",
 "year": 1995
 },
 "vr stalker": {
 "developer": "Morpheus Interactive",
-"genre": "",
-"mode": "",
+"genre": "Combat flight simulator",
+"mode": "Single-player",
 "publisher": "American Laser Games",
 "regions": [
 "Europe",
 "USA"
 ],
-"wikipedia": "VR Stalker",
 "year": 1994
 },
 "waialae country club": {
@@ -3111,7 +2932,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Waialae Country Club",
 "year": 1994
 },
 "warner music group": {
@@ -3121,15 +2941,14 @@
 },
 "way of the warrior": {
 "developer": "Naughty Dog",
-"genre": "",
-"mode": "",
+"genre": "Fighting",
+"mode": "Single-player, multiplayer",
 "publisher": "Universal Interactive Studios",
 "regions": [
 "Europe",
 "Japan",
 "USA"
 ],
-"wikipedia": "Way of the Warrior",
 "year": 1994
 },
 "we got it": {
@@ -3139,13 +2958,12 @@
 },
 "who shot johnny rock": {
 "developer": "American Laser Games",
-"genre": "",
-"mode": "",
+"genre": "Interactive movie, light gun shooter",
+"mode": "Single-player",
 "publisher": "American Laser Games",
 "regions": [
 "USA"
 ],
-"wikipedia": "Who Shot Johnny Rock?",
 "year": 1994
 },
 "wicked 18": {
@@ -3156,43 +2974,39 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Wicked 18",
 "year": 1995
 },
 "wing commander iii heart of the tiger": {
 "developer": "Origin Systems",
-"genre": "",
-"mode": "",
+"genre": "Space combat simulation",
+"mode": "Single-player",
 "publisher": "Origin Systems",
 "regions": [
 "Germany",
 "USA"
 ],
-"wikipedia": "Wing Commander III: Heart of the Tiger",
 "year": 1995
 },
 "winning post": {
 "developer": "Koei",
-"genre": "",
+"genre": "Simulation",
 "mode": "",
 "publisher": "Koei",
 "regions": [
 "Japan"
 ],
-"wikipedia": "Winning Post",
 "year": 1994
 },
 "wolfenstein 3d": {
 "developer": "Logicware",
-"genre": "",
-"mode": "",
+"genre": "First-person shooter",
+"mode": "Single-player",
 "publisher": "Interplay Productions Electronic Arts Victor",
 "regions": [
 "Europe",
 "Japan",
 "USA"
 ],
-"wikipedia": "Wolfenstein 3D",
 "year": 1995
 },
 "woody woodpecker and friends volume one": {
@@ -3212,14 +3026,13 @@
 },
 "world cup golf hyatt dorado beach": {
 "developer": "Arc Developments",
-"genre": "",
-"mode": "",
+"genre": "Sports",
+"mode": "Single-player, multiplayer",
 "publisher": "U.S. Gold",
 "regions": [
 "Europe",
 "USA"
 ],
-"wikipedia": "World Cup Golf: Hyatt Dorado Beach",
 "year": 1994
 },
 "world cup special": {
@@ -3265,7 +3078,6 @@
 "regions": [
 "USA"
 ],
-"wikipedia": "Zhadnost: The People's Party",
 "year": 1995
 }
 }
