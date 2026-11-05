@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3DO ODE Menu</title>
+<meta name="description" content="A better menu for 3DO optical drive emulators — Fixel's FZ-1 ODE, XPort and SataTo3DO clones. Box art, favorites, themes and more. Free.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080214; --panel: #1b0a36; --panel2: #240e46; --edge: #6e32aa; --edge2: #9a52e0;
+  --dim: #a082c8; --text: #f5ebff; --accent: #38e6ff; --hot: #ff5fb0; --gold: #ffc850;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.6;
+  background-image:
+    radial-gradient(1200px 600px at 50% -200px, rgba(110,50,170,.45), transparent 70%),
+    linear-gradient(transparent 0, transparent calc(100% - 2px), rgba(110,50,170,.10) 100%);
+}
+.pix { font-family: "Press Start 2P", ui-monospace, Menlo, Consolas, monospace; line-height: 1.5; }
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+a { color: var(--accent); }
+
+/* hero */
+header.hero { text-align: center; padding: 64px 0 40px; }
+.hero img.logo { width: min(460px, 80vw); height: auto; image-rendering: auto;
+  filter: drop-shadow(0 6px 24px rgba(154,82,224,.5)); }
+.hero .tag { margin: 22px auto 0; max-width: 620px; color: var(--dim); font-size: 1.05rem; }
+.hero .sub { margin-top: 6px; color: var(--dim); font-size: .95rem; }
+
+/* buttons */
+.cta { margin-top: 30px; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.btn {
+  display: inline-block; text-decoration: none; font-weight: 600; cursor: pointer;
+  padding: 14px 22px; border-radius: 12px; border: 1px solid var(--edge2);
+  color: var(--text); background: linear-gradient(180deg, var(--panel2), var(--panel));
+  transition: transform .08s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(154,82,224,.35); border-color: var(--edge2); }
+.btn.primary { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(56,230,255,.25) inset, 0 8px 28px rgba(56,230,255,.18); }
+.btn.primary:hover { box-shadow: 0 0 0 1px rgba(56,230,255,.4) inset, 0 10px 32px rgba(56,230,255,.3); }
+.btn .k { font-family: "Press Start 2P", monospace; font-size: .62em; color: var(--accent); }
+
+/* note strip */
+.note { margin: 22px auto 0; max-width: 680px; font-size: .86rem; color: var(--dim);
+  background: rgba(36,14,70,.5); border: 1px solid var(--edge); border-radius: 10px; padding: 10px 14px; }
+.note b { color: var(--text); }
+.note.warn { border-color: var(--hot); background: rgba(255,95,176,.12); color: var(--text); }
+.note.warn a { color: var(--accent); }
+
+/* sections */
+section { padding: 42px 0; border-top: 1px solid rgba(110,50,170,.3); }
+h2.pix { font-size: 1rem; color: var(--gold); margin: 0 0 22px; letter-spacing: .5px; }
+.lead { color: var(--dim); max-width: 680px; }
+
+/* feature grid */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 8px; }
+.card { background: linear-gradient(180deg, var(--panel2), var(--panel)); border: 1px solid var(--edge);
+  border-radius: 12px; padding: 16px 18px; }
+.card h3 { margin: 0 0 6px; font-size: .95rem; color: var(--text); }
+.card p { margin: 0; color: var(--dim); font-size: .9rem; }
+
+/* shots */
+.shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.shots figure { margin: 0; }
+.shots img { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--edge);
+  background: #000; display: block; }
+.shots figcaption { margin-top: 8px; color: var(--dim); font-size: .82rem; text-align: center; }
+
+/* steps */
+ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; max-width: 760px; }
+ol.steps li { position: relative; padding: 2px 0 16px 44px; color: var(--dim); }
+ol.steps li b { color: var(--text); }
+ol.steps li::before { counter-increment: s; content: counter(s); position: absolute; left: 0; top: 0;
+  width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+  font-family: "Press Start 2P", monospace; font-size: .62rem; color: var(--bg);
+  background: linear-gradient(180deg, var(--edge2), var(--edge)); }
+
+/* hardware table */
+table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid rgba(110,50,170,.3); }
+th { color: var(--gold); font-weight: 600; }
+td.ok { color: var(--accent); }
+
+/* footer */
+footer { padding: 36px 0 60px; border-top: 1px solid rgba(110,50,170,.3); color: var(--dim); font-size: .85rem; }
+footer a { color: var(--dim); }
+.links { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
+.links a { color: var(--accent); text-decoration: none; }
+.links a:hover { text-decoration: underline; }
+.fineprint { font-size: .78rem; opacity: .85; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <img class="logo" src="assets/logo.png" alt="3DO ODE Menu">
+    <p class="tag">A better menu for 3DO optical drive emulators.</p>
+    <p class="sub">Fixel's FZ-1 ODE &amp; XPort, and SataTo3DO-based clones. Free.</p>
+    <div class="cta">
+      <a class="btn primary" id="openbtn" href="covermaker.html">Open the Cover Maker</a>
+      <a class="btn" href="https://github.com/thgill/3do-ode-menu/releases">Download the menu</a>
+    </div>
+    <p class="note" id="browsernote">The Cover Maker runs in <b>Chrome, Edge, Brave, Opera or Vivaldi</b> on a computer. On Firefox or
+      Safari, use the <a href="https://github.com/thgill/3do-ode-menu/blob/main/tools/covermaker.py">Python version</a> instead.</p>
+    <p class="note warn" id="needcomputer" hidden></p>
+  </div>
+</header>
+
+<section id="what">
+  <div class="wrap">
+    <h2 class="pix">What it is</h2>
+    <p class="lead">A drop-in replacement for your ODE's menu: copy one <code>boot.iso</code> to your card and everything
+      else keeps working. Tabs for games, favorites and recent; box art in the info pane; folders and games sorted the
+      way you'd expect; and all the original tools. Games start exactly the way they do from the stock menu.</p>
+    <div class="grid" style="margin-top:22px">
+      <div class="card"><h3>Box art</h3><p>A cover for every game, made in a few clicks with the Cover Maker.</p></div>
+      <div class="card"><h3>Favorites &amp; recent</h3><p>Your regulars one tab away, plus a play queue for multi-disc games.</p></div>
+      <div class="card"><h3>Fast browsing</h3><p>Big folders open instantly after the first visit. Jump by letter, hold to scroll.</p></div>
+      <div class="card"><h3>Five themes</h3><p>Colour themes, sound effects and a screensaver, all in Options.</p></div>
+      <div class="card"><h3>Random &amp; hide</h3><p>Press X for a random game; hide demos and duplicates without deleting them.</p></div>
+      <div class="card"><h3>NTSC &amp; PAL</h3><p>Centred and full-speed on PAL consoles. All the original tools included.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="shots">
+  <div class="wrap">
+    <h2 class="pix">A look</h2>
+    <div class="shots">
+      <figure><img src="assets/shot-games.png" alt="The Games tab with box art"><figcaption>Games, with box art</figcaption></figure>
+      <figure><img src="assets/shot-options.png" alt="The Options tab"><figcaption>Options &amp; themes</figcaption></figure>
+      <figure><img src="assets/shot-covermaker.png" alt="The Cover Maker"><figcaption>The Cover Maker</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section id="start">
+  <div class="wrap">
+    <h2 class="pix">Getting started</h2>
+    <ol class="steps">
+      <li><b>Install the menu.</b> Download <code>boot.iso</code> from Releases and copy it to the root of your card,
+        replacing the stock one. Keep the original so you can go back.</li>
+      <li><b>Make your covers.</b> Open the Cover Maker, choose your card, and press MAKE COVERS. It finds your games
+        and fetches box art automatically.</li>
+      <li><b>Play.</b> Put the card back in your console and you're set.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="hardware">
+  <div class="wrap">
+    <h2 class="pix">Supported hardware</h2>
+    <table>
+      <tr><th>ODE</th><th>Status</th></tr>
+      <tr><td>Fixel's FZ-1 ODE (internal)</td><td class="ok">Tested</td></tr>
+      <tr><td>Fixel's XPort (external)</td><td class="ok">Tested</td></tr>
+      <tr><td>Clones with SataTo3DO-based firmware</td><td class="ok">Tested on one clone</td></tr>
+      <tr><td>Other clones</td><td>Most should work — <a href="https://github.com/thgill/3do-ode-menu#clones">see the notes</a></td></tr>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="links">
+      <a href="covermaker.html">Cover Maker</a>
+      <a href="https://github.com/thgill/3do-ode-menu">GitHub</a>
+      <a href="https://github.com/thgill/3do-ode-menu/releases">Releases</a>
+      <a href="https://github.com/thgill/3do-ode-menu/issues">Report an issue</a>
+    </div>
+    <p>Menu and artwork by Todd Gill / Retro Frog. The 3DO ODE menu's design, artwork and code are the author's and
+      not for reuse without permission.</p>
+    <p class="fineprint">Cover pictures belong to the games' publishers — fine for your own card, please don't
+      redistribute them. The Cover Maker, tools and tests are MIT-licensed.</p>
+  </div>
+</footer>
+
+<script>
+/* The Cover Maker needs the File System Access API, which no phone/tablet browser and neither Firefox nor Safari
+   has. Detect it and set expectations here, so nobody taps into a tool that can't work on their device. */
+(function () {
+  if (typeof window.showDirectoryPicker === "function") return;   /* supported: leave the normal CTA */
+  var mobile = (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) ||
+               /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  var open = document.getElementById("openbtn");
+  var note = document.getElementById("browsernote");
+  var warn = document.getElementById("needcomputer");
+  if (open) open.style.display = "none";
+  if (note) note.hidden = true;
+  if (warn) {
+    warn.hidden = false;
+    warn.innerHTML = mobile
+      ? "💻 <b>Set up your card from a computer.</b> Saving covers to your SD card needs a desktop browser " +
+        "(Chrome, Edge or Brave) with the card connected — a phone or tablet can’t do it. Open this page on " +
+        "your computer to continue."
+      : "This browser can’t save to your SD card. Use <b>Chrome, Edge or Brave</b> on a computer, or the " +
+        "<a href=\"https://github.com/thgill/3do-ode-menu/blob/main/tools/covermaker.py\">Python version</a>.";
+  }
+})();
+</script>
+</body>
+</html>
