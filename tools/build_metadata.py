@@ -182,6 +182,36 @@ def parse_list_cache(path):
         return parse_list_lines(f)
 
 
+LIST_TMPL = r'\{\{\s*(?:ubl|unbulleted list|hlist|flatlist|plainlist|plain list|cslist|collapsible list|nowrap|sortname)\s*\|?'
+
+
+def ib_value(wt, names):
+    """an infobox field's value, with wiki-list templates ({{ubl|..}}, {{plainlist|* ..}}) unwrapped to a
+    comma-separated list. Genre/mode are often stored that way, so taking just the first line misses them."""
+    m = re.search(r'\n\s*\|\s*(?:' + names + r')\s*=\s*', wt, re.I)
+    if not m:
+        return ''
+    rest = wt[m.end():]
+    nxt = re.search(r'\n\s*\|\s*[\w ]+=|\n\}\}', rest)       # the next field, or the end of the infobox
+    val = rest[:nxt.start()] if nxt else rest
+    val = re.sub(r'<ref[^>]*>.*?</ref>', '', val, flags=re.S)
+    val = re.sub(r'<ref[^>]*/>', '', val)
+    val = re.sub(r'\[\[(?:[^|\]]*\|)?([^\]]*)\]\]', r'\1', val)   # resolve links before splitting on |
+    val = re.sub(LIST_TMPL, '', val, flags=re.I).replace('}}', '')   # drop the list-template wrapper, keep items
+    items = []
+    for part in re.split(r'[\*\|\n]', val):                  # bullets, template args, lines
+        part = re.sub(r"'''?", '', part).strip(" ,;")
+        if part and '=' not in part and not part.startswith(('{{', '<')):
+            items.append(part)
+    seen, out = set(), []
+    for it in items:                                          # dedupe, keep order
+        k = it.lower()
+        if k not in seen:
+            seen.add(k)
+            out.append(it)
+    return re.sub(r'\s+', ' ', ', '.join(out)).strip()
+
+
 def get_infobox(title, cache):
     if title in cache:
         return cache[title]
@@ -189,12 +219,8 @@ def get_infobox(title, cache):
     try:
         wt = wp_get({'action': 'parse', 'page': title, 'prop': 'wikitext', 'section': '0'})
         wt = wt['parse']['wikitext']['*']
-        g = re.search(r'\|\s*genre\s*=\s*(.+)', wt)
-        m = re.search(r'\|\s*modes?\s*=\s*(.+)', wt)
-        if g:
-            out['genre'] = clean_cell(g.group(1).split('\n')[0]).rstrip(',')
-        if m:
-            out['mode'] = clean_cell(m.group(1).split('\n')[0]).rstrip(',')
+        out['genre'] = ib_value(wt, 'genres?')
+        out['mode'] = ib_value(wt, 'modes?')
     except Exception as e:
         sys.stderr.write('  infobox miss %s: %s\n' % (title, e))
     cache[title] = out
