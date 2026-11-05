@@ -295,6 +295,8 @@ int32  gfx_color(int32 role);
 void   gfx_rect(int32 x, int32 y, int32 w, int32 h, int32 role);
 void   gfx_rrect(int32 x, int32 y, int32 w, int32 h, int32 fill, int32 edge, int32 r, int32 mode);
 void   gfx_text(int32 x, int32 y, const char *s, int32 maxch, int32 role);   /* UTF-8 in, upper case out */
+void   gfx_text5(int32 x, int32 y, const char *s, int32 maxch, int32 role);  /* the 5x7 face, denser */
+void   gfx_text6(int32 x, int32 y, const char *s, int32 maxch, int32 role);  /* Press Start 2P, 6 px tall */
 int32  gfx_fold(const char *utf8, char *out, int32 max);   /* to the font's characters; returns length */
 void   gfx_sprite(int32 id, int32 x, int32 y, int32 role);
 void   gfx_micro(int32 x, int32 y, const char *s, int32 role);

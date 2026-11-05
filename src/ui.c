@@ -11,6 +11,9 @@
  */
 #include "common.h"
 #include "uiart.h"
+#ifdef HOST_BUILD
+#include <stdlib.h>              /* host-only: pick the transition style from the TRANS env var */
+#endif
 
 enum { T_GAMES, T_FAVS, T_RECENT, T_TOOLS, T_OPTIONS, T_COUNT };
 enum { O_PANE, O_THEME, O_BAR, O_SHINE, O_SOUND, O_SAVER, O_HIDDEN, O_INDEX, O_ABOUT, O_COUNT };   /* OPTIONS rows */
@@ -114,6 +117,11 @@ typedef struct ArtSlot {
 } ArtSlot;
 static ArtSlot art[ART_SLOTS];
 static int32   art_clock;
+static int32   pane_face;        /* the info pane's face: 0 cover (art), 1 info (specs) */
+static int32   flip_left;        /* fields left in the pane transition (0 = at rest) */
+static int32   g_trans;          /* transition style: 0 flip, 1 shade, 2 dissolve, 3 slide */
+static int32   g_infofont = 1;   /* info-side font: 0 = 5x7, 1 = main 8x8, 2 = Press Start 2P 6px */
+#define FLIP_LEN  12             /* the transition's length, in video fields */
 
 /* logo and its shine */
 static GfxImage *logo;
@@ -1036,11 +1044,16 @@ static const char *pane_line(const char *s, int32 n, char *out)
 
     if (len > n) {
         cut = n;
-        for (i = n; i > 0; i--)
-            if (s[i] == ' ') {
+        for (i = n; i > 0; i--) {
+            if (s[i] == ' ') {           /* break before a space (the space is dropped) */
                 cut = i;
                 break;
             }
+            if (i < n && s[i - 1] == '-') {   /* or after a hyphen (kept on this line) */
+                cut = i;
+                break;
+            }
+        }
     }
     memcpy(out, s, cut);
     out[cut] = 0;
@@ -1048,6 +1061,145 @@ static const char *pane_line(const char *s, int32 n, char *out)
     while (*s == ' ')
         s++;
     return s;
+}
+
+/* the flip: a card that turns edge-on. The content (cover or specs) shows at rest; mid-flip the card squashes to
+ * a sliver. (On hardware the cover art itself scales; the host test renderer only scales solid cels, so the card
+ * stands in during the turn.) */
+static void tick_flip(void)
+{
+    if (flip_left > 0) {
+        flip_left -= anim_dt;
+        if (flip_left < 0)
+            flip_left = 0;
+        dirty = 1;
+    }
+}
+
+static void draw_flip(void)
+{
+    int32 e = FLIP_LEN - flip_left, half = FLIP_LEN / 2, wdt;
+
+    wdt = (e <= half) ? ART_W * (half - e) / half : ART_W * (e - half) / half;
+    if (wdt < 2)
+        wdt = 2;
+    gfx_rrect(ART_X + (ART_W - wdt) / 2, ART_Y - 2, wdt, ART_H + 4, P_PANEL, P_EDGE, 2, RR_ALL);
+    if (wdt <= ART_W / 3)
+        gfx_rect(ART_X + ART_W / 2 - 1, ART_Y, 2, ART_H, P_ACCENT);   /* the seam, edge-on */
+}
+
+/* the info side of the pane: the game's name (8x8) over its metadata (5x7 so it fits the narrow column).
+ * PANE5 is how many 5x7 characters span the pane. Metadata is demo data until the Cover Maker writes a sidecar. */
+static void info_field(void (*put)(int32, int32, const char *, int32, int32),
+                       int32 *ty, int32 pw, int32 lh, const char *s, int32 role, int32 gap)
+{
+    char line[40];
+    const char *p;
+
+    for (p = s; *p; *ty += lh) {
+        p = pane_line(p, pw, line);
+        put(ART_X, *ty, line, pw, role);
+    }
+    *ty += gap;
+}
+
+static void draw_info_side(Row *w)
+{
+    void (*put)(int32, int32, const char *, int32, int32);
+    int32 ty, pw, lh;
+    char line[40];
+    const char *p;
+
+    if (g_infofont == 1)      { put = gfx_text;  pw = ART_W / 8; lh = 10; }
+    else if (g_infofont == 2) { put = gfx_text6; pw = ART_W / 8; lh = 8;  }
+    else                      { put = gfx_text5; pw = ART_W / 6; lh = 8;  }
+
+    gfx_rrect(ART_X - 2, ART_Y - 2, ART_W + 4, ART_H + 4, P_PANEL, P_EDGE, 2, RR_ALL);
+    gfx_fold(w->text, tmp, sizeof(tmp));
+    ty = ART_Y + 2;
+    for (p = tmp; *p && ty < ART_Y + 24; ty += 9) {
+        p = pane_line(p, PANE_CH, line);
+        gfx_text(ART_X, ty, line, PANE_CH, P_ACCENT);
+    }
+    gfx_rect(ART_X, ty + 1, ART_W, 1, P_EDGE);
+    ty += 5;
+    info_field(put, &ty, pw, lh, "1996", P_FOLDER, 3);
+    info_field(put, &ty, pw, lh, "ART DATA INTERACTIVE", P_TEXT, 3);
+    info_field(put, &ty, pw, lh, "ID SOFTWARE", P_DIM, 3);
+    info_field(put, &ty, pw, lh, "FIRST-PERSON SHOOTER", P_DIM, 3);
+    info_field(put, &ty, pw, lh, "1 PLAYER", P_DIM, 0);
+}
+
+/* draw one face of the pane in full: 0 = the cover (framed), 1 = the info side. (Badges are left off during a
+ * transition to keep it simple.) `vis` caps how many of the cover's rows are drawn (for the slide). */
+static void draw_face(Row *w, ArtSlot *s, int32 rows, int32 face, int32 vis)
+{
+    if (face) {
+        draw_info_side(w);
+        return;
+    }
+    if (vis > rows)
+        vis = rows;
+    gfx_rrect(ART_X - 2, ART_Y - 2, ART_W + 4, (vis > 0 ? vis : rows) + 4, P_BG, P_EDGE, 2, RR_ALL);
+    if (s && vis > 0)
+        gfx_image_rows(s->img, ART_X, ART_Y, vis);
+}
+
+/* 1 - SHADE: a solid panel drops over the old face, then lifts to reveal the new one. */
+static void draw_trans_shade(Row *w, ArtSlot *s, int32 rows)
+{
+    int32 e = FLIP_LEN - flip_left, half = FLIP_LEN / 2, h;
+
+    if (e <= half) {
+        draw_face(w, s, rows, pane_face ^ 1, rows);
+        h = (ART_H + 4) * e / half;
+    } else {
+        draw_face(w, s, rows, pane_face, rows);
+        h = (ART_H + 4) * (FLIP_LEN - e) / half;
+    }
+    gfx_rect(ART_X - 2, ART_Y - 2, ART_W + 4, h, P_PANEL);
+    if (h > 0)
+        gfx_rect(ART_X - 2, ART_Y - 2 + h - 1, ART_W + 4, 2, P_ACCENT);   /* the shade's edge */
+}
+
+/* 2 - DISSOLVE: the old face breaks up into panel-coloured cells, then the new face emerges from them. */
+static void draw_trans_dissolve(Row *w, ArtSlot *s, int32 rows)
+{
+    int32 e = FLIP_LEN - flip_left, half = FLIP_LEN / 2, cx, cy, frac, t;
+    int32 cover = e <= half;
+
+    draw_face(w, s, rows, cover ? (pane_face ^ 1) : pane_face, rows);
+    frac = cover ? e * 100 / half : (FLIP_LEN - e) * 100 / half;
+    for (cy = 0; cy < ART_H; cy += 8)
+        for (cx = 0; cx < ART_W; cx += 8) {
+            t = ((cx * 29 + cy * 17) ^ (cx * cy * 3 + 7)) % 100;
+            if (t < frac)
+                gfx_rect(ART_X + cx, ART_Y + cy, 8, 8, P_PANEL);
+        }
+}
+
+/* 3 - SLIDE: the cover rolls up (or down) like a blind, the info sitting behind it. */
+static void draw_trans_slide(Row *w, ArtSlot *s, int32 rows)
+{
+    int32 e = FLIP_LEN - flip_left, off = (ART_H + 4) * e / FLIP_LEN;
+
+    if (pane_face) {                       /* art -> info: info behind, cover rolls up */
+        draw_face(w, s, rows, 1, rows);
+        draw_face(w, s, rows, 0, rows - off);
+    } else {                               /* info -> art: info behind, cover rolls down over it */
+        draw_face(w, s, rows, 1, rows);
+        draw_face(w, s, rows, 0, off);
+    }
+}
+
+static void draw_transition(Row *w, ArtSlot *s, int32 rows)
+{
+    switch (g_trans) {
+    case 1:  draw_trans_shade(w, s, rows); break;
+    case 2:  draw_trans_dissolve(w, s, rows); break;
+    case 3:  draw_trans_slide(w, s, rows); break;
+    default: draw_flip(); break;
+    }
 }
 
 static void draw_pane(void)
@@ -1085,6 +1237,14 @@ static void draw_pane(void)
             p = "NO ART";               /* known from the folder index (or earlier this visit) */
         } else if (i & ART_FAIL) {
             p = "CAN'T READ";
+        }
+        if (flip_left > 0) {
+            draw_transition(&w, s, rows);
+            return;
+        }
+        if (pane_face) {
+            draw_info_side(&w);
+            return;
         }
     }
     /* the cover (or the card in its place), framed */
@@ -3010,10 +3170,9 @@ static void frame_input(uint32 ev)
     }
     if ((ev & BTN_P) && tab != T_GAMES && q_count > 0)
         play_queue();           /* the P legend shows on every tab while there is a queue */
-    if ((ev & BTN_C) && (tab == T_GAMES || tab == T_FAVS || tab == T_RECENT)) {
-        g_set.pane = !g_set.pane;
-        g_set.dirty = 1;
-        lists_save(0);
+    if ((ev & BTN_C) && pane_on()) {
+        pane_face ^= 1;         /* Artwork mode: C flips the pane between the cover and its info side */
+        flip_left = FLIP_LEN;
     }
     dirty = 1;
 }
@@ -3101,6 +3260,7 @@ int32 ui_frame(uint32 ev, uint32 held)
     tick_shine();
     tick_marquee();
     tick_art();
+    tick_flip();
     if (toast_timer > 0 && --toast_timer == 0)
         dirty = 1;
     if (jump_timer > 0 && --jump_timer == 0)
@@ -3124,6 +3284,16 @@ void ui_init(const char *name)
             memcpy(logo_orig, logo->pix, n * 2);
     }
     shine_pos = -30;
+#ifdef HOST_BUILD
+    {
+        const char *t = getenv("TRANS");
+        const char *f = getenv("INFOFONT");
+        if (t)
+            g_trans = atoi(t);
+        if (f)
+            g_infofont = atoi(f);
+    }
+#endif
 }
 
 void ui_start(void)

@@ -15,6 +15,8 @@
 #include "common.h"
 #define UIART_DATA
 #include "uiart.h"
+#include "font5.h"
+#include "font6.h"
 
 static void rect_rgb(int32 x, int32 y, int32 w, int32 h, int32 c);
 static uint32 vbl_count;
@@ -746,6 +748,82 @@ void gfx_text(int32 x, int32 y, const char *s, int32 maxch, int32 role)
         row = buf + r * rb;
         for (k = 0; k < n; k++)
             row[k] = font8[(uint8)t[k] - FONT8_FIRST][r];
+        for (; k < rb; k++)
+            row[k] = 0;
+    }
+    c->ccb_SourcePtr = (CelData *)buf;
+    c->ccb_PLUTPtr = pluts + (dim * P_COUNT + role) * 4;
+    c->ccb_XPos = x << 16;
+    c->ccb_YPos = y << 16;
+    queue(c);
+}
+
+/* The 5x7 face: half-height secondary text (game metadata). Glyphs are 5 wide, packed at a 6 px pitch into one
+ * coded cel, so a line fits far more than the 8x8 face. Same PLUT/role colouring as gfx_text. */
+void gfx_text5(int32 x, int32 y, const char *s, int32 maxch, int32 role)
+{
+    char t[TXT_CHARS + 1];
+    int32 n, rb, r, k, col, p;
+    uint8 *buf, *row, g;
+    CCB *c;
+
+    if (maxch <= 0 || maxch > TXT_CHARS)
+        maxch = TXT_CHARS;
+    n = gfx_fold(s, t, maxch + 1);
+    while (n > 0 && t[n - 1] == ' ')
+        n--;
+    if (n == 0)
+        return;
+    if (ntxt >= NTXT)
+        flush();
+    c = new_ccb();
+    buf = tbufs + (ntxt++) * TXT_BYTES;
+    rb = InitCel(c, n * 6, FONT5_H, 1, INITCEL_CODED) / FONT5_H;   /* InitCel returns height * rowbytes */
+    for (r = 0; r < FONT5_H; r++) {
+        row = buf + r * rb;
+        for (k = 0; k < rb; k++)
+            row[k] = 0;
+        for (k = 0; k < n; k++) {
+            g = font5[(uint8)t[k] - FONT5_FIRST][r];        /* 5 bits, left-aligned at bit 7 */
+            for (col = 0; col < 5; col++)
+                if (g & (0x80 >> col)) {
+                    p = k * 6 + col;                        /* pixel column in the packed cel */
+                    row[p >> 3] |= 0x80 >> (p & 7);
+                }
+        }
+    }
+    c->ccb_SourcePtr = (CelData *)buf;
+    c->ccb_PLUTPtr = pluts + (dim * P_COUNT + role) * 4;
+    c->ccb_XPos = x << 16;
+    c->ccb_YPos = y << 16;
+    queue(c);
+}
+
+/* Press Start 2P at 6 px tall: the main face's look, a touch smaller, for secondary text. 8-wide glyphs, so the
+ * same byte-per-row packing as gfx_text. */
+void gfx_text6(int32 x, int32 y, const char *s, int32 maxch, int32 role)
+{
+    char t[TXT_CHARS + 1];
+    int32 n, rb, r, k;
+    uint8 *buf, *row;
+    CCB *c;
+
+    if (maxch <= 0 || maxch > TXT_CHARS)
+        maxch = TXT_CHARS;
+    n = gfx_fold(s, t, maxch + 1);
+    while (n > 0 && t[n - 1] == ' ')
+        n--;
+    if (n == 0)
+        return;
+    if (ntxt >= NTXT)
+        flush();
+    c = new_ccb();
+    buf = tbufs + (ntxt++) * TXT_BYTES;
+    rb = InitCel(c, n * 8, FONT6_H, 1, INITCEL_CODED) / FONT6_H;
+    for (r = 0; r < FONT6_H; r++) {
+        row = buf + r * rb;
+        for (k = 0; k < n; k++)
+            row[k] = font6[(uint8)t[k] - FONT6_FIRST][r];
         for (; k < rb; k++)
             row[k] = 0;
     }
