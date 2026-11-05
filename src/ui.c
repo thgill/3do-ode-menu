@@ -119,7 +119,6 @@ static ArtSlot art[ART_SLOTS];
 static int32   art_clock;
 static int32   pane_face;        /* the info pane's face: 0 cover (art), 1 info (specs) */
 static int32   flip_left;        /* fields left in the pane transition (0 = at rest) */
-static int32   g_trans;          /* transition style: 0 flip, 1 shade, 2 dissolve, 3 slide */
 static int32   g_infofont = 1;   /* info-side font: 0 = 5x7, 1 = main 8x8, 2 = Press Start 2P 6px */
 #define FLIP_LEN  12             /* the transition's length, in video fields */
 
@@ -1063,9 +1062,7 @@ static const char *pane_line(const char *s, int32 n, char *out)
     return s;
 }
 
-/* the flip: a card that turns edge-on. The content (cover or specs) shows at rest; mid-flip the card squashes to
- * a sliver. (On hardware the cover art itself scales; the host test renderer only scales solid cels, so the card
- * stands in during the turn.) */
+/* the pane transition clock: counts the fields left in the cover <-> info fade (0 = at rest). */
 static void tick_flip(void)
 {
     if (flip_left > 0) {
@@ -1074,18 +1071,6 @@ static void tick_flip(void)
             flip_left = 0;
         dirty = 1;
     }
-}
-
-static void draw_flip(void)
-{
-    int32 e = FLIP_LEN - flip_left, half = FLIP_LEN / 2, wdt;
-
-    wdt = (e <= half) ? ART_W * (half - e) / half : ART_W * (e - half) / half;
-    if (wdt < 2)
-        wdt = 2;
-    gfx_rrect(ART_X + (ART_W - wdt) / 2, ART_Y - 2, wdt, ART_H + 4, P_PANEL, P_EDGE, 2, RR_ALL);
-    if (wdt <= ART_W / 3)
-        gfx_rect(ART_X + ART_W / 2 - 1, ART_Y, 2, ART_H, P_ACCENT);   /* the seam, edge-on */
 }
 
 /* the game's metadata, read from its "_info.txt" sidecar (written by the Cover Maker). One "K value" line per
@@ -1211,7 +1196,7 @@ static void draw_info_side(Row *w)
 }
 
 /* draw one face of the pane in full: 0 = the cover (framed), 1 = the info side. (Badges are left off during a
- * transition to keep it simple.) `vis` caps how many of the cover's rows are drawn (for the slide). */
+ * transition to keep it simple.) `vis` caps how many of the cover's rows are drawn. */
 static void draw_face(Row *w, ArtSlot *s, int32 rows, int32 face, int32 vis)
 {
     if (face) {
@@ -1225,61 +1210,20 @@ static void draw_face(Row *w, ArtSlot *s, int32 rows, int32 face, int32 vis)
         gfx_image_rows(s->img, ART_X, ART_Y, vis);
 }
 
-/* 1 - SHADE: a solid panel drops over the old face, then lifts to reveal the new one. */
-static void draw_trans_shade(Row *w, ArtSlot *s, int32 rows)
+/* FADE THROUGH BLACK: the old face dims to the background colour over the first half, then the new face lifts
+ * out of it over the second. One cel pass on hardware (the frame buffer scaled by n/16; see gfx_shade). */
+static void draw_transition(Row *w, ArtSlot *s, int32 rows)
 {
-    int32 e = FLIP_LEN - flip_left, half = FLIP_LEN / 2, h;
+    int32 e = FLIP_LEN - flip_left, half = FLIP_LEN / 2, num;
 
     if (e <= half) {
         draw_face(w, s, rows, pane_face ^ 1, rows);
-        h = (ART_H + 4) * e / half;
+        num = 16 * (half - e) / half;          /* 16 (full) -> 0 (dark) */
     } else {
         draw_face(w, s, rows, pane_face, rows);
-        h = (ART_H + 4) * (FLIP_LEN - e) / half;
+        num = 16 * (e - half) / half;          /* 0 (dark) -> 16 (full) */
     }
-    gfx_rect(ART_X - 2, ART_Y - 2, ART_W + 4, h, P_PANEL);
-    if (h > 0)
-        gfx_rect(ART_X - 2, ART_Y - 2 + h - 1, ART_W + 4, 2, P_ACCENT);   /* the shade's edge */
-}
-
-/* 2 - DISSOLVE: the old face breaks up into panel-coloured cells, then the new face emerges from them. */
-static void draw_trans_dissolve(Row *w, ArtSlot *s, int32 rows)
-{
-    int32 e = FLIP_LEN - flip_left, half = FLIP_LEN / 2, cx, cy, frac, t;
-    int32 cover = e <= half;
-
-    draw_face(w, s, rows, cover ? (pane_face ^ 1) : pane_face, rows);
-    frac = cover ? e * 100 / half : (FLIP_LEN - e) * 100 / half;
-    for (cy = 0; cy < ART_H; cy += 8)
-        for (cx = 0; cx < ART_W; cx += 8) {
-            t = ((cx * 29 + cy * 17) ^ (cx * cy * 3 + 7)) % 100;
-            if (t < frac)
-                gfx_rect(ART_X + cx, ART_Y + cy, 8, 8, P_PANEL);
-        }
-}
-
-/* 3 - SLIDE: the cover rolls up (or down) like a blind, the info sitting behind it. */
-static void draw_trans_slide(Row *w, ArtSlot *s, int32 rows)
-{
-    int32 e = FLIP_LEN - flip_left, off = (ART_H + 4) * e / FLIP_LEN;
-
-    if (pane_face) {                       /* art -> info: info behind, cover rolls up */
-        draw_face(w, s, rows, 1, rows);
-        draw_face(w, s, rows, 0, rows - off);
-    } else {                               /* info -> art: info behind, cover rolls down over it */
-        draw_face(w, s, rows, 1, rows);
-        draw_face(w, s, rows, 0, off);
-    }
-}
-
-static void draw_transition(Row *w, ArtSlot *s, int32 rows)
-{
-    switch (g_trans) {
-    case 1:  draw_trans_shade(w, s, rows); break;
-    case 2:  draw_trans_dissolve(w, s, rows); break;
-    case 3:  draw_trans_slide(w, s, rows); break;
-    default: draw_flip(); break;
-    }
+    gfx_shade(ART_X - 2, ART_Y - 2, ART_W + 4, rows + 4, num);
 }
 
 static void draw_pane(void)
@@ -3369,10 +3313,7 @@ void ui_init(const char *name)
     shine_pos = -30;
 #ifdef HOST_BUILD
     {
-        const char *t = getenv("TRANS");
         const char *f = getenv("INFOFONT");
-        if (t)
-            g_trans = atoi(t);
         if (f)
             g_infofont = atoi(f);
     }

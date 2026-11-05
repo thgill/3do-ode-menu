@@ -305,6 +305,7 @@ GfxImage *gfx_image_new(int32 w, int32 h);
 GfxImage *gfx_image_load(const char *path);     /* "OLG1" file from the disc */
 void   gfx_image(GfxImage *img, int32 x, int32 y);
 void   gfx_image_rows(GfxImage *img, int32 x, int32 y, int32 rows);  /* only its top rows */
+void   gfx_shade(int32 x, int32 y, int32 w, int32 h, int32 num);     /* darken a region to num/16 of itself (num 0..16) */
 
 /* ---- ui (ui.c) ---- */
 void  ui_init(const char *ode_name);

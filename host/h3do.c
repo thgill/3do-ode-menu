@@ -392,9 +392,18 @@ Err SetVRAMPages(Item io, void *dest, int32 val, int32 pages, int32 mask)
 
 static void put_px(uint16 *dst, CCB *c, int32 X, int32 Y, uint16 v)
 {
-    if (v == 0 && !(c->ccb_Flags & CCB_BGND))
-        return;
     if (X < 0 || X >= W || Y < 0 || Y >= H)
+        return;
+    if (c->ccb_PIXC & 0x8000) {
+        /* framebuffer-multiply (the fade): output = current pixel x MF >> shift, the cel's own value ignored */
+        uint16 d = dst[Y * W + X];
+        int32 low = c->ccb_PIXC & 0xffff, mf = ((low >> 10) & 7) + 1, sfc = (low >> 8) & 3;
+        int32 sh = sfc ? sfc : 4;               /* SF code 0 = /16 (shift 4), 1 = /2, 2 = /4, 3 = /8 */
+        int32 r = (((d >> 10) & 31) * mf) >> sh, g = (((d >> 5) & 31) * mf) >> sh, b = ((d & 31) * mf) >> sh;
+        dst[Y * W + X] = (uint16)((r << 10) | (g << 5) | b);
+        return;
+    }
+    if (v == 0 && !(c->ccb_Flags & CCB_BGND))
         return;
     if (c->ccb_PIXC != PIXC_OPAQUE) {
         int32 r = ((v >> 10) & 31) * 3 / 16, g = ((v >> 5) & 31) * 3 / 16, b = (v & 31) * 3 / 16;

@@ -995,3 +995,40 @@ void gfx_image(GfxImage *img, int32 x, int32 y)
     c->ccb_PIXC = dim ? PIXC_DIM3 : PIXC_OPAQUE;
     queue(c);
 }
+
+/* A PIXC that scales the current frame buffer by num/16 (1st source = the frame buffer, no cel contribution):
+ * the cel engine's one-pass way to darken what's already drawn. The multiplier is MF (x1..x8) over a shift
+ * (/16, /8, /4, /2), so num <= 8 uses MF=num over /16, and num 9..15 uses MF=(num+1)/2 over /8. Both PPMPC
+ * halves carry it. Used for the fade-through-black transition and reproduced by the host renderer. */
+static uint32 pixc_fbmul(int32 num)
+{
+    uint32 half, mf, sf;
+
+    if (num <= 8) { mf = (uint32)num;            sf = 0; }   /* num/16, shift /16 */
+    else          { mf = (uint32)(num + 1) / 2;  sf = 3; }   /* ~num/16, shift /8  */
+    half = 0x8000u | ((mf - 1) << 10) | (sf << 8);           /* 1st source = CFBD | MF | SF */
+    return (half << 16) | half;
+}
+
+void gfx_shade(int32 x, int32 y, int32 w, int32 h, int32 num)
+{
+    CCB *k;
+
+    if (num >= 16 || w <= 0 || h <= 0)
+        return;                                 /* fully lit: nothing to do */
+    if (num <= 0) {
+        gfx_rect(x, y, w, h, P_BG);             /* fully dark: the background colour */
+        return;
+    }
+    k = new_ccb();
+    *k = *rect_tmpl;
+    k->ccb_PLUTPtr = (void *)(size_t)(1u << 16);
+    k->ccb_SourcePtr = (CelData *)&k->ccb_PLUTPtr;
+    k->ccb_XPos = x << 16;
+    k->ccb_YPos = y << 16;
+    k->ccb_HDX = w << 20;
+    k->ccb_VDY = h << 16;
+    k->ccb_PIXC = pixc_fbmul(num);
+    queue(k);
+}
+
