@@ -222,9 +222,26 @@ def build(redump, rows, want_infobox, verbose):
     return out
 
 
+DAT_URL = ('https://raw.githubusercontent.com/libretro/libretro-database/master/'
+           'metadat/redump/The%203DO%20Company%20-%203DO.dat')
+
+
+def fetch_dat():
+    """the Redump 3DO dat from libretro-database, to a temp file, when --dat isn't given."""
+    import tempfile
+    req = urllib.request.Request(DAT_URL, headers={'User-Agent': AGENT})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        data = r.read()
+    fd, path = tempfile.mkstemp(suffix='.dat')
+    import os as _os
+    _os.write(fd, data)
+    _os.close(fd)
+    return path
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--dat', required=True, help='the libretro-database 3DO Redump .dat')
+    ap.add_argument('--dat', help='the libretro-database 3DO Redump .dat (fetched from libretro if omitted)')
     ap.add_argument('--out', default='3do_meta.json')
     ap.add_argument('--list-page', default='List of 3DO games')
     ap.add_argument('--list-cache', help='read the table from a TITLE|DEV|PUB|NA|PAL|JP file instead of the live page')
@@ -232,7 +249,8 @@ def main():
     ap.add_argument('-v', '--verbose', action='store_true')
     a = ap.parse_args()
 
-    redump = load_redump(a.dat)
+    dat = a.dat or fetch_dat()
+    redump = load_redump(dat)
     sys.stderr.write('%d Redump names\n' % len(redump))
     if a.list_cache:
         rows = parse_list_cache(a.list_cache)
