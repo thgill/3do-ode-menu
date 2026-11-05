@@ -198,5 +198,3 @@ harness and simulator.
 `boot.iso` isn't in this repository: it contains files from Fixel's disc and the 3DO SDK. The font (Press Start 2P,
 SIL Open Font License), tinf (zlib) and picojpeg (public domain) keep their own licenses. Cover pictures the tools
 download, and the box art in the screenshots in `docs/images/`, belong to the games' publishers.
-
-<!-- PUSH-TEST-MARKER 2026-11-05: delete this line -->
