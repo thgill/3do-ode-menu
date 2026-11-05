@@ -1088,8 +1088,84 @@ static void draw_flip(void)
         gfx_rect(ART_X + ART_W / 2 - 1, ART_Y, 2, ART_H, P_ACCENT);   /* the seam, edge-on */
 }
 
-/* the info side of the pane: the game's name (8x8) over its metadata (5x7 so it fits the narrow column).
- * PANE5 is how many 5x7 characters span the pane. Metadata is demo data until the Cover Maker writes a sidecar. */
+/* the game's metadata, read from its "_info.txt" sidecar (written by the Cover Maker). One "K value" line per
+ * field: Y year, P publisher, D developer, G genre, M players. Loaded once per selection. */
+typedef struct {
+    char key[ART_NAME_MAX];                 /* the game path this is for ("" = nothing loaded) */
+    int32 has;                              /* a sidecar was found and parsed */
+    char year[8], pub[48], dev[48], genre[48], mode[16];
+} InfoCard;
+static InfoCard g_info;
+
+static void info_set(char k, const char *v)
+{
+    switch (k) {
+    case 'Y': strncpy(g_info.year, v, sizeof(g_info.year) - 1); break;
+    case 'P': strncpy(g_info.pub, v, sizeof(g_info.pub) - 1); break;
+    case 'D': strncpy(g_info.dev, v, sizeof(g_info.dev) - 1); break;
+    case 'G': strncpy(g_info.genre, v, sizeof(g_info.genre) - 1); break;
+    case 'M': strncpy(g_info.mode, v, sizeof(g_info.mode) - 1); break;
+    }
+}
+
+static void info_parse(const char *buf, int32 len)
+{
+    int32 i = 0, j, vl;
+    char val[64];
+
+    for (i = 0; i < len; ) {
+        char k = buf[i];
+        for (j = i; j < len && buf[j] != '\n' && buf[j] != '\r'; j++)
+            ;
+        if (j >= i + 3) {                   /* "K v..." */
+            vl = j - (i + 2);
+            if (vl > (int32)sizeof(val) - 1)
+                vl = sizeof(val) - 1;
+            memcpy(val, buf + i + 2, vl);
+            val[vl] = 0;
+            info_set(k, val);
+        }
+        for (i = j; i < len && (buf[i] == '\n' || buf[i] == '\r'); i++)
+            ;
+    }
+    g_info.has = 1;
+}
+
+/* load (once) the selected game's sidecar: the cover's path with .img -> .txt. */
+static void info_load(const char *path)
+{
+    static ArtWhere w;
+    char txt[ART_NAME_MAX];
+    uint8 buf[256];
+    uint32 got;
+    int32 len = 0, L;
+
+    if (strcmp(g_info.key, path) == 0)
+        return;                             /* already tried for this game */
+    memset(&g_info, 0, sizeof(g_info));
+    strncpy(g_info.key, path, sizeof(g_info.key) - 1);
+    if (art_where(path, &w) < 0)
+        return;
+    L = (int32)strlen(w.made);
+    if (L < 4)
+        return;
+    memcpy(txt, w.made, L - 4);
+    strcpy(txt + L - 4, ".txt");
+    if (w.root && dir_root_begin() < 0)
+        return;
+    if (ode_file_open(txt, 0) >= 0) {
+        while (len < (int32)sizeof(buf) - 1 &&
+               ode_file_read(buf + len, sizeof(buf) - 1 - len, &got) >= 0 && got > 0)
+            len += (int32)got;
+        ode_file_close();
+        if (len > 0)
+            info_parse((char *)buf, len);
+    }
+    if (w.root)
+        dir_root_end();
+}
+
+/* the info side of the pane: the game's name (8x8) over its metadata (the info font, so it fits the column). */
 static void info_field(void (*put)(int32, int32, const char *, int32, int32),
                        int32 *ty, int32 pw, int32 lh, const char *s, int32 role, int32 gap)
 {
@@ -1123,11 +1199,15 @@ static void draw_info_side(Row *w)
     }
     gfx_rect(ART_X, ty + 1, ART_W, 1, P_EDGE);
     ty += 5;
-    info_field(put, &ty, pw, lh, "1996", P_FOLDER, 3);
-    info_field(put, &ty, pw, lh, "ART DATA INTERACTIVE", P_TEXT, 3);
-    info_field(put, &ty, pw, lh, "ID SOFTWARE", P_DIM, 3);
-    info_field(put, &ty, pw, lh, "FIRST-PERSON SHOOTER", P_DIM, 3);
-    info_field(put, &ty, pw, lh, "1 PLAYER", P_DIM, 0);
+    if (!g_info.has) {
+        info_field(put, &ty, pw, lh, "NO INFO", P_DIM, 0);
+        return;
+    }
+    if (g_info.year[0])  info_field(put, &ty, pw, lh, g_info.year, P_FOLDER, 3);
+    if (g_info.pub[0])   info_field(put, &ty, pw, lh, g_info.pub, P_TEXT, 3);
+    if (g_info.dev[0])   info_field(put, &ty, pw, lh, g_info.dev, P_DIM, 3);
+    if (g_info.genre[0]) info_field(put, &ty, pw, lh, g_info.genre, P_DIM, 3);
+    if (g_info.mode[0])  info_field(put, &ty, pw, lh, g_info.mode, P_DIM, 0);
 }
 
 /* draw one face of the pane in full: 0 = the cover (framed), 1 = the info side. (Badges are left off during a
@@ -1207,7 +1287,7 @@ static void draw_pane(void)
     int32 n = tab_count(tab), i, rows = ART_CARD_H, strip = -1, ty, limit, by;
     Row w;
     ArtSlot *s = 0;
-    const char *p, *q;
+    const char *p, *q, *gpath = 0;
     char line[PANE_CH + 1];
 
     if (n == 0)
@@ -1222,6 +1302,7 @@ static void draw_pane(void)
         } else {
             p = w.path;
         }
+        gpath = p;                      /* the raw game path, for the sidecar */
         art_key(p, pathbuf);
         s = art_find(pathbuf);
         i = tab == T_GAMES ? g_dir.ent[entry_of(cur[tab])].art : 0;
@@ -1238,6 +1319,8 @@ static void draw_pane(void)
         } else if (i & ART_FAIL) {
             p = "CAN'T READ";
         }
+        if (pane_face && gpath)
+            info_load(gpath);
         if (flip_left > 0) {
             draw_transition(&w, s, rows);
             return;
