@@ -581,10 +581,14 @@ static int32 art_where(const char *path, ArtWhere *w)
                 stem(dir_inner(i), w->inner, sizeof(w->inner));
         }
     }
-    if (w->folder[0])
-        sprintf(w->made, "%s_cover.img", w->prefix);
-    else
+    if (w->folder[0]) {
+        if (dir_is_game_folder(dir_find(w->folder)))
+            sprintf(w->made, "%s_cover.img", w->prefix);     /* a game folder: its own cover */
+        else
+            sprintf(w->made, "%s_folder.img", w->prefix);    /* a navigation folder: its cover stack */
+    } else {
         sprintf(w->made, "%s_art/%s.img", w->prefix, w->inner);
+    }
     return 0;
 }
 
@@ -1226,6 +1230,24 @@ static void draw_transition(Row *w, ArtSlot *s, int32 rows)
     gfx_shade(ART_X - 2, ART_Y - 2, ART_W + 4, rows + 4, num);
 }
 
+/* a navigation folder's cover-stack (the Cover Maker's _folder.img), framed like a cover with the stack drawn a
+ * little short so the folder's name sits on the background beneath the frame. No badges. */
+static void draw_folder_pane(Row *w, ArtSlot *fs)
+{
+    int32 show = fs->rows - 13, tw, cap = ART_W / 8;
+    char name[DIR_NAME_MAX];
+
+    gfx_fold(w->text, name, sizeof(name));
+    if ((int32)strlen(name) > cap)
+        name[cap] = 0;
+    tw = (int32)strlen(name) * 8;
+    gfx_rrect(ART_X - 2, ART_Y - 2, ART_W + 4, show + 4, P_BG, P_EDGE, 2, RR_ALL);
+    gfx_image_rows(fs->img, ART_X, ART_Y, show);
+    gfx_rect(ART_X, ART_Y + show, ART_W, 1, P_BG);
+    gfx_rect(ART_X - 1, ART_Y + show + 1, ART_W + 2, 1, P_EDGE);
+    gfx_text(ART_X + (ART_W - tw) / 2, ART_Y + show + 4, name, 0, P_TEXT);
+}
+
 static void draw_pane(void)
 {
     int32 n = tab_count(tab), i, rows = ART_CARD_H, strip = -1, ty, limit, by;
@@ -1237,6 +1259,19 @@ static void draw_pane(void)
     if (n == 0)
         return;
     get_row(tab, cur[tab], &w);
+    /* a navigation folder whose cover-stack has loaded: show the stack and its name */
+    if (w.is_dir && tab == T_GAMES && !g_dir.devlist && (i = entry_of(cur[tab])) >= 0 &&
+        (g_dir.ent[i].flags & TF_DIR) && !dir_is_game_folder(i) &&
+        list_path_of(i, tmp2, LIST_PATH_MAX - 2) == 0) {
+        strcat(tmp2, "/");
+        art_key(tmp2, pathbuf);
+        s = art_find(pathbuf);
+        if (s && s->state == 1) {
+            draw_folder_pane(&w, s);
+            return;
+        }
+        s = 0;
+    }
     p = 0;
     if (w.is_game && !(tab == T_GAMES && g_dir.devlist)) {
         if (tab == T_GAMES) {
@@ -3215,8 +3250,21 @@ static int32 art_fetch_row(int32 r)
     if (r < 0 || r >= tab_count(tab))
         return 0;
     get_row(tab, r, &w);
-    if (!w.is_game || (tab == T_GAMES && g_dir.devlist))
+    if (!w.is_game || (tab == T_GAMES && g_dir.devlist)) {
+        /* a navigation folder (not a game folder): look once for its cover-stack montage */
+        int32 fi;
+        if (w.is_dir && tab == T_GAMES && !g_dir.devlist && (fi = entry_of(r)) >= 0 &&
+            (g_dir.ent[fi].flags & TF_DIR) && !dir_is_game_folder(fi) &&
+            list_path_of(fi, tmp2, LIST_PATH_MAX - 2) == 0) {
+            strcat(tmp2, "/");                      /* a folder path -> _folder.img via art_where */
+            art_key(tmp2, tmp);
+            if (art_find(tmp))
+                return 0;
+            art_load(tmp);
+            return 1;
+        }
         return 0;
+    }
     if (tab == T_GAMES) {
         e = &g_dir.ent[entry_of(r)];
         if (e->art & (ART_NONE | ART_FAIL))
