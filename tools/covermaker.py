@@ -80,12 +80,26 @@ REGIONS = ('usa', 'europe', 'japan', 'world', 'korea', 'germany', 'france', 'spa
 
 
 # ------------------------------------------------------------------ game metadata (the info-side sidecar)
-def load_meta(path):
-    """the bundled 3do_meta.json (built by build_metadata.py); {} if it isn't there."""
+# The live metadata is kept on the project's GitHub Pages, same as the web Cover Maker reads, so this script always
+# writes the latest game info without a bundled copy going stale. A local 3do_meta.json (built by build_metadata.py)
+# is the offline fallback.
+META_URL = 'https://thgill.github.io/3do-ode-menu/3do_meta.json'
+LOCAL_META = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', '3do_meta.json')
+
+
+def load_meta(source):
+    """Load the game metadata from a URL (http...) or a local 3do_meta.json path. Returns the games dict, or {} on
+    any network / read / parse error so the caller can fall back to another source."""
     try:
-        with open(path, encoding='utf-8') as f:
-            return json.load(f).get('games', {})
-    except (OSError, ValueError):
+        if source.startswith('http://') or source.startswith('https://'):
+            req = urllib.request.Request(source, headers={'User-Agent': AGENT})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                raw = r.read().decode('utf-8')
+        else:
+            with open(source, encoding='utf-8') as f:
+                raw = f.read()
+        return json.loads(raw).get('games', {})
+    except (OSError, ValueError, urllib.error.URLError):
         return {}
 
 
@@ -614,8 +628,9 @@ def main():
     ap.add_argument('--then2', choices=tuple(KIND_ARG), default=None, help='and then:')
     ap.add_argument('--redo', action='store_true', help='remake covers that already exist')
     ap.add_argument('--no-index', action='store_true', help='don\'t write folder indexes')
-    ap.add_argument('--meta', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', '3do_meta.json'),
-                    help='the game metadata file (3do_meta.json) for the info-side sidecars')
+    ap.add_argument('--meta', default=None,
+                    help='game info source for the _info.txt sidecars: a 3do_meta.json file or URL '
+                         '(default: the latest from the project website, with the bundled copy as a fallback)')
     ap.add_argument('--no-info', action='store_true', help='don\'t write the info-side (_info.txt) sidecars')
     ap.add_argument('--dry-run', action='store_true', help='show the plan, write nothing')
     ap.add_argument('--fix', action='store_true', help='afterwards, go through the games with no picture')
@@ -649,9 +664,20 @@ def main():
     walk(card, whole, '', jobs, idx)
     print('Reading the list of pictures ...')
     server = load_server()
-    meta = {} if a.no_info else load_meta(a.meta)
-    if not a.no_info and not meta:
-        print('  (no metadata file at %s - skipping info sidecars; build it with build_metadata.py)' % a.meta)
+    if a.no_info:
+        meta = {}
+    elif a.meta:
+        meta = load_meta(a.meta)
+        if not meta:
+            print('  (no game info from %s - skipping the info sidecars)' % a.meta)
+    else:
+        meta = load_meta(META_URL)
+        if meta:
+            print('  Using the latest game info from the website.')
+        else:
+            meta = load_meta(LOCAL_META)
+            print('  Offline: using the bundled game info.' if meta else
+                  '  (no game info online or bundled - skipping the info sidecars)')
 
     n = dict(box=0, dl=0, own=0, have=0, miss=0)
     for j in jobs:
