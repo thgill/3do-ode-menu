@@ -16,7 +16,8 @@
 #endif
 
 enum { T_GAMES, T_FAVS, T_RECENT, T_TOOLS, T_OPTIONS, T_COUNT };
-enum { O_PANE, O_THEME, O_BAR, O_SHINE, O_SOUND, O_SAVER, O_HIDDEN, O_INDEX, O_START, O_SCREEN, O_ABOUT, O_COUNT };   /* OPTIONS rows */
+enum { O_PANE, O_THEME, O_BAR, O_SHINE, O_SOUND, O_SAVER, O_HIDDEN, O_INDEX, O_START, O_SCREEN,
+       O_CLEARQ, O_CLEARREC, O_ABOUT, O_COUNT };   /* OPTIONS rows */
 
 /* layout, in cells and pixels (mock3do.py / mock_synth.py) */
 /* Vertical layout. LOGO_Y and TAB_Y place the logo and the tab strip; everything below follows from TAB_Y and
@@ -197,7 +198,7 @@ static int32 tab_count(int32 t)
     case T_GAMES:   return has_up() + g_dir.count;
     case T_FAVS:    return g_favs.n;
     case T_RECENT:  return g_recent.n;
-    case T_TOOLS:   return 13;
+    case T_TOOLS:   return 9;
     default:        return O_COUNT;
     }
 }
@@ -776,20 +777,12 @@ static const char *tools_label(int32 i)
     switch (i) {
     case 0:  return "RESCAN THIS FOLDER";
     case 1:  return "SCAN CARD (GAMES + ART)";
-    case 2:
-        if (q_count == 0)
-            return "CLEAR QUEUE";
-        sprintf(tmp, "CLEAR QUEUE (%d)", (int)q_count);
-        return tmp;
-    case 3:  return "SAVE NVRAM HERE";
-    case 4:  return "LOAD NVRAM FROM HERE";
-    case 5:  return "STORAGE MANAGER";
-    case 6:  return "DUMP SYSTEM ROM";
-    case 7:  return "DUMP FONT ROM";
-    case 8:  return "DUMP FMV ROM";
-    case 9:  return "DUMP RAM (3 MB)";
-    case 10: return "UPDATE ODE FIRMWARE";
-    case 11: return "DEVICE INFO";
+    case 2:  return "SAVE NVRAM HERE";
+    case 3:  return "LOAD NVRAM FROM HERE";
+    case 4:  return "STORAGE MANAGER";
+    case 5:  return "DUMP ROMS & RAM...";
+    case 6:  return "UPDATE ODE FIRMWARE";
+    case 7:  return "DEVICE INFO";
     default: return "ODE TEST";
     }
 }
@@ -812,6 +805,8 @@ static const char *opt_label(int32 i, const char **value)
     case O_START:  *value = g_set.boottab ? "FAVORITES" : "GAMES"; return "START ON";
     case O_SCREEN: sprintf(screenval, "%+d,%+d", (int)g_set.nudgex, (int)g_set.nudgey); *value = screenval;
                    return "SCREEN POSITION";
+    case O_CLEARQ:   *value = 0; return "CLEAR QUEUE";
+    case O_CLEARREC: *value = 0; return "CLEAR RECENTS";
     default:       *value = 0; return "ABOUT";
     }
 }
@@ -2527,6 +2522,14 @@ static void queue_clear(void)
     mark_queue();
 }
 
+static void recent_clear(void)
+{
+    g_recent.n = 0;
+    g_recent.dirty = 1;
+    lists_save(0);
+    cur[T_RECENT] = top[T_RECENT] = 0;      /* the list is empty now: don't leave the cursor past its end */
+}
+
 static void play_queue(void)
 {
     if (q_count == 0)
@@ -3096,11 +3099,33 @@ static void scan_offer(void)
         scan_card();
 }
 
+/* TOOLS > DUMP ROMS & RAM: the four dumps live behind one row (rarely used). The picker opens on CANCEL so a stray
+ * press backs out; each dump writes to the folder open in GAMES. */
+static void dump_menu(void)
+{
+    Dialog d;
+    int32 r;
+
+    dialog_init(&d, "DUMP ROMS & RAM");
+    d.opts[0] = "SYSTEM ROM";
+    d.opts[1] = "FONT ROM";
+    d.opts[2] = "FMV ROM";
+    d.opts[3] = "RAM (3 MB)";
+    d.opts[4] = "CANCEL";
+    d.nopts = 5;
+    d.sel = 4;
+    r = dialog_run(&d);
+    if (r >= 0 && r <= 3) {
+        ui_toast(tool_dump(r) == 0 ? "Dump saved to this folder" : "Dump failed");
+        after_tool(1);
+    }
+}
+
 static void tools_a(void)
 {
     int32 t = cur[T_TOOLS], i;
 
-    if (t >= 1 && t <= 10 && t != 2 && t != 5 && g_dir.devlist) {
+    if (t >= 1 && t <= 6 && t != 4 && g_dir.devlist) {
         ui_message("Open a drive first", "Saves, dumps and updates use the folder open in GAMES. Open the microSD card or the USB drive, then try again.");
         return;
     }
@@ -3119,10 +3144,6 @@ static void tools_a(void)
             scan_card();
         break;
     case 2:
-        queue_clear();
-        ui_toast("Queue cleared");
-        break;
-    case 3:
         if (dir_find_nocase("nvram.nvm") >= 0 &&
             !ui_confirm("Overwrite nvram.nvm?", "This folder already has an NVRAM backup. Replace it with the console's saves?"))
             break;
@@ -3133,7 +3154,7 @@ static void tools_a(void)
         ui_toast(i == -2 ? "Not saved" : (i == 0 ? "Saved nvram.nvm" : "Saving NVRAM failed"));
         after_tool(1);
         break;
-    case 4:
+    case 3:
         if (dir_find_nocase("nvram.nvm") < 0) {
             ui_message("No NVRAM backup here", "The folder open in GAMES has no nvram.nvm.");
             break;
@@ -3142,15 +3163,14 @@ static void tools_a(void)
             ui_toast(nvram_result(tool_load_nvram(), "NVRAM loaded"));
         after_tool(0);
         break;
-    case 5:
+    case 4:
         tool_storage_manager();
         after_tool(0);
         break;
-    case 6: case 7: case 8: case 9:
-        ui_toast(tool_dump(t - 6) == 0 ? "Dump saved to this folder" : "Dump failed");
-        after_tool(1);
+    case 5:
+        dump_menu();
         break;
-    case 10:
+    case 6:
         if (ui_confirm("Update the ODE firmware?", "Uses the update file on the card. Do not turn the power off while it runs.")) {
             i = tool_update_ode();
             if (i == 1) {
@@ -3162,7 +3182,7 @@ static void tools_a(void)
         }
         after_tool(0);
         break;
-    case 11:
+    case 7:
         device_info();
         break;
     default:
@@ -3250,6 +3270,26 @@ static void option_change(int32 dir)
     case O_SCREEN:
         if (dir > 0)
             screen_position();      /* enters the live nudge screen; it saves itself */
+        return;
+    case O_CLEARQ:
+        if (dir > 0) {
+            if (q_count == 0)
+                ui_toast("Queue is empty");
+            else if (ui_confirm("Clear the queue?", "Remove all games from the launch queue? This doesn't delete anything from the card.")) {
+                queue_clear();
+                ui_toast("Queue cleared");
+            }
+        }
+        return;
+    case O_CLEARREC:
+        if (dir > 0) {
+            if (g_recent.n == 0)
+                ui_toast("No recent games");
+            else if (ui_confirm("Clear all recents?", "Remove every game from the RECENT list? This doesn't delete anything from the card.")) {
+                recent_clear();
+                ui_toast("Recents cleared");
+            }
+        }
         return;
     default:
         if (dir > 0)
