@@ -110,6 +110,13 @@ def clean_cell(s):
     return re.sub(r'\s+', ' ', s).strip()
 
 
+def cell_primary(s):
+    """A publisher/developer cell often lists one value per region, separated by <br>, newlines or bullets. Keep the
+    first (primary) one, so the field stays a single name instead of several regions' names run together."""
+    first = re.split(r'<br\s*/?>|\n|&bull;|•|;', s, maxsplit=1)[0]
+    return clean_cell(first)
+
+
 def year_of(s):
     m = re.search(r'\b(19|20)\d\d\b', s)
     return int(m.group(0)) if m else None
@@ -135,17 +142,23 @@ def _tables(wikitext):
 def _parse_table(body):
     rows = []
     for chunk in re.split(r'\n\|-', body):
-        cells = []
+        pairs = []
         for raw in re.split(r'\n\s*[|!]', chunk):
             raw = raw.strip()
             if not raw or raw.startswith(('{|', 'class=', 'style=', 'scope', '|+')):
                 continue
             # a cell may carry attributes before a single | ; keep what follows the last leading pipe
-            cells.append(clean_cell(raw.split('||')[-1] if '||' in raw else raw))
-        cells = [c for c in cells if c]
+            raw = raw.split('||')[-1] if '||' in raw else raw
+            c = clean_cell(raw)
+            if c:
+                pairs.append((c, raw))
+        cells = [c for c, _ in pairs]
         if (len(cells) >= 2 and year_of(' '.join(cells))) or len(cells) >= 4:
-            # heuristic columns: title, developer, publisher, then the "First released" / NA / JP / PAL year columns
-            title, dev, pub = (cells + ['', '', ''])[:3]
+            # heuristic columns: title, developer, publisher, then the "First released" / NA / JP / PAL year columns.
+            # developer and publisher take only the primary (first) value when a cell lists several by region.
+            title = cells[0]
+            dev = cell_primary(pairs[1][1]) if len(pairs) > 1 else ''
+            pub = cell_primary(pairs[2][1]) if len(pairs) > 2 else ''
             yrs = [year_of(c) for c in cells[3:7]] + [None, None, None]
             rows.append({'title': title, 'dev': dev, 'pub': pub,
                          'na': yrs[0], 'pal': yrs[1], 'jp': yrs[2]})
@@ -229,6 +242,9 @@ def get_infobox(title, cache):
 
 
 # ---- region-aware field resolution ----
+_ANY_TAG = r'\((?:NA|PAL|JP|EU|US|Japan|Europe)\)'
+
+
 def region_field(value, region_slot):
     """a table cell like 'Interplay (NA) Infogrames (PAL)' -> the clause for this region, else the whole thing."""
     if not value:
@@ -240,8 +256,43 @@ def region_field(value, region_slot):
         if m:
             return m.group(1).strip(' ,')
     # no region split -> strip any region tags and return the lead clause
-    lead = re.split(r'\((?:NA|PAL|JP|EU|US|Japan|Europe)\)', value)[0]
+    lead = re.split(_ANY_TAG, value)[0]
     return lead.strip(' ,') or value.strip()
+
+
+def region_pub_names(rows):
+    """The set of per-region publisher/developer names in the table: whatever follows a region tag is a cleanly
+    bounded single name (e.g. '... Infogrames (PAL) Pony Canyon (JP)' -> {Infogrames, Pony Canyon}). Used to strip a
+    trailing Japanese/PAL name off a cell whose primary (NA) value wasn't tagged."""
+    names = set()
+    for r in rows:
+        for cell in (r.get('pub', ''), r.get('dev', '')):
+            for cl in re.split(_ANY_TAG, cell)[1:]:
+                nm = cl.strip(' ,')
+                if nm and 2 <= len(nm.split()) <= 4 and re.match(r"^[A-Za-z0-9&.'\- ]+$", nm):
+                    names.add(nm)
+    return sorted(names, key=lambda s: -len(s))
+
+
+def primary_name(value, suffixes):
+    """One name, not several regions' names run together: the first comma-segment, with any trailing region-specific
+    name (from `suffixes`) stripped, and an immediately repeated lead ('Electronic Arts Electronic Arts') collapsed."""
+    if not value:
+        return value
+    s = value.split(',')[0].strip()
+    changed = True
+    while changed:
+        changed = False
+        for suf in suffixes:
+            if s.lower().endswith(' ' + suf.lower()) and len(s) > len(suf) + 1:
+                s = s[:-(len(suf) + 1)].strip(' ,')
+                changed = True
+                break
+    w = s.split()
+    for n in range(1, len(w) // 2 + 1):
+        if w[:n] == w[n:2 * n]:
+            return ' '.join(w[n:]).strip(' ,')
+    return s.strip(' ,')
 
 
 def build(redump, rows, want_infobox, verbose):
@@ -249,6 +300,7 @@ def build(redump, rows, want_infobox, verbose):
     for r in rows:
         for k in alt_keys(r['title']):
             index.setdefault(k, r)
+    suffixes = region_pub_names(rows)       # per-region names to strip off an untagged primary (keeps fields short)
     ib_cache = {}
     out = {}
     matched = 0
@@ -267,12 +319,13 @@ def build(redump, rows, want_infobox, verbose):
         matched += 1
         slot = REGION_YEAR.get(g['region'], 'na')
         year = row.get(slot) or row.get('na') or row.get('pal') or row.get('jp')
-        pub = region_field(row['pub'], slot)
-        dev = region_field(row['dev'], slot)
+        pub = primary_name(region_field(row['pub'], slot), suffixes)
+        dev = primary_name(region_field(row['dev'], slot), suffixes)
         ib = get_infobox(row['title'], ib_cache) if want_infobox else {'genre': '', 'mode': ''}
+        genre = (ib['genre'] or '').split(',')[0].strip()   # one primary genre keeps the info pane from overflowing
         e = out.setdefault(key, {'regions': []})
         e.update({'year': year, 'publisher': pub, 'developer': dev,
-                  'genre': ib['genre'], 'mode': ib['mode'], 'wikipedia': row['title']})
+                  'genre': genre, 'mode': ib['mode'], 'wikipedia': row['title']})
         if g['region'] not in e['regions']:
             e['regions'].append(g['region'])
         if verbose:
