@@ -584,10 +584,17 @@ static int32 art_where(const char *path, ArtWhere *w)
         }
     }
     if (w->folder[0]) {
-        if (dir_is_game_folder(dir_find(w->folder)))
-            sprintf(w->made, "%s_cover.img", w->prefix);     /* a game folder: its own cover */
-        else
+        /* A navigation folder is shown only while its parent is the current listing, so dir_find finds it there; a
+         * folder path that is not in the current listing is a FAVS/RECENT reference, which is always a game folder
+         * (only games are favourited or launched). So take _folder.img only for a folder found and not a game
+         * folder; otherwise (a game folder in view, or a cross-folder game reference) its own _cover.img. Without
+         * this a favourited game folder lost its cover after a reboot: at the drive root dir_find missed it and the
+         * never-present _folder.img was read instead. */
+        i = dir_find(w->folder);
+        if (i >= 0 && !dir_is_game_folder(i))
             sprintf(w->made, "%s_folder.img", w->prefix);    /* a navigation folder: its cover stack */
+        else
+            sprintf(w->made, "%s_cover.img", w->prefix);     /* a game folder: its own cover */
     } else {
         sprintf(w->made, "%s_art/%s.img", w->prefix, w->inner);
     }

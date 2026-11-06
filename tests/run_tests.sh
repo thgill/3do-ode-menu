@@ -224,7 +224,15 @@ keys "D A w D D A D A r A A" 30 700 > "$T/gff.txt"
 out=$(run "$T/gff.txt")
 grep -qx "Games2/Doom/" "$T/sd/_odemenu.fav" && ok "a game folder is kept in favorites as Games2/Doom/" || { bad "fav of game folder"; cat "$T/sd/_odemenu.fav"; }
 echo "$out" | grep -q "C5 launch: .*Games2/Doom/doom_1994_ID_Software.cue" && ok "a game folder starts from FAVS" || { bad "game folder from FAVS"; echo "$out" | grep -E "C4|C5"; }
-rm -f "$T/sd/_odemenu.fav"
+# and after a reboot its cover is still shown in the FAVS pane: the folder is not in the current listing (the menu
+# starts at the root), so art must still resolve a favourite folder as a game folder's own _cover.img, never the
+# _folder.img of a navigation folder (which a game folder has not got) -- the bug was the pane going blank there.
+python3 -c "import struct;open('$G/Doom/_cover.img','wb').write(b'OART'+struct.pack('>HH',88,122)+b'\x03\xe0'*(88*122))"
+keys "r w w sgfrb" 30 60 > "$T/gfrb.txt"
+out=$(run "$T/gfrb.txt")
+echo "$out" | grep -q "E1 open Games2/Doom/_cover.img read -> 1" && ! echo "$out" | grep -q "Games2/Doom/_folder.img" && \
+    pane_rgb "$T/gfrb.ppm" "g>200 and r<60 and b<60" && ok "a favourited game folder's cover is shown in FAVS after a reboot" || { bad "fav game folder cover after reboot"; echo "$out" | grep -E "E1 open Games2/Doom"; }
+rm -f "$T/sd/_odemenu.fav" "$G/Doom/_cover.img"
 
 # several discs: Night (Disc 1/2) folders and Myst (Disc 1/2/3) files; START, then START WITH ALL DISCS
 rm -f "$T/disc/nvram_ODEMenu"
