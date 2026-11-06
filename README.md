@@ -91,8 +91,8 @@ costs one extra press but keeps the list tidy.
 The menu shows a small `.img` picture for each game. It doesn't download anything or convert pictures while
 you browse (that's what keeps it quick), so the covers have to be made first. Pick whichever is easiest:
 
-- **Cover Maker (web page)**: open `tools/covermaker.html` (also attached to each release) in Chrome or Edge on
-  your computer, choose your SD
+- **Cover Maker (web page)**: open it at **<https://thgill.github.io/3do-ode-menu/>** in Chrome or Edge on your
+  computer (or the `covermaker.html` attached to each release), choose your SD
   card and press MAKE COVERS. It finds your games, grabs box art (or screenshots, or title screens, your choice)
   from the [libretro thumbnail collection](https://github.com/libretro-thumbnails/The_3DO_Company_-_3DO) and
   writes the covers straight to the card. For games it can't match, you can search under another name or use a
