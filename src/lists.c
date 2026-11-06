@@ -221,7 +221,11 @@ static int32 opt_value(const char *buf, const char *key, int32 def, int32 maxv)
 
     while (*p) {
         if (strncmp(p, key, n) == 0 && p[n] == '=') {
-            v = p[n + 1] - '0';
+            p += n + 1;
+            if (*p < '0' || *p > '9')           /* no digits: use the default */
+                return def;
+            for (v = 0; *p >= '0' && *p <= '9'; p++)   /* parse the whole number, not just one digit */
+                v = v * 10 + (*p - '0');
             return (v >= 0 && v <= maxv) ? v : def;
         }
         while (*p && *p != '\n')

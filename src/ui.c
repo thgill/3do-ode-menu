@@ -3194,25 +3194,26 @@ static void show_hidden_changed(void)
     after_load(keep);
 }
 
-/* Options > SCREEN POSITION: the D-pad shifts the whole menu live (gfx_set_nudge), to fit the TV's overscan. */
+/* Options > SCREEN POSITION: the D-pad shifts the whole menu live (via bar_color -> gfx_set_nudge) to fit the TV's
+ * overscan. The menu is drawn undimmed so the real layout and edges are visible; only a small hint strip is added. */
 static void screen_position(void)
 {
-    Dialog d;
     uint32 ev, held;
     int32 done = 0;
+    char hint[40];
 
-    dialog_init(&d, "SCREEN POSITION");
-    strcpy(d.lines[0], "D-PAD MOVES THE WHOLE MENU");
-    strcpy(d.lines[1], "TO FIT YOUR TV.");
-    d.nlines = 2;
-    d.opts[0] = "DONE";
-    d.nopts = 1;
-    d.hint_a = "DONE";
-    d.msg_only = 1;
     input_flush();
     while (!done) {
-        gfx_set_nudge(g_set.nudgex, g_set.nudgey);      /* apply this frame's offset before the box is drawn */
-        frame_with_box(&d);
+        tick_clock();
+        tick_bar();
+        tick_shine();
+        bar_color();                /* re-applies the theme and the live nudge for this frame */
+        begin_frame(0);             /* 0 = not dimmed: the menu stays clear while positioning */
+        draw_screen(1);
+        sprintf(hint, "NUDGE %+d,%+d   D-PAD MOVE   A DONE", (int)g_set.nudgex, (int)g_set.nudgey);
+        gfx_rect(0, FOOT_Y - 1, SCR_W, 10, P_PANEL);
+        gfx_text(16, FOOT_Y, hint, 38, P_ACCENT);
+        gfx_frame_end();
         ev = input_poll(&held);
         if ((ev & BTN_LEFT)  && g_set.nudgex > -12) g_set.nudgex--;
         if ((ev & BTN_RIGHT) && g_set.nudgex <  12) g_set.nudgex++;
@@ -3222,7 +3223,6 @@ static void screen_position(void)
             done = 1;
     }
     input_flush();
-    gfx_set_nudge(g_set.nudgex, g_set.nudgey);
     g_set.dirty = 1;
     lists_save(0);
     dirty = 1;
