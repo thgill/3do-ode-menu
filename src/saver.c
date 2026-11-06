@@ -359,7 +359,7 @@ static void step(void)
 static void draw(int32 bright)          /* bright Q8: the fade in and out */
 {
     static const int32 trail_k[TRAIL] = { 120, 64, 30 };
-    int32 i, k, t, r, w, c, x0, y0, x1, y1, ca0, sa0, ca1, sa1, cm, sm;
+    int32 i, k, t, r, w, c, x0, y0, x1, y1, ca0, sa0, ca1, sa1, cm, sm, tmax;
     uint8 cr, cg, cb;
 
     gfx_frame_begin();                  /* clears to the theme's background */
@@ -367,7 +367,10 @@ static void draw(int32 bright)          /* bright Q8: the fade in and out */
         c = (90 + 70 * stars[i].layer) * bright >> 8;
         gfx_rect_rgb(stars[i].x >> 8, stars[i].y, 1, 1, RGB15(c, c, c + 25 > 255 ? 255 : c + 25));
     }
-    for (t = trail_n - 1; t >= 0; t--) {
+    /* while morphing, every pose carries all SV_NE edges, so a full 3-pose trail is what makes the icosahedron and
+     * dodecahedron drop frames. Keep just the most recent trail pose during a morph; the full trail returns at rest. */
+    tmax = (morph_t >= 0 && trail_n > 1) ? 1 : trail_n;
+    for (t = tmax - 1; t >= 0; t--) {
         int32 slot = (trail_head - 1 - t + TRAIL) % TRAIL;
         const Seg *sg = trail[slot];
         for (k = 0; k < trail_ne[slot]; k++)
