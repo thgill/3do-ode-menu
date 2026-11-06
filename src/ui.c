@@ -130,6 +130,7 @@ static int32     shine_pos, shine_wait = 120, shine_last = -1000;
 static char tmp[256];
 static char tmp2[256];
 static char pathbuf[LIST_PATH_MAX + 64];
+static uint8 iobuf2[ODE_XFER];          /* reading a folder's index for its pane */
 
 #define UI_FAV      0x80            /* DirEntry.art bit: the entry is a favorite */
 #define ART_NONE    DE_NOART        /* DirEntry.art: no .img (this visit) */
@@ -1230,22 +1231,115 @@ static void draw_transition(Row *w, ArtSlot *s, int32 rows)
     gfx_shade(ART_X - 2, ART_Y - 2, ART_W + 4, rows + 4, num);
 }
 
-/* a navigation folder's cover-stack (the Cover Maker's _folder.img), framed like a cover with the stack drawn a
- * little short so the folder's name sits on the background beneath the frame. No badges. */
-static void draw_folder_pane(Row *w, ArtSlot *fs)
-{
-    int32 show = fs->rows - 13, tw, cap = ART_W / 8;
-    char name[DIR_NAME_MAX];
+/* the contents of a navigation folder, read from its own "_odemenu.idx": the games inside it, for the folder's
+ * pane. Loaded once per selection, like the game info sidecar. */
+#define FLIST_MAGIC 0x4f4d4333u         /* "OMC3", as src/dirlist.c */
+#define FLIST_REC   8                   /* flags, name length, toc(2), gtype, inner length, inner toc(2) */
+typedef struct {
+    char key[ART_NAME_MAX];             /* the folder path this is for ("" = nothing loaded) */
+    int32 games;                        /* games in the folder (-1 = no index found) */
+} FolderList;
+static FolderList g_flist;
 
-    gfx_fold(w->text, name, sizeof(name));
-    if ((int32)strlen(name) > cap)
-        name[cap] = 0;
-    tw = (int32)strlen(name) * 8;
-    gfx_rrect(ART_X - 2, ART_Y - 2, ART_W + 4, show + 4, P_BG, P_EDGE, 2, RR_ALL);
-    gfx_image_rows(fs->img, ART_X, ART_Y, show);
-    gfx_rect(ART_X, ART_Y + show, ART_W, 1, P_BG);
-    gfx_rect(ART_X - 1, ART_Y + show + 1, ART_W + 2, 1, P_EDGE);
-    gfx_text(ART_X + (ART_W - tw) / 2, ART_Y + show + 4, name, 0, P_TEXT);
+static int32 flist_is_game(uint8 flags, int32 gtype, const char *nm, int32 len)
+{
+    if ((flags & TF_DIR) && gtype == GT_GAME)
+        return 1;
+    if ((flags & TF_FILE) && !(flags & (TF_NVM | TF_ODE)) && len >= 4) {
+        const char *e = nm + len - 4;
+        char a = e[1] | 0x20, b = e[2] | 0x20, c = e[3] | 0x20;
+        if (e[0] == '.' && ((a == 'i' && b == 's' && c == 'o') || (a == 'c' && b == 'u' && c == 'e')))
+            return 1;
+    }
+    return 0;
+}
+
+static void flist_parse(const uint8 *buf, uint32 body)
+{
+    uint32 pos = 0;
+    int32 len, ilen;
+
+    g_flist.games = 0;
+    while (pos + FLIST_REC <= body) {
+        len = buf[pos + 1];
+        ilen = buf[pos + 5];
+        if (len == 0 || pos + FLIST_REC + len + ilen > body)
+            break;
+        if (flist_is_game(buf[pos], buf[pos + 4] & 0x0f, (const char *)buf + pos + FLIST_REC, len))
+            g_flist.games++;
+        pos += FLIST_REC + len + ilen;
+    }
+}
+
+static void flist_load(const char *path)
+{
+    static ArtWhere w;
+    char idx[ART_NAME_MAX];
+    uint8 *buf = 0;
+    uint32 got, body = 0, have = 0;
+
+    if (strcmp(g_flist.key, path) == 0)
+        return;                             /* already tried for this folder */
+    memset(&g_flist, 0, sizeof(g_flist));
+    g_flist.games = -1;
+    strncpy(g_flist.key, path, sizeof(g_flist.key) - 1);
+    if (art_where(path, &w) < 0 || (int32)strlen(w.prefix) + 13 >= (int32)sizeof(idx))
+        return;
+    sprintf(idx, "%s_odemenu.idx", w.prefix);
+    if (w.root && dir_root_begin() < 0)
+        return;
+    if (ode_file_open(idx, 0) >= 0) {
+        if (ode_file_read(iobuf2, ODE_XFER, &got) >= 0 && got >= 16 &&
+            (((uint32)iobuf2[0] << 24) | (iobuf2[1] << 16) | (iobuf2[2] << 8) | iobuf2[3]) == FLIST_MAGIC) {
+            body = ((uint32)iobuf2[8] << 24) | (iobuf2[9] << 16) | (iobuf2[10] << 8) | iobuf2[11];
+            if (body > 0 && body < 256u * 1024u && (buf = (uint8 *)AllocMem(body, MEMTYPE_ANY)) != 0) {
+                have = got - 16 > body ? body : got - 16;
+                memcpy(buf, iobuf2 + 16, have);
+                while (have < body && ode_file_read(iobuf2, ODE_XFER, &got) >= 0 && got > 0) {
+                    if (have + got > body)
+                        got = body - have;
+                    memcpy(buf + have, iobuf2, got);
+                    have += got;
+                }
+                if (have >= body)
+                    flist_parse(buf, body);
+                FreeMem(buf, body);
+            }
+        }
+        ode_file_close();
+    }
+    if (w.root)
+        dir_root_end();
+}
+
+/* a navigation folder's pane: a folder graphic (with a sheet peeking out), its name, and the game count
+ * (games < 0 while the folder's index hasn't been read yet, so the count is simply left off). */
+static void draw_folder_pane(Row *w, int32 games)
+{
+    int32 fw = 60, fh = 42, fx = ART_X + (ART_W - fw) / 2, fy = ART_Y + 18, tw, y;
+    char head[20], line[PANE_CH + 1];
+    const char *p;
+
+    gfx_rrect(ART_X - 2, ART_Y - 2, ART_W + 4, ART_H + 4, P_PANEL, P_EDGE, 2, RR_ALL);
+    /* a sheet peeking out behind the folder (contents), then the folder: a tab and its front */
+    gfx_rrect(fx + 5, fy + 3, fw - 6, fh, P_DIM, P_EDGE, 2, RR_ALL);
+    gfx_rrect(fx, fy, 26, 10, P_FOLDER, P_EDGE, 2, RR_TOP);
+    gfx_rrect(fx, fy + 8, fw, fh, P_FOLDER, P_EDGE, 2, RR_ALL);
+    gfx_rect(fx + 4, fy + 14, fw - 8, 1, P_EDGE);            /* a seam, for the folder's lip */
+    /* the name, centred under the folder */
+    gfx_fold(w->text, tmp, sizeof(tmp));
+    y = fy + fh + 16;
+    for (p = tmp; *p && y <= ART_Y + ART_H - 20; y += 10) {
+        p = pane_line(p, PANE_CH, line);
+        tw = (int32)strlen(line) * 8;
+        gfx_text(ART_X + (ART_W - tw) / 2, y, line, PANE_CH, P_TEXT);
+    }
+    /* the game count */
+    if (games >= 0) {
+        sprintf(head, "%d GAME%s", (int)games, games == 1 ? "" : "S");
+        tw = (int32)strlen(head) * 8;
+        gfx_text(ART_X + (ART_W - tw) / 2, y + 2, head, PANE_CH, P_FOLDER);
+    }
 }
 
 static void draw_pane(void)
@@ -1259,18 +1353,13 @@ static void draw_pane(void)
     if (n == 0)
         return;
     get_row(tab, cur[tab], &w);
-    /* a navigation folder whose cover-stack has loaded: show the stack and its name */
+    /* a navigation folder: the folder graphic now, with the game count once its index has been read */
     if (w.is_dir && tab == T_GAMES && !g_dir.devlist && (i = entry_of(cur[tab])) >= 0 &&
         (g_dir.ent[i].flags & TF_DIR) && !dir_is_game_folder(i) &&
         list_path_of(i, tmp2, LIST_PATH_MAX - 2) == 0) {
         strcat(tmp2, "/");
-        art_key(tmp2, pathbuf);
-        s = art_find(pathbuf);
-        if (s && s->state == 1) {
-            draw_folder_pane(&w, s);
-            return;
-        }
-        s = 0;
+        draw_folder_pane(&w, strcmp(g_flist.key, tmp2) == 0 ? g_flist.games : -1);
+        return;
     }
     p = 0;
     if (w.is_game && !(tab == T_GAMES && g_dir.devlist)) {
@@ -3251,16 +3340,15 @@ static int32 art_fetch_row(int32 r)
         return 0;
     get_row(tab, r, &w);
     if (!w.is_game || (tab == T_GAMES && g_dir.devlist)) {
-        /* a navigation folder (not a game folder): look once for its cover-stack montage */
+        /* the selected navigation folder (not a game folder): read its index once, for the folder pane */
         int32 fi;
-        if (w.is_dir && tab == T_GAMES && !g_dir.devlist && (fi = entry_of(r)) >= 0 &&
+        if (r == cur[tab] && w.is_dir && tab == T_GAMES && !g_dir.devlist && (fi = entry_of(r)) >= 0 &&
             (g_dir.ent[fi].flags & TF_DIR) && !dir_is_game_folder(fi) &&
             list_path_of(fi, tmp2, LIST_PATH_MAX - 2) == 0) {
-            strcat(tmp2, "/");                      /* a folder path -> _folder.img via art_where */
-            art_key(tmp2, tmp);
-            if (art_find(tmp))
-                return 0;
-            art_load(tmp);
+            strcat(tmp2, "/");
+            if (strcmp(g_flist.key, tmp2) == 0)
+                return 0;                           /* already read for this folder */
+            flist_load(tmp2);
             return 1;
         }
         return 0;
