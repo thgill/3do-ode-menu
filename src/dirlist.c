@@ -169,6 +169,20 @@ int32 name_is_game(const char *name)
     return name_is_game_n(name, strlen(name));
 }
 
+/* two game files that are the same game in different formats: Game.cue + Game.iso (stems match, both ext'd). The
+ * firmware doesn't list .bin, so .cue + .bin already looks like one game; this covers .cue + .iso the same way. */
+static int32 same_game_stem(const char *a, int32 al, const char *b, int32 bl)
+{
+    int32 k;
+
+    if (al < 5 || al != bl)
+        return 0;
+    for (k = 0; k < al - 4; k++)
+        if (lower(a[k]) != lower(b[k]))
+            return 0;
+    return 1;
+}
+
 /* one D1 record at buf[pos]; returns its size, 0 at the end marker, -1 if malformed */
 static int32 d1_record(const uint8 *buf, int32 pos, uint32 *flags, uint32 *toc, const char **name, int32 *len)
 {
@@ -454,13 +468,22 @@ static int32 detect_folder(int32 i)
                 break;
             }
             if ((flags & TF_FILE) && !(flags & (TF_NVM | TF_ODE)) && name_is_game_n(name, len)) {
-                if (++games > 1) {
-                    plain = 1;
+                if (games == 0) {
+                    games = 1;
+                    glen = len < DIR_NAME_MAX ? len : DIR_NAME_MAX - 1;
+                    memcpy(gname, name, glen);
+                    gtoc = toc;
+                } else if (same_game_stem(name, len, gname, glen)) {
+                    /* another format of the same game: launch the .cue if one of the pair is a .cue */
+                    if (ext_matches(name, len, "cue") && !ext_matches(gname, glen, "cue")) {
+                        glen = len < DIR_NAME_MAX ? len : DIR_NAME_MAX - 1;
+                        memcpy(gname, name, glen);
+                        gtoc = toc;
+                    }
+                } else {
+                    plain = 1;                  /* a genuinely different game: a normal folder */
                     break;
                 }
-                glen = len < DIR_NAME_MAX ? len : DIR_NAME_MAX - 1;
-                memcpy(gname, name, glen);
-                gtoc = toc;
             }
             if (got >= 14)
                 break;
