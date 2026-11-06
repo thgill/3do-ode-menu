@@ -42,7 +42,7 @@ import urllib.request
 import webbrowser
 
 try:
-    from PIL import Image, ImageDraw
+    from PIL import Image
 except ImportError:
     sys.exit('This needs Pillow, the Python picture library. Install it with:\n\n'
              '    python3 -m pip install pillow\n\n(on Windows: py -m pip install pillow) and run this again.')
@@ -523,62 +523,12 @@ def encode8(px, w, h):
     return bytes(out)
 
 
-def decode_img(data):
-    """a cover .img the menu wrote (OAR8 256-colour, or OART 15-bit) back to a PIL image, so a folder stack can be
-    built from covers already on the card. None if it isn't one of those."""
-    if len(data) < 10:
-        return None
-    tag, w, h = data[:4], (data[4] << 8) | data[5], (data[6] << 8) | data[7]
-    if not (1 <= w <= 256 and 1 <= h <= 256):
-        return None
-
-    def rgb(v):
-        return (((v >> 10) & 31) * 255 // 31, ((v >> 5) & 31) * 255 // 31, (v & 31) * 255 // 31)
-
-    if tag == b'OAR8':
-        n, o = (data[8] << 8) | data[9], 10
-        pal = [(data[o + 2 * i] << 8) | data[o + 2 * i + 1] for i in range(n)]
-        o += 2 * n
-        px = [rgb(pal[data[o + i]]) if data[o + i] < n else (0, 0, 0) for i in range(w * h)]
-    elif tag == b'OART':
-        o = 8
-        px = [rgb((data[o + 2 * i] << 8) | data[o + 2 * i + 1]) for i in range(w * h)]
-    else:
-        return None
-    img = Image.new('RGB', (w, h))
-    img.putdata(px)
-    return img
-
-
 def write_cover(job, data):
     px, w, h = cover(data)
     os.makedirs(os.path.dirname(job['dst']), exist_ok=True)
     with open(job['dst'], 'wb') as f:
         f.write(encode8(px, w, h))
     return w, h
-
-
-FOLDER_PANEL = (32, 8, 65)
-
-
-def folder_montage(pics):
-    """a folder's pane art: a stack of a few of its covers -- a full-size front with the edges of up to two more
-    peeking behind. `pics` are PIL images (front first). Returns PNG bytes, to go through cover()/encode8()."""
-    bw, bh = 176, 244                    # 2x the pane; cover() shrinks it to 88 x 122
-    cw, ch = 148, 204
-    im = Image.new('RGB', (bw, bh), FOLDER_PANEL)
-    edges = pics[1:3]
-    for i, c in enumerate(reversed(edges)):          # furthest first
-        card = c.convert('RGB').resize((cw, ch))
-        ImageDraw.Draw(card).rectangle([0, 0, cw - 1, ch - 1], outline=(15, 15, 25), width=3)
-        off = 14 * (len(edges) - i)
-        im.paste(card, (off, int(off * 1.4)))
-    front = pics[0].convert('RGB').resize((cw, ch))
-    ImageDraw.Draw(front).rectangle([0, 0, cw - 1, ch - 1], outline=(15, 15, 25), width=2)
-    im.paste(front, (0, 0))
-    b = io.BytesIO()
-    im.save(b, 'PNG')
-    return b.getvalue()
 
 
 def mark_scanned(root):
@@ -667,7 +617,6 @@ def main():
     ap.add_argument('--meta', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', '3do_meta.json'),
                     help='the game metadata file (3do_meta.json) for the info-side sidecars')
     ap.add_argument('--no-info', action='store_true', help='don\'t write the info-side (_info.txt) sidecars')
-    ap.add_argument('--no-folder-art', action='store_true', help='don\'t make the per-folder cover stacks (_folder.img)')
     ap.add_argument('--dry-run', action='store_true', help='show the plan, write nothing')
     ap.add_argument('--fix', action='store_true', help='afterwards, go through the games with no picture')
     ap.add_argument('--yes', '-y', action='store_true', help='don\'t ask before writing')
@@ -765,48 +714,24 @@ def main():
         try:
             data = open(j['own'], 'rb').read() if j['what'] == 'own' else download(server, j['src'])
             write_cover(j, data)
-            if not a.no_folder_art:
-                try:
-                    j['_pic'] = Image.open(io.BytesIO(data)).convert('RGB')
-                except Exception:            # noqa: BLE001
-                    j['_pic'] = None
             made += 1
         except Exception as e:                                 # noqa: BLE001 - report and go on
             j['what'] = 'miss'
             failed.append('%s (%s)' % (j['label'], e))
-    folder_made = 0
-    if not a.no_folder_art:
-        groups = {}
-        for j in jobs:                                            # every game folder, not only ones made this run
-            parent = os.path.dirname(os.path.dirname(j['dst']))   # loose: the game's folder; game-folder: its parent
-            if os.path.normpath(parent) == os.path.normpath(card):
-                continue                                          # the card root isn't a folder you select
-            groups.setdefault(parent, []).append(j)
-        for parent, gjobs in groups.items():
-            fpath = os.path.join(parent, '_folder.img')
-            changed = any(j.get('_pic') is not None for j in gjobs)
-            if not changed and os.path.exists(fpath) and os.path.getsize(fpath) > 0:
-                continue                                          # up to date already
-            pics = []
-            for j in gjobs:
-                if len(pics) >= 3:
-                    break
-                pic = j.get('_pic')
-                if pic is None and os.path.exists(j['dst']):      # no fresh cover: read the one on the card
-                    try:
-                        pic = decode_img(open(j['dst'], 'rb').read())
-                    except OSError:
-                        pic = None
-                if pic is not None:
-                    pics.append(pic)
-            if not pics:
-                continue
+    # folders show a plain graphic now, not cover art; remove any _folder.img an older run left behind
+    folder_gone = 0
+    seen = set()
+    for j in jobs:
+        parent = os.path.dirname(os.path.dirname(j['dst']))
+        if os.path.normpath(parent) == os.path.normpath(card) or parent in seen:
+            continue
+        seen.add(parent)
+        fpath = os.path.join(parent, '_folder.img')
+        if os.path.exists(fpath):
             try:
-                px, w, h = cover(folder_montage(pics))
-                with open(fpath, 'wb') as f:
-                    f.write(encode8(px, w, h))
-                folder_made += 1
-            except Exception:                # noqa: BLE001
+                os.remove(fpath)
+                folder_gone += 1
+            except OSError:
                 pass
 
     info_made = 0
@@ -841,8 +766,8 @@ def main():
         print('  failed: ' + f)
     if meta:
         print('Info sidecars: %d written.' % info_made)
-    if not a.no_folder_art:
-        print('Folder cover stacks: %d written.' % folder_made)
+    if folder_gone:
+        print('Old folder images removed: %d.' % folder_gone)
     if not a.no_index:
         same = sum(1 for x in idx if x['state'] == 'same')
         kept = [x for x in idx if x['state'] == 'kept']
