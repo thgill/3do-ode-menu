@@ -373,7 +373,7 @@ int32 trace_log(const char *game);               /* LAUNCH_TRACE builds: the sav
 
 /* ---- tools (tools.c), the X-menu actions of the original menu ---- */
 void  tool_storage_manager(void);
-int32 tool_save_nvram(void);
+int32 tool_save_nvram(int32 force);     /* force: save even if the NVRAM lacks the usual format signature */
 int32 tool_load_nvram(void);
 int32 tool_dump(int32 which);       /* 0 SYSROM, 1 FONTROM, 2 FMVROM, 3 RAM */
 int32 tool_update_ode(void);

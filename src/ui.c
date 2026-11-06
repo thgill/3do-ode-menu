@@ -3083,8 +3083,11 @@ static void tools_a(void)
         if (dir_find_nocase("nvram.nvm") >= 0 &&
             !ui_confirm("Overwrite nvram.nvm?", "This folder already has an NVRAM backup. Replace it with the console's saves?"))
             break;
-        i = tool_save_nvram();
-        ui_toast(i == -2 ? "Console NVRAM is not formatted, nothing saved" : (i == 0 ? "Saved nvram.nvm" : "Saving NVRAM failed"));
+        i = tool_save_nvram(0);
+        if (i == -2 && ui_confirm("NVRAM may be unformatted",
+                                  "The console's NVRAM doesn't show the usual format signature (some clones report it differently). Save it anyway?"))
+            i = tool_save_nvram(1);
+        ui_toast(i == -2 ? "Not saved" : (i == 0 ? "Saved nvram.nvm" : "Saving NVRAM failed"));
         after_tool(1);
         break;
     case 4:
