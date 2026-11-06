@@ -189,6 +189,8 @@ int32       dir_write_cache(void);
 int32       dir_write_resume(const char *selected, int32 write);   /* firmware must be in the drive root */
 void        dir_restore_path(void);
 int32       dir_find_nocase(const char *name);
+int32       dir_find_all(const char *name);        /* like dir_find, also searching hidden entries (multi-disc launch) */
+int32       dir_find_nocase_all(const char *name); /* like dir_find_nocase, also searching hidden entries */
 int32       dir_resume(DirProgress progress, char *selected);
 int32       name_compare(const char *a, const char *b);
 int32       dir_to_root(DirProgress progress);  /* up to the drive root and list it (stays on the device list) */

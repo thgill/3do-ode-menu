@@ -523,9 +523,13 @@ static int32 detect_all(DirProgress progress)
     return 0;
 }
 
+/* Hidden entries live in the tail [g_dir.count, g_dir.count + g_dir.hidden) and are still real entries, so these
+ * "is it a valid game / game folder" checks accept that range too: a multi-disc game whose later discs were hidden
+ * (to show a single entry) must still resolve them for the launch queue. Every other caller passes a visible index
+ * (< g_dir.count), so the wider bound never changes their result. */
 int32 dir_is_game_folder(int32 i)
 {
-    return i >= 0 && i < g_dir.count && !g_dir.devlist && (g_dir.ent[i].flags & TF_DIR) &&
+    return i >= 0 && i < g_dir.count + g_dir.hidden && !g_dir.devlist && (g_dir.ent[i].flags & TF_DIR) &&
            g_dir.ent[i].gtype == GT_GAME;
 }
 
@@ -533,7 +537,7 @@ int32 dir_is_game(int32 i)
 {
     DirEntry *e;
 
-    if (i < 0 || i >= g_dir.count || g_dir.devlist)
+    if (i < 0 || i >= g_dir.count + g_dir.hidden || g_dir.devlist)
         return 0;
     e = &g_dir.ent[i];
     if (e->flags & TF_DIR)
@@ -782,8 +786,9 @@ out:
 
 static int32 find_toc(uint32 toc)
 {
-    int32 i;
-    for (i = 0; i < g_dir.count; i++)
+    int32 i, total = g_dir.count + g_dir.hidden;   /* toc ids are unique across all entries; the hidden tail is
+                                                    * included so dir_verify works on a hidden disc (multi-disc launch) */
+    for (i = 0; i < total; i++)
         if (g_dir.ent[i].toc_id == toc)
             return i;
     return -1;
@@ -997,7 +1002,7 @@ void dir_list_entry(uint32 toc)
 
 int32 dir_verify(int32 i)
 {
-    if (i < 0 || i >= g_dir.count)
+    if (i < 0 || i >= g_dir.count + g_dir.hidden)      /* hidden tail is still real entries (see dir_is_game) */
         return 0;
     if (g_dir.devlist)
         return 1;
@@ -1021,6 +1026,34 @@ int32 dir_find_nocase(const char *name)
     const char *a;
 
     for (i = 0; i < g_dir.count; i++) {
+        a = dir_name(i);
+        for (k = 0; lower(a[k]) == lower(name[k]) && a[k]; k++)
+            ;
+        if (a[k] == 0 && name[k] == 0)
+            return i;
+    }
+    return -1;
+}
+
+/* Like dir_find / dir_find_nocase, but also search the hidden tail [g_dir.count, g_dir.count + g_dir.hidden). Only
+ * the multi-disc launch path uses these: a game whose later discs were hidden (to consolidate it to one entry) still
+ * finds each disc. Normal navigation, resume and the nvram.nvm lookup keep the visible-only finders above. */
+int32 dir_find_all(const char *name)
+{
+    int32 i, total = g_dir.count + g_dir.hidden;
+
+    for (i = 0; i < total; i++)
+        if (strcmp(dir_name(i), name) == 0)
+            return i;
+    return -1;
+}
+
+int32 dir_find_nocase_all(const char *name)
+{
+    int32 i, k, total = g_dir.count + g_dir.hidden;
+    const char *a;
+
+    for (i = 0; i < total; i++) {
         a = dir_name(i);
         for (k = 0; lower(a[k]) == lower(name[k]) && a[k]; k++)
             ;

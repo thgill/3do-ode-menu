@@ -2219,11 +2219,13 @@ static void cant_start(void)
 
 /* ---- games on several discs: "Name (Disc 1)", "Name (Disc 2)" ... beside each other (files or game folders) */
 
-/* where the disc number is in name: the digit after "disc", "disk" or "cd" (a space between is fine); -1 if none */
-static int32 disc_digit(const char *name)
+/* where the disc marker is in name: the single digit (1-9) or letter (A-Z/a-z) right after "disc", "disk" or "cd"
+ * (one optional space), standing on its own -- no digit or letter straight after it. -1 if none. *alpha gets 1 for a
+ * letter marker ("D (Disc A)", "... Disc B"), 0 for a digit; pass 0 for alpha if not wanted. */
+static int32 disc_marker(const char *name, int32 *alpha)
 {
-    int32 n = strlen(name), k, j;
-    char c0, c1, c2, c3;
+    int32 n = strlen(name), k, j, a = 0;
+    char c0, c1, c2, c3, m, nx;
 
     for (k = 0; k + 2 < n; k++) {
         if (k > 0 && ((name[k - 1] | 0x20) >= 'a' && (name[k - 1] | 0x20) <= 'z'))
@@ -2240,25 +2242,49 @@ static int32 disc_digit(const char *name)
             continue;
         if (j < n && name[j] == ' ')
             j++;
-        if (j < n && name[j] >= '1' && name[j] <= '9' && !(j + 1 < n && name[j + 1] >= '0' && name[j + 1] <= '9'))
-            return j;
+        if (j >= n)
+            continue;
+        m = name[j];
+        nx = j + 1 < n ? name[j + 1] : 0;
+        if (m >= '1' && m <= '9' && !(nx >= '0' && nx <= '9'))
+            a = 0;
+        else if (((m >= 'A' && m <= 'Z') || (m >= 'a' && m <= 'z')) &&
+                 !((nx | 0x20) >= 'a' && (nx | 0x20) <= 'z') && !(nx >= '0' && nx <= '9'))
+            a = 1;                      /* a lone letter: "Disc A", "Disc B" ... */
+        else
+            continue;
+        if (alpha)
+            *alpha = a;
+        return j;
     }
     return -1;
 }
 
-/* the other discs of entry i (which must be disc 1), in order; returns how many (0 if none or i is not disc 1) */
+/* the other discs of entry i (which must be disc 1 / disc A), in order; returns how many (0 if none, or i is not the
+ * first disc). Handles numbered ("Disc 2", "Disc 3") and lettered ("Disc B", "Disc C") sequences. Searches hidden
+ * entries too, so hiding every disc but the first still lets disc 1 auto-queue the rest -- a way to show a multi-disc
+ * game as one menu entry. */
 static int32 disc_siblings(int32 i, int32 *out, int32 max)
 {
     char nm[DIR_NAME_MAX];
-    int32 d, k, n = 0, j;
+    int32 d, k, n = 0, j, alpha = 0;
+    char first, base = '1';
 
     strcpy(nm, dir_name(i));
-    d = disc_digit(nm);
-    if (d < 0 || nm[d] != '1')
+    d = disc_marker(nm, &alpha);
+    if (d < 0)
         return 0;
-    for (k = 2; k <= 9 && n < max; k++) {
-        nm[d] = (char)('0' + k);
-        j = dir_find_nocase(nm);
+    first = nm[d];
+    if (alpha) {
+        if (first != 'A' && first != 'a')       /* letters: must start at disc A */
+            return 0;
+        base = first;                           /* 'A' or 'a' -- keep the case the game uses */
+    } else if (first != '1') {                  /* digits: must start at disc 1 */
+        return 0;
+    }
+    for (k = 1; k <= 8 && n < max; k++) {        /* discs 2..9, or B..I / b..i */
+        nm[d] = (char)(base + k);
+        j = dir_find_nocase_all(nm);
         if (j < 0 || !dir_is_game(j))
             break;
         out[n++] = j;
@@ -2277,7 +2303,7 @@ static void play_discs(int32 first, const int32 *more, int32 n)
         strcpy(names[k + 1], dir_name(more[k]));
     n = k + 1;
     for (k = 0; k < n; k++) {
-        j = dir_find(names[k]);
+        j = dir_find_all(names[k]);     /* discs 2+ may be hidden -> search the hidden tail too */
         if (j < 0 || !dir_verify(j)) {
             ui_toast("A disc of this game is no longer on the card");
             return;
@@ -2286,7 +2312,7 @@ static void play_discs(int32 first, const int32 *more, int32 n)
     ode_c3_queue_clear();
     q_count = 0;
     for (k = 0; k < n; k++) {
-        j = dir_find(names[k]);
+        j = dir_find_all(names[k]);
         r = queue_one(j);
         if (r < 0) {
             ode_c3_queue_clear();
@@ -2301,7 +2327,7 @@ static void play_discs(int32 first, const int32 *more, int32 n)
     }
     mark_queue();
     stem(names[0], tmp2, sizeof(tmp2));
-    before_launch("STARTING GAME", tmp2, dir_find(names[0]));
+    before_launch("STARTING GAME", tmp2, dir_find_all(names[0]));
 #ifdef LAUNCH_TRACE
     trace_save();
 #endif
