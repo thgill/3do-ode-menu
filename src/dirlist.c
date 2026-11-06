@@ -169,6 +169,20 @@ int32 name_is_game(const char *name)
     return name_is_game_n(name, strlen(name));
 }
 
+/* two game files that are the same game in different formats: Game.cue + Game.iso (stems match, both ext'd). The
+ * firmware doesn't list .bin, so .cue + .bin already looks like one game; this covers .cue + .iso the same way. */
+static int32 same_game_stem(const char *a, int32 al, const char *b, int32 bl)
+{
+    int32 k;
+
+    if (al < 5 || al != bl)
+        return 0;
+    for (k = 0; k < al - 4; k++)
+        if (lower(a[k]) != lower(b[k]))
+            return 0;
+    return 1;
+}
+
 /* one D1 record at buf[pos]; returns its size, 0 at the end marker, -1 if malformed */
 static int32 d1_record(const uint8 *buf, int32 pos, uint32 *flags, uint32 *toc, const char **name, int32 *len)
 {
@@ -454,13 +468,22 @@ static int32 detect_folder(int32 i)
                 break;
             }
             if ((flags & TF_FILE) && !(flags & (TF_NVM | TF_ODE)) && name_is_game_n(name, len)) {
-                if (++games > 1) {
-                    plain = 1;
+                if (games == 0) {
+                    games = 1;
+                    glen = len < DIR_NAME_MAX ? len : DIR_NAME_MAX - 1;
+                    memcpy(gname, name, glen);
+                    gtoc = toc;
+                } else if (same_game_stem(name, len, gname, glen)) {
+                    /* another format of the same game: launch the .cue if one of the pair is a .cue */
+                    if (ext_matches(name, len, "cue") && !ext_matches(gname, glen, "cue")) {
+                        glen = len < DIR_NAME_MAX ? len : DIR_NAME_MAX - 1;
+                        memcpy(gname, name, glen);
+                        gtoc = toc;
+                    }
+                } else {
+                    plain = 1;                  /* a genuinely different game: a normal folder */
                     break;
                 }
-                glen = len < DIR_NAME_MAX ? len : DIR_NAME_MAX - 1;
-                memcpy(gname, name, glen);
-                gtoc = toc;
             }
             if (got >= 14)
                 break;
@@ -473,6 +496,29 @@ static int32 detect_folder(int32 i)
     if (done && !plain && games == 1 && set_inner(e, gname, glen, gtoc) == 0)
         e->gtype = GT_GAME;
     return 0;
+}
+
+/* Eager whole-listing detection runs only during a card scan (dir_set_detect(1)), never on a normal boot or browse.
+ * Walking into every sub-folder to classify it is what let a huge, delete-churned directory hang the console and
+ * boot-loop the menu (issue #2): at startup the menu would list the root and immediately walk into a bad folder
+ * before it ever appeared. Normal listings now leave folders GT_UNKNOWN and classify one the first time it is
+ * opened (dir_classify). Cover-Maker / scanned cards are unaffected: their index already carries each folder's
+ * gtype, so the listing is read from cache and never detected. */
+static int32 detect_eager;
+
+void dir_set_detect(int32 on)
+{
+    detect_eager = on;
+}
+
+/* classify one folder on demand: detect it if it is an as-yet-unknown directory, then say whether it is a game
+ * folder. The one folder being opened is read either way, so this adds no walk a normal browse did not already do. */
+int32 dir_classify(int32 i)
+{
+    if (!g_dir.devlist && i >= 0 && i < g_dir.count && (g_dir.ent[i].flags & TF_DIR) &&
+        g_dir.ent[i].gtype == GT_UNKNOWN)
+        detect_folder(i);
+    return dir_is_game_folder(i);
 }
 
 /* every folder of the listing; 1 if canceled (the rest stay GT_UNKNOWN and nothing is cached) */
@@ -500,9 +546,13 @@ static int32 detect_all(DirProgress progress)
     return 0;
 }
 
+/* Hidden entries live in the tail [g_dir.count, g_dir.count + g_dir.hidden) and are still real entries, so these
+ * "is it a valid game / game folder" checks accept that range too: a multi-disc game whose later discs were hidden
+ * (to show a single entry) must still resolve them for the launch queue. Every other caller passes a visible index
+ * (< g_dir.count), so the wider bound never changes their result. */
 int32 dir_is_game_folder(int32 i)
 {
-    return i >= 0 && i < g_dir.count && !g_dir.devlist && (g_dir.ent[i].flags & TF_DIR) &&
+    return i >= 0 && i < g_dir.count + g_dir.hidden && !g_dir.devlist && (g_dir.ent[i].flags & TF_DIR) &&
            g_dir.ent[i].gtype == GT_GAME;
 }
 
@@ -510,7 +560,7 @@ int32 dir_is_game(int32 i)
 {
     DirEntry *e;
 
-    if (i < 0 || i >= g_dir.count || g_dir.devlist)
+    if (i < 0 || i >= g_dir.count + g_dir.hidden || g_dir.devlist)
         return 0;
     e = &g_dir.ent[i];
     if (e->flags & TF_DIR)
@@ -759,8 +809,9 @@ out:
 
 static int32 find_toc(uint32 toc)
 {
-    int32 i;
-    for (i = 0; i < g_dir.count; i++)
+    int32 i, total = g_dir.count + g_dir.hidden;   /* toc ids are unique across all entries; the hidden tail is
+                                                    * included so dir_verify works on a hidden disc (multi-disc launch) */
+    for (i = 0; i < total; i++)
         if (g_dir.ent[i].toc_id == toc)
             return i;
     return -1;
@@ -942,7 +993,7 @@ static int32 load_listing(DirProgress progress, int32 force_scan)
     if (err < 0)
         return err;
     probe_calibrate();
-    if (!g_dir.devlist && err == 0 && detect_all(progress))
+    if (detect_eager && !g_dir.devlist && err == 0 && detect_all(progress))
         err = 1;                /* canceled: shown, not cached */
     if (!g_dir.devlist)
         sort_entries();
@@ -974,7 +1025,7 @@ void dir_list_entry(uint32 toc)
 
 int32 dir_verify(int32 i)
 {
-    if (i < 0 || i >= g_dir.count)
+    if (i < 0 || i >= g_dir.count + g_dir.hidden)      /* hidden tail is still real entries (see dir_is_game) */
         return 0;
     if (g_dir.devlist)
         return 1;
@@ -998,6 +1049,34 @@ int32 dir_find_nocase(const char *name)
     const char *a;
 
     for (i = 0; i < g_dir.count; i++) {
+        a = dir_name(i);
+        for (k = 0; lower(a[k]) == lower(name[k]) && a[k]; k++)
+            ;
+        if (a[k] == 0 && name[k] == 0)
+            return i;
+    }
+    return -1;
+}
+
+/* Like dir_find / dir_find_nocase, but also search the hidden tail [g_dir.count, g_dir.count + g_dir.hidden). Only
+ * the multi-disc launch path uses these: a game whose later discs were hidden (to consolidate it to one entry) still
+ * finds each disc. Normal navigation, resume and the nvram.nvm lookup keep the visible-only finders above. */
+int32 dir_find_all(const char *name)
+{
+    int32 i, total = g_dir.count + g_dir.hidden;
+
+    for (i = 0; i < total; i++)
+        if (strcmp(dir_name(i), name) == 0)
+            return i;
+    return -1;
+}
+
+int32 dir_find_nocase_all(const char *name)
+{
+    int32 i, k, total = g_dir.count + g_dir.hidden;
+    const char *a;
+
+    for (i = 0; i < total; i++) {
         a = dir_name(i);
         for (k = 0; lower(a[k]) == lower(name[k]) && a[k]; k++)
             ;

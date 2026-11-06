@@ -189,6 +189,8 @@ int32       dir_write_cache(void);
 int32       dir_write_resume(const char *selected, int32 write);   /* firmware must be in the drive root */
 void        dir_restore_path(void);
 int32       dir_find_nocase(const char *name);
+int32       dir_find_all(const char *name);        /* like dir_find, also searching hidden entries (multi-disc launch) */
+int32       dir_find_nocase_all(const char *name); /* like dir_find_nocase, also searching hidden entries */
 int32       dir_resume(DirProgress progress, char *selected);
 int32       name_compare(const char *a, const char *b);
 int32       dir_to_root(DirProgress progress);  /* up to the drive root and list it (stays on the device list) */
@@ -201,6 +203,8 @@ int32       dir_open_path(int32 drive, const char *path, DirProgress progress); 
 int32       name_is_game(const char *name);     /* .iso or .cue */
 int32       dir_is_game(int32 i);               /* a game file, or a game folder */
 int32       dir_is_game_folder(int32 i);
+int32       dir_classify(int32 i);              /* classify a folder on demand (first open); 1 if it is a game folder */
+void        dir_set_detect(int32 on);           /* 1 only around a card scan: classify every folder of each listing */
 const char *dir_inner(int32 i);                 /* a game folder's game file */
 int32       dir_game_enter(int32 i, uint32 *toc);   /* firmware into game folder i; *toc = its game. 0 or < 0 */
 void        dir_game_leave(void);               /* and back out */
@@ -272,6 +276,7 @@ uint32 gfx_vbl_count(void);                     /* video fields waited for so fa
 void   gfx_delay(int32 frames);
 #define THEME_COUNT 5
 void   gfx_set_theme(int32 t);                  /* Options > THEME: recolours every role */
+void   gfx_set_nudge(int32 x, int32 y);         /* Options > SCREEN POSITION: shift the whole menu, -12..+12 */
 int32  gfx_theme_bar(void);
 const char *gfx_theme_name(int32 t);
 void   gfx_rect_rgb(int32 x, int32 y, int32 w, int32 h, int32 rgb);
@@ -295,6 +300,9 @@ int32  gfx_color(int32 role);
 void   gfx_rect(int32 x, int32 y, int32 w, int32 h, int32 role);
 void   gfx_rrect(int32 x, int32 y, int32 w, int32 h, int32 fill, int32 edge, int32 r, int32 mode);
 void   gfx_text(int32 x, int32 y, const char *s, int32 maxch, int32 role);   /* UTF-8 in, upper case out */
+void   gfx_text5(int32 x, int32 y, const char *s, int32 maxch, int32 role);  /* the 5x7 face, denser */
+void   gfx_text6(int32 x, int32 y, const char *s, int32 maxch, int32 role);  /* Press Start 2P, 6 px tall */
+void   gfx_text_sp(int32 x, int32 y, const char *s, int32 maxch, int32 role); /* Spleen 5x8, info-pane body */
 int32  gfx_fold(const char *utf8, char *out, int32 max);   /* to the font's characters; returns length */
 void   gfx_sprite(int32 id, int32 x, int32 y, int32 role);
 void   gfx_micro(int32 x, int32 y, const char *s, int32 role);
@@ -303,6 +311,7 @@ GfxImage *gfx_image_new(int32 w, int32 h);
 GfxImage *gfx_image_load(const char *path);     /* "OLG1" file from the disc */
 void   gfx_image(GfxImage *img, int32 x, int32 y);
 void   gfx_image_rows(GfxImage *img, int32 x, int32 y, int32 rows);  /* only its top rows */
+void   gfx_shade(int32 x, int32 y, int32 w, int32 h, int32 num);     /* darken a region to num/16 of itself (num 0..16) */
 
 /* ---- ui (ui.c) ---- */
 void  ui_init(const char *ode_name);
@@ -336,6 +345,9 @@ typedef struct Settings {
     int32 sound;        /* menu sound effects */
     int32 saver;        /* screensaver: 0 off, 1 = 1 min, 2 = 5 min, 3 = 30 min */
     int32 showhid;      /* show hidden games (dimmed) */
+    int32 boottab;      /* which tab to start on: 0 = Games, 1 = Favorites */
+    int32 nudgex;       /* screen position nudge, -12..+12 pixels (CRT overscan) */
+    int32 nudgey;
     int32 dirty;
 } Settings;
 extern Settings g_set;
@@ -370,7 +382,7 @@ int32 trace_log(const char *game);               /* LAUNCH_TRACE builds: the sav
 
 /* ---- tools (tools.c), the X-menu actions of the original menu ---- */
 void  tool_storage_manager(void);
-int32 tool_save_nvram(void);
+int32 tool_save_nvram(int32 force);     /* force: save even if the NVRAM lacks the usual format signature */
 int32 tool_load_nvram(void);
 int32 tool_dump(int32 which);       /* 0 SYSROM, 1 FONTROM, 2 FMVROM, 3 RAM */
 int32 tool_update_ode(void);

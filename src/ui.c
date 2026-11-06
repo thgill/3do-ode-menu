@@ -11,9 +11,13 @@
  */
 #include "common.h"
 #include "uiart.h"
+#ifdef HOST_BUILD
+#include <stdlib.h>              /* host-only: pick the transition style from the TRANS env var */
+#endif
 
 enum { T_GAMES, T_FAVS, T_RECENT, T_TOOLS, T_OPTIONS, T_COUNT };
-enum { O_PANE, O_THEME, O_BAR, O_SHINE, O_SOUND, O_SAVER, O_HIDDEN, O_INDEX, O_ABOUT, O_COUNT };   /* OPTIONS rows */
+enum { O_PANE, O_THEME, O_BAR, O_SHINE, O_SOUND, O_SAVER, O_HIDDEN, O_INDEX, O_START, O_SCREEN,
+       O_CLEARQ, O_CLEARREC, O_ABOUT, O_COUNT };   /* OPTIONS rows */
 
 /* layout, in cells and pixels (mock3do.py / mock_synth.py) */
 /* Vertical layout. LOGO_Y and TAB_Y place the logo and the tab strip; everything below follows from TAB_Y and
@@ -114,6 +118,10 @@ typedef struct ArtSlot {
 } ArtSlot;
 static ArtSlot art[ART_SLOTS];
 static int32   art_clock;
+static int32   pane_face;        /* the info pane's face: 0 cover (art), 1 info (specs) */
+static int32   flip_left;        /* fields left in the pane transition (0 = at rest) */
+static int32   g_infofont = 0;   /* info-side font: 0 = Spleen 5x8 (default), 1 = 8x8, 2 = PS2P 6px, 3 = 5x7 */
+#define FLIP_LEN  12             /* the transition's length, in video fields */
 
 /* logo and its shine */
 static GfxImage *logo;
@@ -123,6 +131,7 @@ static int32     shine_pos, shine_wait = 120, shine_last = -1000;
 static char tmp[256];
 static char tmp2[256];
 static char pathbuf[LIST_PATH_MAX + 64];
+static uint8 iobuf2[ODE_XFER];          /* reading a folder's index for its pane */
 
 #define UI_FAV      0x80            /* DirEntry.art bit: the entry is a favorite */
 #define ART_NONE    DE_NOART        /* DirEntry.art: no .img (this visit) */
@@ -189,7 +198,7 @@ static int32 tab_count(int32 t)
     case T_GAMES:   return has_up() + g_dir.count;
     case T_FAVS:    return g_favs.n;
     case T_RECENT:  return g_recent.n;
-    case T_TOOLS:   return 13;
+    case T_TOOLS:   return 9;
     default:        return O_COUNT;
     }
 }
@@ -301,6 +310,7 @@ static void bar_color(void)
                 memcpy(logo_orig, logo->pix, n * 2);
         }
     }
+    gfx_set_nudge(g_set.nudgex, g_set.nudgey);      /* applies the saved screen-position nudge (self-guards) */
     if (g_set.bar == 0) {
         gfx_set_bar(gfx_theme_bar());
         return;
@@ -563,21 +573,32 @@ static int32 art_where(const char *path, ArtWhere *w)
     w->root = 1;
     memcpy(w->prefix, path, dl);
     w->prefix[dl] = 0;
-    /* the menu's own folder, or a game folder in it: no trip to the root */
+    /* note a local game folder's own game file (for the card scan). The picture read itself always anchors at the
+     * drive root: the only folder this shortcut ever matched was the root, and on some ODEs a cover read relative
+     * to the current folder (no trip to the root) fails there while the same read from the root works (issue #3). */
     if (list_path_of(-1, here, sizeof(here)) == 0 && strncmp(here, w->prefix, strlen(here)) == 0 &&
         (path_is_folder(path) ? (int32)strlen(here) + (int32)strlen(w->folder) + 1 == dl : (int32)strlen(here) == dl)) {
-        memmove(w->prefix, w->prefix + strlen(here), dl - strlen(here) + 1);
-        w->root = 0;
         if (w->folder[0]) {
             i = dir_find(w->folder);
             if (dir_is_game_folder(i))
                 stem(dir_inner(i), w->inner, sizeof(w->inner));
         }
     }
-    if (w->folder[0])
-        sprintf(w->made, "%s_cover.img", w->prefix);
-    else
+    if (w->folder[0]) {
+        /* A navigation folder is shown only while its parent is the current listing, so dir_find finds it there; a
+         * folder path that is not in the current listing is a FAVS/RECENT reference, which is always a game folder
+         * (only games are favourited or launched). So take _folder.img only for a folder found and not a game
+         * folder; otherwise (a game folder in view, or a cross-folder game reference) its own _cover.img. Without
+         * this a favourited game folder lost its cover after a reboot: at the drive root dir_find missed it and the
+         * never-present _folder.img was read instead. */
+        i = dir_find(w->folder);
+        if (i >= 0 && !dir_is_game_folder(i))
+            sprintf(w->made, "%s_folder.img", w->prefix);    /* a navigation folder: its cover stack */
+        else
+            sprintf(w->made, "%s_cover.img", w->prefix);     /* a game folder: its own cover */
+    } else {
         sprintf(w->made, "%s_art/%s.img", w->prefix, w->inner);
+    }
     return 0;
 }
 
@@ -756,20 +777,12 @@ static const char *tools_label(int32 i)
     switch (i) {
     case 0:  return "RESCAN THIS FOLDER";
     case 1:  return "SCAN CARD (GAMES + ART)";
-    case 2:
-        if (q_count == 0)
-            return "CLEAR QUEUE";
-        sprintf(tmp, "CLEAR QUEUE (%d)", (int)q_count);
-        return tmp;
-    case 3:  return "SAVE NVRAM HERE";
-    case 4:  return "LOAD NVRAM FROM HERE";
-    case 5:  return "STORAGE MANAGER";
-    case 6:  return "DUMP SYSTEM ROM";
-    case 7:  return "DUMP FONT ROM";
-    case 8:  return "DUMP FMV ROM";
-    case 9:  return "DUMP RAM (3 MB)";
-    case 10: return "UPDATE ODE FIRMWARE";
-    case 11: return "DEVICE INFO";
+    case 2:  return "SAVE NVRAM HERE";
+    case 3:  return "LOAD NVRAM FROM HERE";
+    case 4:  return "STORAGE MANAGER";
+    case 5:  return "DUMP ROMS & RAM...";
+    case 6:  return "UPDATE ODE FIRMWARE";
+    case 7:  return "DEVICE INFO";
     default: return "ODE TEST";
     }
 }
@@ -778,6 +791,7 @@ static const char *opt_label(int32 i, const char **value)
 {
     static const char *bars[4] = { "OFF", "SLOW", "MED", "FAST" };
     static const char *savers[4] = { "OFF", "1 MIN", "5 MIN", "30 MIN" };
+    static char screenval[12];
 
     switch (i) {
     case O_PANE:   *value = g_set.pane ? "ON" : "OFF"; return "INFO PANE";
@@ -788,6 +802,11 @@ static const char *opt_label(int32 i, const char **value)
     case O_SAVER:  *value = savers[g_set.saver & 3]; return "SCREENSAVER";
     case O_HIDDEN: *value = g_set.showhid ? "ON" : "OFF"; return "SHOW HIDDEN GAMES";
     case O_INDEX:  *value = g_set.index ? "ON" : "OFF"; return "FOLDER INDEX";
+    case O_START:  *value = g_set.boottab ? "FAVORITES" : "GAMES"; return "START ON";
+    case O_SCREEN: sprintf(screenval, "%+d,%+d", (int)g_set.nudgex, (int)g_set.nudgey); *value = screenval;
+                   return "SCREEN POSITION";
+    case O_CLEARQ:   *value = 0; return "CLEAR QUEUE";
+    case O_CLEARREC: *value = 0; return "CLEAR RECENTS";
     default:       *value = 0; return "ABOUT";
     }
 }
@@ -1036,11 +1055,16 @@ static const char *pane_line(const char *s, int32 n, char *out)
 
     if (len > n) {
         cut = n;
-        for (i = n; i > 0; i--)
-            if (s[i] == ' ') {
+        for (i = n; i > 0; i--) {
+            if (s[i] == ' ') {           /* break before a space (the space is dropped) */
                 cut = i;
                 break;
             }
+            if (i < n && s[i - 1] == '-') {   /* or after a hyphen (kept on this line) */
+                cut = i;
+                break;
+            }
+        }
     }
     memcpy(out, s, cut);
     out[cut] = 0;
@@ -1050,17 +1074,305 @@ static const char *pane_line(const char *s, int32 n, char *out)
     return s;
 }
 
+/* the pane transition clock: counts the fields left in the cover <-> info fade (0 = at rest). */
+static void tick_flip(void)
+{
+    if (flip_left > 0) {
+        flip_left -= anim_dt;
+        if (flip_left < 0)
+            flip_left = 0;
+        dirty = 1;
+    }
+}
+
+/* the game's metadata, read from its "_info.txt" sidecar (written by the Cover Maker). One "K value" line per
+ * field: Y year, P publisher, D developer, G genre, M players. Loaded once per selection. */
+typedef struct {
+    char key[ART_NAME_MAX];                 /* the game path this is for ("" = nothing loaded) */
+    int32 has;                              /* a sidecar was found and parsed */
+    char year[8], pub[48], dev[48], genre[48], mode[16];
+} InfoCard;
+static InfoCard g_info;
+
+static void info_set(char k, const char *v)
+{
+    switch (k) {
+    case 'Y': strncpy(g_info.year, v, sizeof(g_info.year) - 1); break;
+    case 'P': strncpy(g_info.pub, v, sizeof(g_info.pub) - 1); break;
+    case 'D': strncpy(g_info.dev, v, sizeof(g_info.dev) - 1); break;
+    case 'G': strncpy(g_info.genre, v, sizeof(g_info.genre) - 1); break;
+    case 'M': strncpy(g_info.mode, v, sizeof(g_info.mode) - 1); break;
+    }
+}
+
+static void info_parse(const char *buf, int32 len)
+{
+    int32 i = 0, j, vl;
+    char val[64];
+
+    for (i = 0; i < len; ) {
+        char k = buf[i];
+        for (j = i; j < len && buf[j] != '\n' && buf[j] != '\r'; j++)
+            ;
+        if (j >= i + 3) {                   /* "K v..." */
+            vl = j - (i + 2);
+            if (vl > (int32)sizeof(val) - 1)
+                vl = sizeof(val) - 1;
+            memcpy(val, buf + i + 2, vl);
+            val[vl] = 0;
+            info_set(k, val);
+        }
+        for (i = j; i < len && (buf[i] == '\n' || buf[i] == '\r'); i++)
+            ;
+    }
+    g_info.has = 1;
+}
+
+/* load (once) the selected game's sidecar: the cover's path with .img -> .txt. */
+static void info_load(const char *path)
+{
+    static ArtWhere w;
+    char txt[ART_NAME_MAX];
+    uint8 buf[256];
+    uint32 got;
+    int32 len = 0, L;
+
+    if (strcmp(g_info.key, path) == 0)
+        return;                             /* already tried for this game */
+    memset(&g_info, 0, sizeof(g_info));
+    strncpy(g_info.key, path, sizeof(g_info.key) - 1);
+    if (art_where(path, &w) < 0)
+        return;
+    L = (int32)strlen(w.made);
+    if (L < 4)
+        return;
+    memcpy(txt, w.made, L - 4);
+    strcpy(txt + L - 4, ".txt");
+    if (w.root && dir_root_begin() < 0)
+        return;
+    if (ode_file_open(txt, 0) >= 0) {
+        while (len < (int32)sizeof(buf) - 1 &&
+               ode_file_read(buf + len, sizeof(buf) - 1 - len, &got) >= 0 && got > 0)
+            len += (int32)got;
+        ode_file_close();
+        if (len > 0)
+            info_parse((char *)buf, len);
+    }
+    if (w.root)
+        dir_root_end();
+}
+
+/* the info side of the pane: the game's name (8x8) over its metadata (the info font, so it fits the column). */
+#define INFO_BOTTOM (ART_Y + ART_H - 3)     /* keep the last line off the pane's bottom edge */
+
+static void info_field(void (*put)(int32, int32, const char *, int32, int32),
+                       int32 *ty, int32 pw, int32 lh, const char *s, int32 role, int32 gap)
+{
+    char line[40];
+    const char *p;
+
+    for (p = s; *p; *ty += lh) {
+        if (*ty + lh > INFO_BOTTOM)     /* out of room: drop the rest rather than spill past the border */
+            return;
+        p = pane_line(p, pw, line);
+        put(ART_X, *ty, line, pw, role);
+    }
+    *ty += gap;
+}
+
+static void draw_info_side(Row *w)
+{
+    void (*put)(int32, int32, const char *, int32, int32);
+    int32 ty, pw, lh;
+    char line[40];
+    const char *p;
+
+    switch (g_infofont) {
+    case 1:  put = gfx_text;    pw = ART_W / 8; lh = 10; break;  /* the 8x8 main face */
+    case 2:  put = gfx_text6;   pw = ART_W / 8; lh = 8;  break;  /* Press Start 2P, 6 px */
+    case 3:  put = gfx_text5;   pw = ART_W / 6; lh = 8;  break;  /* the 5x7 hand face */
+    default: put = gfx_text_sp; pw = ART_W / 5; lh = 9;  break;  /* Spleen 5x8 (default) */
+    }
+
+    gfx_rrect(ART_X - 2, ART_Y - 2, ART_W + 4, ART_H + 4, P_PANEL, P_EDGE, 2, RR_ALL);
+    gfx_fold(w->text, tmp, sizeof(tmp));
+    ty = ART_Y + 2;
+    for (p = tmp; *p && ty < ART_Y + 24; ty += 9) {
+        p = pane_line(p, PANE_CH, line);
+        gfx_text(ART_X, ty, line, PANE_CH, P_ACCENT);
+    }
+    gfx_rect(ART_X, ty + 1, ART_W, 1, P_EDGE);
+    ty += 5;
+    if (!g_info.has) {
+        info_field(put, &ty, pw, lh, "NO INFO", P_DIM, 0);
+        return;
+    }
+    if (g_info.year[0])  info_field(put, &ty, pw, lh, g_info.year, P_FOLDER, 3);
+    if (g_info.pub[0])   info_field(put, &ty, pw, lh, g_info.pub, P_TEXT, 3);
+    if (g_info.dev[0])   info_field(put, &ty, pw, lh, g_info.dev, P_DIM, 3);
+    if (g_info.genre[0]) info_field(put, &ty, pw, lh, g_info.genre, P_DIM, 3);
+    if (g_info.mode[0])  info_field(put, &ty, pw, lh, g_info.mode, P_DIM, 0);
+}
+
+/* draw one face of the pane in full: 0 = the cover (framed), 1 = the info side. (Badges are left off during a
+ * transition to keep it simple.) `vis` caps how many of the cover's rows are drawn. */
+static void draw_face(Row *w, ArtSlot *s, int32 rows, int32 face, int32 vis)
+{
+    if (face) {
+        draw_info_side(w);
+        return;
+    }
+    if (vis > rows)
+        vis = rows;
+    gfx_rrect(ART_X - 2, ART_Y - 2, ART_W + 4, (vis > 0 ? vis : rows) + 4, P_BG, P_EDGE, 2, RR_ALL);
+    if (s && vis > 0)
+        gfx_image_rows(s->img, ART_X, ART_Y, vis);
+}
+
+/* FADE THROUGH BLACK: the old face dims to the background colour over the first half, then the new face lifts
+ * out of it over the second. One cel pass on hardware (the frame buffer scaled by n/16; see gfx_shade). */
+static void draw_transition(Row *w, ArtSlot *s, int32 rows)
+{
+    int32 e = FLIP_LEN - flip_left, half = FLIP_LEN / 2, num;
+
+    if (e <= half) {
+        draw_face(w, s, rows, pane_face ^ 1, rows);
+        num = 16 * (half - e) / half;          /* 16 (full) -> 0 (dark) */
+    } else {
+        draw_face(w, s, rows, pane_face, rows);
+        num = 16 * (e - half) / half;          /* 0 (dark) -> 16 (full) */
+    }
+    gfx_shade(ART_X - 2, ART_Y - 2, ART_W + 4, rows + 4, num);
+}
+
+/* the contents of a navigation folder, read from its own "_odemenu.idx": the games inside it, for the folder's
+ * pane. Loaded once per selection, like the game info sidecar. */
+#define FLIST_MAGIC 0x4f4d4333u         /* "OMC3", as src/dirlist.c */
+#define FLIST_REC   8                   /* flags, name length, toc(2), gtype, inner length, inner toc(2) */
+typedef struct {
+    char key[ART_NAME_MAX];             /* the folder path this is for ("" = nothing loaded) */
+    int32 games;                        /* games in the folder (-1 = no index found) */
+} FolderList;
+static FolderList g_flist;
+
+static int32 flist_is_game(uint8 flags, int32 gtype, const char *nm, int32 len)
+{
+    if ((flags & TF_DIR) && gtype == GT_GAME)
+        return 1;
+    if ((flags & TF_FILE) && !(flags & (TF_NVM | TF_ODE)) && len >= 4) {
+        const char *e = nm + len - 4;
+        char a = e[1] | 0x20, b = e[2] | 0x20, c = e[3] | 0x20;
+        if (e[0] == '.' && ((a == 'i' && b == 's' && c == 'o') || (a == 'c' && b == 'u' && c == 'e')))
+            return 1;
+    }
+    return 0;
+}
+
+static void flist_parse(const uint8 *buf, uint32 body)
+{
+    uint32 pos = 0;
+    int32 len, ilen;
+
+    g_flist.games = 0;
+    while (pos + FLIST_REC <= body) {
+        len = buf[pos + 1];
+        ilen = buf[pos + 5];
+        if (len == 0 || pos + FLIST_REC + len + ilen > body)
+            break;
+        if (flist_is_game(buf[pos], buf[pos + 4] & 0x0f, (const char *)buf + pos + FLIST_REC, len))
+            g_flist.games++;
+        pos += FLIST_REC + len + ilen;
+    }
+}
+
+static void flist_load(const char *path)
+{
+    static ArtWhere w;
+    char idx[ART_NAME_MAX];
+    uint8 *buf = 0;
+    uint32 got, body = 0, have = 0;
+
+    if (strcmp(g_flist.key, path) == 0)
+        return;                             /* already tried for this folder */
+    memset(&g_flist, 0, sizeof(g_flist));
+    g_flist.games = -1;
+    strncpy(g_flist.key, path, sizeof(g_flist.key) - 1);
+    if (art_where(path, &w) < 0 || (int32)strlen(w.prefix) + 13 >= (int32)sizeof(idx))
+        return;
+    sprintf(idx, "%s_odemenu.idx", w.prefix);
+    if (w.root && dir_root_begin() < 0)
+        return;
+    if (ode_file_open(idx, 0) >= 0) {
+        if (ode_file_read(iobuf2, ODE_XFER, &got) >= 0 && got >= 16 &&
+            (((uint32)iobuf2[0] << 24) | (iobuf2[1] << 16) | (iobuf2[2] << 8) | iobuf2[3]) == FLIST_MAGIC) {
+            body = ((uint32)iobuf2[8] << 24) | (iobuf2[9] << 16) | (iobuf2[10] << 8) | iobuf2[11];
+            if (body > 0 && body < 256u * 1024u && (buf = (uint8 *)AllocMem(body, MEMTYPE_ANY)) != 0) {
+                have = got - 16 > body ? body : got - 16;
+                memcpy(buf, iobuf2 + 16, have);
+                while (have < body && ode_file_read(iobuf2, ODE_XFER, &got) >= 0 && got > 0) {
+                    if (have + got > body)
+                        got = body - have;
+                    memcpy(buf + have, iobuf2, got);
+                    have += got;
+                }
+                if (have >= body)
+                    flist_parse(buf, body);
+                FreeMem(buf, body);
+            }
+        }
+        ode_file_close();
+    }
+    if (w.root)
+        dir_root_end();
+}
+
+/* a navigation folder's pane: a folder graphic (with a sheet peeking out), its name, and the game count
+ * (games < 0 while the folder's index hasn't been read yet, so the count is simply left off). */
+static void draw_folder_pane(Row *w, int32 games)
+{
+    int32 fw = 60, fh = 42, fx = ART_X + (ART_W - fw) / 2, fy = ART_Y + 18, tw, y;
+    char head[20], line[PANE_CH + 1];
+    const char *p;
+
+    gfx_rrect(ART_X - 2, ART_Y - 2, ART_W + 4, ART_H + 4, P_PANEL, P_EDGE, 2, RR_ALL);
+    /* a folder that matches the list's folder icon: a hollow tab-and-body outline in P_FOLDER */
+    gfx_rrect(fx, fy, 24, 11, P_PANEL, P_FOLDER, 2, RR_TOP);
+    gfx_rrect(fx, fy + 9, fw, fh, P_PANEL, P_FOLDER, 2, RR_ALL);
+    /* the name, centred under the folder */
+    gfx_fold(w->text, tmp, sizeof(tmp));
+    y = fy + fh + 16;
+    for (p = tmp; *p && y <= ART_Y + ART_H - 20; y += 10) {
+        p = pane_line(p, PANE_CH, line);
+        tw = (int32)strlen(line) * 8;
+        gfx_text(ART_X + (ART_W - tw) / 2, y, line, PANE_CH, P_TEXT);
+    }
+    /* the game count */
+    if (games >= 0) {
+        sprintf(head, "%d GAME%s", (int)games, games == 1 ? "" : "S");
+        tw = (int32)strlen(head) * 8;
+        gfx_text(ART_X + (ART_W - tw) / 2, y + 2, head, PANE_CH, P_FOLDER);
+    }
+}
+
 static void draw_pane(void)
 {
     int32 n = tab_count(tab), i, rows = ART_CARD_H, strip = -1, ty, limit, by;
     Row w;
     ArtSlot *s = 0;
-    const char *p, *q;
+    const char *p, *q, *gpath = 0;
     char line[PANE_CH + 1];
 
     if (n == 0)
         return;
     get_row(tab, cur[tab], &w);
+    /* a navigation folder: the folder graphic now, with the game count once its index has been read */
+    if (w.is_dir && tab == T_GAMES && !g_dir.devlist && (i = entry_of(cur[tab])) >= 0 &&
+        (g_dir.ent[i].flags & TF_DIR) && !dir_is_game_folder(i) &&
+        list_path_of(i, tmp2, LIST_PATH_MAX - 2) == 0) {
+        strcat(tmp2, "/");
+        draw_folder_pane(&w, strcmp(g_flist.key, tmp2) == 0 ? g_flist.games : -1);
+        return;
+    }
     p = 0;
     if (w.is_game && !(tab == T_GAMES && g_dir.devlist)) {
         if (tab == T_GAMES) {
@@ -1070,6 +1382,7 @@ static void draw_pane(void)
         } else {
             p = w.path;
         }
+        gpath = p;                      /* the raw game path, for the sidecar */
         art_key(p, pathbuf);
         s = art_find(pathbuf);
         i = tab == T_GAMES ? g_dir.ent[entry_of(cur[tab])].art : 0;
@@ -1085,6 +1398,16 @@ static void draw_pane(void)
             p = "NO ART";               /* known from the folder index (or earlier this visit) */
         } else if (i & ART_FAIL) {
             p = "CAN'T READ";
+        }
+        if (pane_face && gpath)
+            info_load(gpath);
+        if (flip_left > 0) {
+            draw_transition(&w, s, rows);
+            return;
+        }
+        if (pane_face) {
+            draw_info_side(&w);
+            return;
         }
     }
     /* the cover (or the card in its place), framed */
@@ -1908,11 +2231,13 @@ static void cant_start(void)
 
 /* ---- games on several discs: "Name (Disc 1)", "Name (Disc 2)" ... beside each other (files or game folders) */
 
-/* where the disc number is in name: the digit after "disc", "disk" or "cd" (a space between is fine); -1 if none */
-static int32 disc_digit(const char *name)
+/* where the disc marker is in name: the single digit (1-9) or letter (A-Z/a-z) right after "disc", "disk" or "cd"
+ * (one optional space), standing on its own -- no digit or letter straight after it. -1 if none. *alpha gets 1 for a
+ * letter marker ("D (Disc A)", "... Disc B"), 0 for a digit; pass 0 for alpha if not wanted. */
+static int32 disc_marker(const char *name, int32 *alpha)
 {
-    int32 n = strlen(name), k, j;
-    char c0, c1, c2, c3;
+    int32 n = strlen(name), k, j, a = 0;
+    char c0, c1, c2, c3, m, nx;
 
     for (k = 0; k + 2 < n; k++) {
         if (k > 0 && ((name[k - 1] | 0x20) >= 'a' && (name[k - 1] | 0x20) <= 'z'))
@@ -1929,25 +2254,49 @@ static int32 disc_digit(const char *name)
             continue;
         if (j < n && name[j] == ' ')
             j++;
-        if (j < n && name[j] >= '1' && name[j] <= '9' && !(j + 1 < n && name[j + 1] >= '0' && name[j + 1] <= '9'))
-            return j;
+        if (j >= n)
+            continue;
+        m = name[j];
+        nx = j + 1 < n ? name[j + 1] : 0;
+        if (m >= '1' && m <= '9' && !(nx >= '0' && nx <= '9'))
+            a = 0;
+        else if (((m >= 'A' && m <= 'Z') || (m >= 'a' && m <= 'z')) &&
+                 !((nx | 0x20) >= 'a' && (nx | 0x20) <= 'z') && !(nx >= '0' && nx <= '9'))
+            a = 1;                      /* a lone letter: "Disc A", "Disc B" ... */
+        else
+            continue;
+        if (alpha)
+            *alpha = a;
+        return j;
     }
     return -1;
 }
 
-/* the other discs of entry i (which must be disc 1), in order; returns how many (0 if none or i is not disc 1) */
+/* the other discs of entry i (which must be disc 1 / disc A), in order; returns how many (0 if none, or i is not the
+ * first disc). Handles numbered ("Disc 2", "Disc 3") and lettered ("Disc B", "Disc C") sequences. Searches hidden
+ * entries too, so hiding every disc but the first still lets disc 1 auto-queue the rest -- a way to show a multi-disc
+ * game as one menu entry. */
 static int32 disc_siblings(int32 i, int32 *out, int32 max)
 {
     char nm[DIR_NAME_MAX];
-    int32 d, k, n = 0, j;
+    int32 d, k, n = 0, j, alpha = 0;
+    char first, base = '1';
 
     strcpy(nm, dir_name(i));
-    d = disc_digit(nm);
-    if (d < 0 || nm[d] != '1')
+    d = disc_marker(nm, &alpha);
+    if (d < 0)
         return 0;
-    for (k = 2; k <= 9 && n < max; k++) {
-        nm[d] = (char)('0' + k);
-        j = dir_find_nocase(nm);
+    first = nm[d];
+    if (alpha) {
+        if (first != 'A' && first != 'a')       /* letters: must start at disc A */
+            return 0;
+        base = first;                           /* 'A' or 'a' -- keep the case the game uses */
+    } else if (first != '1') {                  /* digits: must start at disc 1 */
+        return 0;
+    }
+    for (k = 1; k <= 8 && n < max; k++) {        /* discs 2..9, or B..I / b..i */
+        nm[d] = (char)(base + k);
+        j = dir_find_nocase_all(nm);
         if (j < 0 || !dir_is_game(j))
             break;
         out[n++] = j;
@@ -1966,7 +2315,7 @@ static void play_discs(int32 first, const int32 *more, int32 n)
         strcpy(names[k + 1], dir_name(more[k]));
     n = k + 1;
     for (k = 0; k < n; k++) {
-        j = dir_find(names[k]);
+        j = dir_find_all(names[k]);     /* discs 2+ may be hidden -> search the hidden tail too */
         if (j < 0 || !dir_verify(j)) {
             ui_toast("A disc of this game is no longer on the card");
             return;
@@ -1975,7 +2324,7 @@ static void play_discs(int32 first, const int32 *more, int32 n)
     ode_c3_queue_clear();
     q_count = 0;
     for (k = 0; k < n; k++) {
-        j = dir_find(names[k]);
+        j = dir_find_all(names[k]);
         r = queue_one(j);
         if (r < 0) {
             ode_c3_queue_clear();
@@ -1990,7 +2339,7 @@ static void play_discs(int32 first, const int32 *more, int32 n)
     }
     mark_queue();
     stem(names[0], tmp2, sizeof(tmp2));
-    before_launch("STARTING GAME", tmp2, dir_find(names[0]));
+    before_launch("STARTING GAME", tmp2, dir_find_all(names[0]));
 #ifdef LAUNCH_TRACE
     trace_save();
 #endif
@@ -2171,6 +2520,14 @@ static void queue_clear(void)
     ode_c3_queue_clear();
     q_count = 0;
     mark_queue();
+}
+
+static void recent_clear(void)
+{
+    g_recent.n = 0;
+    g_recent.dirty = 1;
+    lists_save(0);
+    cur[T_RECENT] = top[T_RECENT] = 0;      /* the list is empty now: don't leave the cursor past its end */
 }
 
 static void play_queue(void)
@@ -2376,6 +2733,8 @@ static void games_a(void)
         return;
     }
     f = g_dir.ent[i].flags;
+    if (f & TF_DIR)
+        dir_classify(i);                /* lazy: a folder is classified the first time it is opened, not at boot */
     if (dir_is_game_folder(i)) {
         game_dialog(i);
     } else if (f & TF_DIR) {
@@ -2676,6 +3035,7 @@ static void scan_card(void)
     }
     input_flush();
     scan_show();
+    dir_set_detect(1);          /* the scan deliberately classifies every folder and writes it into each index */
     if (dir_to_root(scan_progress) < 0)
         scan_stop = 1;
     nexti[0] = 0;
@@ -2703,6 +3063,7 @@ static void scan_card(void)
                 nexti[d + 1] = 0;
         }
     }
+    dir_set_detect(0);          /* back to lazy classification for normal browsing */
     if (g_dir.depth > 0)
         dir_to_root(load_progress);
     if (all_buf) {
@@ -2742,11 +3103,33 @@ static void scan_offer(void)
         scan_card();
 }
 
+/* TOOLS > DUMP ROMS & RAM: the four dumps live behind one row (rarely used). The picker opens on CANCEL so a stray
+ * press backs out; each dump writes to the folder open in GAMES. */
+static void dump_menu(void)
+{
+    Dialog d;
+    int32 r;
+
+    dialog_init(&d, "DUMP ROMS & RAM");
+    d.opts[0] = "SYSTEM ROM";
+    d.opts[1] = "FONT ROM";
+    d.opts[2] = "FMV ROM";
+    d.opts[3] = "RAM (3 MB)";
+    d.opts[4] = "CANCEL";
+    d.nopts = 5;
+    d.sel = 4;
+    r = dialog_run(&d);
+    if (r >= 0 && r <= 3) {
+        ui_toast(tool_dump(r) == 0 ? "Dump saved to this folder" : "Dump failed");
+        after_tool(1);
+    }
+}
+
 static void tools_a(void)
 {
     int32 t = cur[T_TOOLS], i;
 
-    if (t >= 1 && t <= 10 && t != 2 && t != 5 && g_dir.devlist) {
+    if (t >= 1 && t <= 6 && t != 4 && g_dir.devlist) {
         ui_message("Open a drive first", "Saves, dumps and updates use the folder open in GAMES. Open the microSD card or the USB drive, then try again.");
         return;
     }
@@ -2765,18 +3148,17 @@ static void tools_a(void)
             scan_card();
         break;
     case 2:
-        queue_clear();
-        ui_toast("Queue cleared");
-        break;
-    case 3:
         if (dir_find_nocase("nvram.nvm") >= 0 &&
             !ui_confirm("Overwrite nvram.nvm?", "This folder already has an NVRAM backup. Replace it with the console's saves?"))
             break;
-        i = tool_save_nvram();
-        ui_toast(i == -2 ? "Console NVRAM is not formatted, nothing saved" : (i == 0 ? "Saved nvram.nvm" : "Saving NVRAM failed"));
+        i = tool_save_nvram(0);
+        if (i == -2 && ui_confirm("NVRAM may be unformatted",
+                                  "The console's NVRAM doesn't show the usual format signature (some clones report it differently). Save it anyway?"))
+            i = tool_save_nvram(1);
+        ui_toast(i == -2 ? "Not saved" : (i == 0 ? "Saved nvram.nvm" : "Saving NVRAM failed"));
         after_tool(1);
         break;
-    case 4:
+    case 3:
         if (dir_find_nocase("nvram.nvm") < 0) {
             ui_message("No NVRAM backup here", "The folder open in GAMES has no nvram.nvm.");
             break;
@@ -2785,15 +3167,14 @@ static void tools_a(void)
             ui_toast(nvram_result(tool_load_nvram(), "NVRAM loaded"));
         after_tool(0);
         break;
-    case 5:
+    case 4:
         tool_storage_manager();
         after_tool(0);
         break;
-    case 6: case 7: case 8: case 9:
-        ui_toast(tool_dump(t - 6) == 0 ? "Dump saved to this folder" : "Dump failed");
-        after_tool(1);
+    case 5:
+        dump_menu();
         break;
-    case 10:
+    case 6:
         if (ui_confirm("Update the ODE firmware?", "Uses the update file on the card. Do not turn the power off while it runs.")) {
             i = tool_update_ode();
             if (i == 1) {
@@ -2805,7 +3186,7 @@ static void tools_a(void)
         }
         after_tool(0);
         break;
-    case 11:
+    case 7:
         device_info();
         break;
     default:
@@ -2844,6 +3225,40 @@ static void show_hidden_changed(void)
     after_load(keep);
 }
 
+/* Options > SCREEN POSITION: the D-pad shifts the whole menu live (via bar_color -> gfx_set_nudge) to fit the TV's
+ * overscan. The menu is drawn undimmed so the real layout and edges are visible; only a small hint strip is added. */
+static void screen_position(void)
+{
+    static const char hint[] = "D-PAD MOVE    A DONE";   /* the live offset shows on the SCREEN POSITION row itself */
+    int32 hw = (int32)(sizeof(hint) - 1) * 8, hx = (SCR_W - hw) / 2;
+    uint32 ev, held;
+    int32 done = 0;
+
+    input_flush();
+    while (!done) {
+        tick_clock();
+        tick_bar();
+        tick_shine();
+        bar_color();                /* re-applies the theme and the live nudge for this frame */
+        begin_frame(0);             /* 0 = not dimmed: the menu stays clear while positioning */
+        draw_screen(1);
+        gfx_rect(hx - 6, FOOT_Y - 1, hw + 12, 10, P_PANEL);     /* a snug, centred hint that stays within the panel */
+        gfx_text(hx, FOOT_Y, hint, 40, P_ACCENT);
+        gfx_frame_end();
+        ev = input_poll(&held);
+        if ((ev & BTN_LEFT)  && g_set.nudgex > -12) g_set.nudgex--;
+        if ((ev & BTN_RIGHT) && g_set.nudgex <  12) g_set.nudgex++;
+        if ((ev & BTN_UP)    && g_set.nudgey > -12) g_set.nudgey--;
+        if ((ev & BTN_DOWN)  && g_set.nudgey <  12) g_set.nudgey++;
+        if (ev & (BTN_A | BTN_B))
+            done = 1;
+    }
+    input_flush();
+    g_set.dirty = 1;
+    lists_save(0);
+    dirty = 1;
+}
+
 static void option_change(int32 dir)
 {
     switch (cur[T_OPTIONS]) {
@@ -2855,6 +3270,31 @@ static void option_change(int32 dir)
     case O_SAVER:  g_set.saver = (g_set.saver + (dir > 0 ? 1 : 3)) & 3; break;
     case O_HIDDEN: g_set.showhid = !g_set.showhid; show_hidden_changed(); break;
     case O_INDEX:  g_set.index = !g_set.index; g_dir.use_cache = g_set.index; break;
+    case O_START:  g_set.boottab = !g_set.boottab; break;
+    case O_SCREEN:
+        if (dir > 0)
+            screen_position();      /* enters the live nudge screen; it saves itself */
+        return;
+    case O_CLEARQ:
+        if (dir > 0) {
+            if (q_count == 0)
+                ui_toast("Queue is empty");
+            else if (ui_confirm("Clear the queue?", "Remove all games from the launch queue? This doesn't delete anything from the card.")) {
+                queue_clear();
+                ui_toast("Queue cleared");
+            }
+        }
+        return;
+    case O_CLEARREC:
+        if (dir > 0) {
+            if (g_recent.n == 0)
+                ui_toast("No recent games");
+            else if (ui_confirm("Clear all recents?", "Remove every game from the RECENT list? This doesn't delete anything from the card.")) {
+                recent_clear();
+                ui_toast("Recents cleared");
+            }
+        }
+        return;
     default:
         if (dir > 0)
             about();
@@ -3010,10 +3450,9 @@ static void frame_input(uint32 ev)
     }
     if ((ev & BTN_P) && tab != T_GAMES && q_count > 0)
         play_queue();           /* the P legend shows on every tab while there is a queue */
-    if ((ev & BTN_C) && (tab == T_GAMES || tab == T_FAVS || tab == T_RECENT)) {
-        g_set.pane = !g_set.pane;
-        g_set.dirty = 1;
-        lists_save(0);
+    if ((ev & BTN_C) && pane_on()) {
+        pane_face ^= 1;         /* Artwork mode: C flips the pane between the cover and its info side */
+        flip_left = FLIP_LEN;
     }
     dirty = 1;
 }
@@ -3029,8 +3468,20 @@ static int32 art_fetch_row(int32 r)
     if (r < 0 || r >= tab_count(tab))
         return 0;
     get_row(tab, r, &w);
-    if (!w.is_game || (tab == T_GAMES && g_dir.devlist))
+    if (!w.is_game || (tab == T_GAMES && g_dir.devlist)) {
+        /* the selected navigation folder (not a game folder): read its index once, for the folder pane */
+        int32 fi;
+        if (r == cur[tab] && w.is_dir && tab == T_GAMES && !g_dir.devlist && (fi = entry_of(r)) >= 0 &&
+            (g_dir.ent[fi].flags & TF_DIR) && !dir_is_game_folder(fi) &&
+            list_path_of(fi, tmp2, LIST_PATH_MAX - 2) == 0) {
+            strcat(tmp2, "/");
+            if (strcmp(g_flist.key, tmp2) == 0)
+                return 0;                           /* already read for this folder */
+            flist_load(tmp2);
+            return 1;
+        }
         return 0;
+    }
     if (tab == T_GAMES) {
         e = &g_dir.ent[entry_of(r)];
         if (e->art & (ART_NONE | ART_FAIL))
@@ -3101,6 +3552,7 @@ int32 ui_frame(uint32 ev, uint32 held)
     tick_shine();
     tick_marquee();
     tick_art();
+    tick_flip();
     if (toast_timer > 0 && --toast_timer == 0)
         dirty = 1;
     if (jump_timer > 0 && --jump_timer == 0)
@@ -3124,6 +3576,13 @@ void ui_init(const char *name)
             memcpy(logo_orig, logo->pix, n * 2);
     }
     shine_pos = -30;
+#ifdef HOST_BUILD
+    {
+        const char *f = getenv("INFOFONT");
+        if (f)
+            g_infofont = atoi(f);
+    }
+#endif
 }
 
 void ui_start(void)
@@ -3162,6 +3621,7 @@ void ui_start(void)
     DIAG_STEP(0x7e1c, 0);                       /* pink: folder listed; next is the first menu frame */
     sync_lists();
     after_load(sel);
+    tab = g_set.boottab ? T_FAVS : T_GAMES;     /* Options > START ON */
     if (load_err < 0)
         ui_toast("Could not read the card");
     else if (at_root && !g_dir.both_drives && !g_set.scanned)

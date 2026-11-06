@@ -187,8 +187,10 @@ touch "$G/Doom/doom_1994_ID_Software.cue" "$G/Doom/doom_1994_ID_Software.bin" "$
       "$T/sd/Games3/Myst (Disc 1).iso" "$T/sd/Games3/Myst (Disc 2).iso" "$T/sd/Games3/Myst (Disc 3).iso"
 python3 -c "from PIL import Image; Image.new('RGB',(320,240),(255,0,0)).save('$G/Doom/doom_1994_ID_Software.png'); Image.new('RGB',(320,240),(0,0,255)).save('$G/Wing/wing.jpg')"
 rm -f "$T/disc/nvram_ODEMenu"
-# root: Games, Games2, Games3 -> Games2: .., Multi, Nested, Doom, Wing (readme.jpeg hidden)
-keys "D A w sg2 D D w w w w sdoom A A" 30 700 > "$T/gf.txt"
+# root: Games, Games2, Games3 -> Games2. Lazy classification: a game folder is not walked into until it is opened,
+# so Games2 lists .., Doom, Multi, Nested, Wing all as folders (alphabetical) and the cursor starts on Doom.
+# Opening Doom classifies it on the spot and starts its game.
+keys "D A w sg2 w w w w sdoom A A" 30 700 > "$T/gf.txt"
 out=$(run "$T/gf.txt")
 echo "$out" | grep -q "C5 launch: .*Games2/Doom/doom_1994_ID_Software.cue" && ok "a game folder starts its game (Games2/Doom)" || { bad "game folder start"; echo "$out" | grep -E "C0|C4|C5"; }
 grep -q "^Games2/Doom/$" "$T/disc/nvram_ODEMenu" && ok "a game folder's launch goes into RECENT as the folder" || { bad "game folder RECENT note"; cat "$T/disc/nvram_ODEMenu"; }
@@ -201,9 +203,11 @@ d=h[3]; yo=(int(h[1].split()[1])-240)//2   # (PAL: the menu sits 24 lines lower)
 import sys
 row=lambda y: set(bytes(d[(y*320+x)*3:(y*320+x)*3+3]) for x in range(40,200))
 sys.exit(0 if len(row(105+yo))==1 and len(row(97+yo))>1 else 1)" && ok "only folders and games listed (readme.jpeg hidden)" || bad "hidden files (see $T/g2.ppm)"
-grep -q "^OMC3" "$G/_odemenu.idx" 2>/dev/null; python3 -c "
+# lazy classification: just browsing past a game folder does NOT walk into it, so the parent index records it as a
+# plain unknown folder, not its inner game. (The scan below classifies it; that is where the game is recorded.)
+python3 -c "
 d=open('$G/_odemenu.idx','rb').read()
-import sys; sys.exit(0 if b'doom_1994_ID_Software.cue' in d else 1)" && ok "the folder index keeps the game folder" || bad "index game folder"
+import sys; sys.exit(0 if b'doom_1994_ID_Software.cue' not in d else 1)" && ok "browsing does not walk into a game folder (index has no inner game yet)" || bad "browse walked game folder"
 echo "$out" | awk '/C0/{c++} END{exit 0}'
 
 # after the card scan: Doom's picture (named after the game file) and Wing's (wing.jpg) are covers
@@ -217,14 +221,35 @@ else
 pane_rgb "$T/doom.ppm" "r==255 and g==0 and b==0" && ok "game folder cover shown in the info pane" || bad "game folder cover shown"
 pane_rgb "$T/wing.ppm" "b>200 and r<60" && ok "a cover named after the game file (wing.jpg)" || { bad "game-name cover"; echo "$out" | grep "E1 open Wing"; }
 fi
+# the scan walks into a game folder (eager detection during a scan, unlike lazy browsing) and records its inner
+# game in that folder's index. Checked on a tiny dedicated card so the whole-card scan finishes deterministically.
+SC="$T/scancard"; rm -rf "$SC"; mkdir -p "$SC/sd/Zork" "$SC/disc/assets"
+touch "$SC/sd/boot.iso" "$SC/sd/Zork/zork.iso"
+printf 'OMO1\npane=1\nbar=1\nshine=0\nindex=1\nscanned=1\n' > "$SC/sd/_odemenu.opt"
+keys "$SCAN" 30 400 > "$SC/s.txt"
+$M --sd "$SC/sd" --out "$SC" --disc "$SC/disc" --script "$SC/s.txt" --source 1 >/dev/null 2>&1
+python3 -c "
+import sys, os
+p='$SC/sd/Zork/_odemenu.idx'
+d=open(p,'rb').read() if os.path.exists(p) else b''
+sys.exit(0 if b'zork.iso' in d else 1)" && ok "the scan records a game folder in its index" || bad "index game folder"
 
-# favorite of a game folder, started from FAVS
-rm -f "$T/sd/_odemenu.fav"
-keys "D A w D D A D A r A A" 30 700 > "$T/gff.txt"
+# favorite of a game folder, started from FAVS. Force the lazy state (drop the index) so Games2 lists Doom as a
+# folder with the cursor on it; opening it classifies it and the game dialog's ADD TO FAVS keeps it.
+rm -f "$T/sd/_odemenu.fav" "$G/_odemenu.idx"
+keys "D A w A D A r A A" 30 700 > "$T/gff.txt"
 out=$(run "$T/gff.txt")
 grep -qx "Games2/Doom/" "$T/sd/_odemenu.fav" && ok "a game folder is kept in favorites as Games2/Doom/" || { bad "fav of game folder"; cat "$T/sd/_odemenu.fav"; }
 echo "$out" | grep -q "C5 launch: .*Games2/Doom/doom_1994_ID_Software.cue" && ok "a game folder starts from FAVS" || { bad "game folder from FAVS"; echo "$out" | grep -E "C4|C5"; }
-rm -f "$T/sd/_odemenu.fav"
+# and after a reboot its cover is still shown in the FAVS pane: the folder is not in the current listing (the menu
+# starts at the root), so art must still resolve a favourite folder as a game folder's own _cover.img, never the
+# _folder.img of a navigation folder (which a game folder has not got) -- the bug was the pane going blank there.
+python3 -c "import struct;open('$G/Doom/_cover.img','wb').write(b'OART'+struct.pack('>HH',88,122)+b'\x03\xe0'*(88*122))"
+keys "r w w sgfrb" 30 60 > "$T/gfrb.txt"
+out=$(run "$T/gfrb.txt")
+echo "$out" | grep -q "E1 open Games2/Doom/_cover.img read -> 1" && ! echo "$out" | grep -q "Games2/Doom/_folder.img" && \
+    pane_rgb "$T/gfrb.ppm" "g>200 and r<60 and b<60" && ok "a favourited game folder's cover is shown in FAVS after a reboot" || { bad "fav game folder cover after reboot"; echo "$out" | grep -E "E1 open Games2/Doom"; }
+rm -f "$T/sd/_odemenu.fav" "$G/Doom/_cover.img"
 
 # several discs: Night (Disc 1/2) folders and Myst (Disc 1/2/3) files; START, then START WITH ALL DISCS
 rm -f "$T/disc/nvram_ODEMenu"

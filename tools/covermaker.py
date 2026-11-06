@@ -79,6 +79,37 @@ def title_key(n):
 REGIONS = ('usa', 'europe', 'japan', 'world', 'korea', 'germany', 'france', 'spain', 'italy', 'brazil', 'asia')
 
 
+# ------------------------------------------------------------------ game metadata (the info-side sidecar)
+def load_meta(path):
+    """the bundled 3do_meta.json (built by build_metadata.py); {} if it isn't there."""
+    try:
+        with open(path, encoding='utf-8') as f:
+            return json.load(f).get('games', {})
+    except (OSError, ValueError):
+        return {}
+
+
+def info_sidecar(game, meta):
+    """the '_info.txt' text for a game, or None if we have no metadata for it. One 'K value' line per field:
+    Y year, P publisher, D developer (only when it differs from the publisher), G genre, M players."""
+    e = meta.get(title_key(game))
+    if not e or not e.get('year') and not e.get('publisher') and not e.get('genre'):
+        return None
+    lines = []
+    if e.get('year'):
+        lines.append('Y %s' % e['year'])
+    if e.get('publisher'):
+        lines.append('P %s' % e['publisher'])
+    if e.get('developer') and e['developer'] != e.get('publisher'):
+        lines.append('D %s' % e['developer'])
+    if e.get('genre'):
+        lines.append('G %s' % e['genre'])
+    mode = (e.get('mode') or '').lower()
+    if mode:
+        lines.append('M %s' % ('Multiplayer' if 'multi' in mode else '1 player'))
+    return '\n'.join(lines) + '\n' if lines else None
+
+
 def regions(n):
     out = set()
     for m in re.findall(r'[(\[]([^)\]]*)[)\]]', n):
@@ -583,6 +614,9 @@ def main():
     ap.add_argument('--then2', choices=tuple(KIND_ARG), default=None, help='and then:')
     ap.add_argument('--redo', action='store_true', help='remake covers that already exist')
     ap.add_argument('--no-index', action='store_true', help='don\'t write folder indexes')
+    ap.add_argument('--meta', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', '3do_meta.json'),
+                    help='the game metadata file (3do_meta.json) for the info-side sidecars')
+    ap.add_argument('--no-info', action='store_true', help='don\'t write the info-side (_info.txt) sidecars')
     ap.add_argument('--dry-run', action='store_true', help='show the plan, write nothing')
     ap.add_argument('--fix', action='store_true', help='afterwards, go through the games with no picture')
     ap.add_argument('--yes', '-y', action='store_true', help='don\'t ask before writing')
@@ -615,9 +649,14 @@ def main():
     walk(card, whole, '', jobs, idx)
     print('Reading the list of pictures ...')
     server = load_server()
+    meta = {} if a.no_info else load_meta(a.meta)
+    if not a.no_info and not meta:
+        print('  (no metadata file at %s - skipping info sidecars; build it with build_metadata.py)' % a.meta)
 
     n = dict(box=0, dl=0, own=0, have=0, miss=0)
     for j in jobs:
+        j['info'] = os.path.splitext(j['dst'])[0] + '.txt'
+        j['info_text'] = info_sidecar(j['game'], meta) if meta else None
         j['src'] = None
         if j['have'] and not a.redo:
             j['what'] = 'have'
@@ -637,12 +676,23 @@ def main():
         n[j['what']] += 1
     new_idx = [x for x in idx if x['state'] in ('new', 'changed')] if not a.no_index else []
 
+    def info_pending(j):
+        if not j.get('info_text'):
+            return False
+        try:
+            return open(j['info'], encoding='utf-8').read() != j['info_text']
+        except OSError:
+            return True
+    info_todo = [j for j in jobs if info_pending(j)]
+
     print('\nPicture: %s' % ', then '.join(KIND_LABEL[k] for k in order))
     print('  %4d pictures to download' % n['dl'])
     print('  %4d from your own pictures' % n['own'])
     print('  %4d already have a cover' % n['have'])
     print('  %4d no picture found' % n['miss'])
     print('  %4d folder indexes to write' % len(new_idx))
+    if meta:
+        print('  %4d info sidecars to write' % len(info_todo))
     if a.dry_run:
         print()
         for j in jobs:
@@ -652,7 +702,7 @@ def main():
             print('  %-13s %s%s' % (tag, j['label'], '  <-  ' + src if src and src != j['game'] else ''))
         return
     todo = [j for j in jobs if j['what'] in ('dl', 'own')]
-    if not todo and not new_idx and not (a.fix and n['miss']):
+    if not todo and not new_idx and not info_todo and not (a.fix and n['miss']):
         print('\nNothing to do.')
         return
     if not a.yes and not ask('\nMake them now? [Y/n] '):
@@ -668,6 +718,32 @@ def main():
         except Exception as e:                                 # noqa: BLE001 - report and go on
             j['what'] = 'miss'
             failed.append('%s (%s)' % (j['label'], e))
+    # folders show a plain graphic now, not cover art; remove any _folder.img an older run left behind
+    folder_gone = 0
+    seen = set()
+    for j in jobs:
+        parent = os.path.dirname(os.path.dirname(j['dst']))
+        if os.path.normpath(parent) == os.path.normpath(card) or parent in seen:
+            continue
+        seen.add(parent)
+        fpath = os.path.join(parent, '_folder.img')
+        if os.path.exists(fpath):
+            try:
+                os.remove(fpath)
+                folder_gone += 1
+            except OSError:
+                pass
+
+    info_made = 0
+    for j in info_todo:
+        try:
+            os.makedirs(os.path.dirname(j['info']), exist_ok=True)
+            with open(j['info'], 'w', encoding='utf-8') as f:
+                f.write(j['info_text'])
+            info_made += 1
+        except OSError:
+            pass
+
     idx_made = idx_failed = 0
     for x in new_idx:                  # last: the covers above only add names starting with "_", which it skips
         try:
@@ -688,6 +764,10 @@ def main():
                                       if miss else ''))
     for f in failed:
         print('  failed: ' + f)
+    if meta:
+        print('Info sidecars: %d written.' % info_made)
+    if folder_gone:
+        print('Old folder images removed: %d.' % folder_gone)
     if not a.no_index:
         same = sum(1 for x in idx if x['state'] == 'same')
         kept = [x for x in idx if x['state'] == 'kept']

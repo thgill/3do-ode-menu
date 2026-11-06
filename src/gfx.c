@@ -15,6 +15,9 @@
 #include "common.h"
 #define UIART_DATA
 #include "uiart.h"
+#include "font5.h"
+#include "font6.h"
+#include "font_sp.h"
 
 static void rect_rgb(int32 x, int32 y, int32 w, int32 h, int32 c);
 static uint32 vbl_count;
@@ -27,6 +30,21 @@ static int32  bg_pending = -1;
  * changes there. */
 static int32  yoff;
 static int32  pal;
+static int32  nudgex, nudgey;   /* user screen-position nudge (Options > SCREEN POSITION), -NUDGE_MAX..+NUDGE_MAX */
+#define NUDGE_MAX 12
+
+/* Options > SCREEN POSITION: shift the whole menu to fit the TV's overscan. Applied to every cel in queue(); the
+ * cached still parts were drawn at the old offset, so drop them. */
+void gfx_set_nudge(int32 x, int32 y)
+{
+    if (x < -NUDGE_MAX) x = -NUDGE_MAX; else if (x > NUDGE_MAX) x = NUDGE_MAX;
+    if (y < -NUDGE_MAX) y = -NUDGE_MAX; else if (y > NUDGE_MAX) y = NUDGE_MAX;
+    if (x == nudgex && y == nudgey)
+        return;
+    nudgex = x;
+    nudgey = y;
+    bg_key = -1;
+}
 
 #define NCCB        448
 #define NTXT        128
@@ -171,7 +189,8 @@ static CCB *new_ccb(void)
 
 static void queue(CCB *c)
 {
-    c->ccb_YPos += yoff << 16;
+    c->ccb_XPos += nudgex << 16;
+    c->ccb_YPos += (yoff + nudgey) << 16;
     c->ccb_NextPtr = 0;
     c->ccb_Flags |= CCB_LAST;
     if (tail) {
@@ -349,7 +368,9 @@ int32 gfx_frame_begin_bg(int32 key)
         return 0;
     }
     gfx_wait_vbl();
-    rect_rgb(0, -yoff, SCR_W, SCR_H + 2 * yoff, colors[0][P_BG]);   /* (on PAL the bands above and below too) */
+    /* clear a margin wider than the nudge so a shifted frame never leaves an uncleared strip at an edge */
+    rect_rgb(-NUDGE_MAX, -yoff - NUDGE_MAX, SCR_W + 2 * NUDGE_MAX, SCR_H + 2 * yoff + 2 * NUDGE_MAX,
+             colors[0][P_BG]);   /* (on PAL the bands above and below too) */
     if (key >= 0 && bgbuf)
         bg_pending = key;
     return 1;
@@ -756,6 +777,123 @@ void gfx_text(int32 x, int32 y, const char *s, int32 maxch, int32 role)
     queue(c);
 }
 
+/* The 5x7 face: half-height secondary text (game metadata). Glyphs are 5 wide, packed at a 6 px pitch into one
+ * coded cel, so a line fits far more than the 8x8 face. Same PLUT/role colouring as gfx_text. */
+void gfx_text5(int32 x, int32 y, const char *s, int32 maxch, int32 role)
+{
+    char t[TXT_CHARS + 1];
+    int32 n, rb, r, k, col, p;
+    uint8 *buf, *row, g;
+    CCB *c;
+
+    if (maxch <= 0 || maxch > TXT_CHARS)
+        maxch = TXT_CHARS;
+    n = gfx_fold(s, t, maxch + 1);
+    while (n > 0 && t[n - 1] == ' ')
+        n--;
+    if (n == 0)
+        return;
+    if (ntxt >= NTXT)
+        flush();
+    c = new_ccb();
+    buf = tbufs + (ntxt++) * TXT_BYTES;
+    rb = InitCel(c, n * 6, FONT5_H, 1, INITCEL_CODED) / FONT5_H;   /* InitCel returns height * rowbytes */
+    for (r = 0; r < FONT5_H; r++) {
+        row = buf + r * rb;
+        for (k = 0; k < rb; k++)
+            row[k] = 0;
+        for (k = 0; k < n; k++) {
+            g = font5[(uint8)t[k] - FONT5_FIRST][r];        /* 5 bits, left-aligned at bit 7 */
+            for (col = 0; col < 5; col++)
+                if (g & (0x80 >> col)) {
+                    p = k * 6 + col;                        /* pixel column in the packed cel */
+                    row[p >> 3] |= 0x80 >> (p & 7);
+                }
+        }
+    }
+    c->ccb_SourcePtr = (CelData *)buf;
+    c->ccb_PLUTPtr = pluts + (dim * P_COUNT + role) * 4;
+    c->ccb_XPos = x << 16;
+    c->ccb_YPos = y << 16;
+    queue(c);
+}
+
+/* Spleen 5x8 (BSD-2-Clause): a crisp proportional-feeling body face for the info pane. 5-wide glyphs packed at a
+ * 5 px pitch, so a line holds far more than the 8x8 and the metadata fits without overflowing. */
+void gfx_text_sp(int32 x, int32 y, const char *s, int32 maxch, int32 role)
+{
+    char t[TXT_CHARS + 1];
+    int32 n, rb, r, k, col, p;
+    uint8 *buf, *row, g;
+    CCB *c;
+
+    if (maxch <= 0 || maxch > TXT_CHARS)
+        maxch = TXT_CHARS;
+    n = gfx_fold(s, t, maxch + 1);
+    while (n > 0 && t[n - 1] == ' ')
+        n--;
+    if (n == 0)
+        return;
+    if (ntxt >= NTXT)
+        flush();
+    c = new_ccb();
+    buf = tbufs + (ntxt++) * TXT_BYTES;
+    rb = InitCel(c, n * 5, FONTSP_H, 1, INITCEL_CODED) / FONTSP_H;
+    for (r = 0; r < FONTSP_H; r++) {
+        row = buf + r * rb;
+        for (k = 0; k < rb; k++)
+            row[k] = 0;
+        for (k = 0; k < n; k++) {
+            g = font_sp[(uint8)t[k] - FONTSP_FIRST][r];     /* 5 bits, left-aligned at bit 7 */
+            for (col = 0; col < 5; col++)
+                if (g & (0x80 >> col)) {
+                    p = k * 5 + col;                        /* pixel column in the packed cel */
+                    row[p >> 3] |= 0x80 >> (p & 7);
+                }
+        }
+    }
+    c->ccb_SourcePtr = (CelData *)buf;
+    c->ccb_PLUTPtr = pluts + (dim * P_COUNT + role) * 4;
+    c->ccb_XPos = x << 16;
+    c->ccb_YPos = y << 16;
+    queue(c);
+}
+
+/* Press Start 2P at 6 px tall: the main face's look, a touch smaller, for secondary text. 8-wide glyphs, so the
+ * same byte-per-row packing as gfx_text. */
+void gfx_text6(int32 x, int32 y, const char *s, int32 maxch, int32 role)
+{
+    char t[TXT_CHARS + 1];
+    int32 n, rb, r, k;
+    uint8 *buf, *row;
+    CCB *c;
+
+    if (maxch <= 0 || maxch > TXT_CHARS)
+        maxch = TXT_CHARS;
+    n = gfx_fold(s, t, maxch + 1);
+    while (n > 0 && t[n - 1] == ' ')
+        n--;
+    if (n == 0)
+        return;
+    if (ntxt >= NTXT)
+        flush();
+    c = new_ccb();
+    buf = tbufs + (ntxt++) * TXT_BYTES;
+    rb = InitCel(c, n * 8, FONT6_H, 1, INITCEL_CODED) / FONT6_H;
+    for (r = 0; r < FONT6_H; r++) {
+        row = buf + r * rb;
+        for (k = 0; k < n; k++)
+            row[k] = font6[(uint8)t[k] - FONT6_FIRST][r];
+        for (; k < rb; k++)
+            row[k] = 0;
+    }
+    c->ccb_SourcePtr = (CelData *)buf;
+    c->ccb_PLUTPtr = pluts + (dim * P_COUNT + role) * 4;
+    c->ccb_XPos = x << 16;
+    c->ccb_YPos = y << 16;
+    queue(c);
+}
+
 /* ------------------------------------------------------------------ sprites */
 
 void gfx_sprite(int32 id, int32 x, int32 y, int32 role)
@@ -917,3 +1055,40 @@ void gfx_image(GfxImage *img, int32 x, int32 y)
     c->ccb_PIXC = dim ? PIXC_DIM3 : PIXC_OPAQUE;
     queue(c);
 }
+
+/* A PIXC that scales the current frame buffer by num/16 (1st source = the frame buffer, no cel contribution):
+ * the cel engine's one-pass way to darken what's already drawn. The multiplier is MF (x1..x8) over a shift
+ * (/16, /8, /4, /2), so num <= 8 uses MF=num over /16, and num 9..15 uses MF=(num+1)/2 over /8. Both PPMPC
+ * halves carry it. Used for the fade-through-black transition and reproduced by the host renderer. */
+static uint32 pixc_fbmul(int32 num)
+{
+    uint32 half, mf, sf;
+
+    if (num <= 8) { mf = (uint32)num;            sf = 0; }   /* num/16, shift /16 */
+    else          { mf = (uint32)(num + 1) / 2;  sf = 3; }   /* ~num/16, shift /8  */
+    half = 0x8000u | ((mf - 1) << 10) | (sf << 8);           /* 1st source = CFBD | MF | SF */
+    return (half << 16) | half;
+}
+
+void gfx_shade(int32 x, int32 y, int32 w, int32 h, int32 num)
+{
+    CCB *k;
+
+    if (num >= 16 || w <= 0 || h <= 0)
+        return;                                 /* fully lit: nothing to do */
+    if (num <= 0) {
+        gfx_rect(x, y, w, h, P_BG);             /* fully dark: the background colour */
+        return;
+    }
+    k = new_ccb();
+    *k = *rect_tmpl;
+    k->ccb_PLUTPtr = (void *)(size_t)(1u << 16);
+    k->ccb_SourcePtr = (CelData *)&k->ccb_PLUTPtr;
+    k->ccb_XPos = x << 16;
+    k->ccb_YPos = y << 16;
+    k->ccb_HDX = w << 20;
+    k->ccb_VDY = h << 16;
+    k->ccb_PIXC = pixc_fbmul(num);
+    queue(k);
+}
+

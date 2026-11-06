@@ -43,14 +43,16 @@ void tool_storage_manager(void)
     input_flush();
 }
 
-/* Opera file system volume label at the start of a formatted NVRAM: record type 1, five 0x5A sync bytes,
- * structure version 1 */
+/* Opera file system volume label at the start of a formatted NVRAM: record type 1, five 0x5A sync bytes, then the
+ * volume structure version. Real 3DO NVRAM uses structure version 2 (disc images use 1), so accept either -- checking
+ * for 1 only false-flagged genuine hardware as unformatted (issue #4). */
 static int32 looks_like_nvram(const uint8 *b)
 {
-    return b[0] == 1 && b[1] == 0x5a && b[2] == 0x5a && b[3] == 0x5a && b[4] == 0x5a && b[5] == 0x5a && b[6] == 1;
+    return b[0] == 1 && b[1] == 0x5a && b[2] == 0x5a && b[3] == 0x5a && b[4] == 0x5a && b[5] == 0x5a &&
+           (b[6] == 1 || b[6] == 2);
 }
 
-int32 tool_save_nvram(void)
+int32 tool_save_nvram(int32 force)
 {
     char msg[40];
     uint32 off;
@@ -61,8 +63,8 @@ int32 tool_save_nvram(void)
     err = ramp_read(3, 0, big_buf, BIG);
     if (err < 0)
         return err;
-    if (!looks_like_nvram(big_buf))
-        return -2;                      /* do not replace a backup with something that is not NVRAM */
+    if (!force && !looks_like_nvram(big_buf))
+        return -2;                      /* no format signature: let the caller confirm before overwriting a backup */
     if (ode_file_open("nvram.nvm", 1) < 0)
         return -1;
     for (off = 0; off < BIG; off += ODE_XFER) {
