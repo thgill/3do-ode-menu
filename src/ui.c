@@ -3198,9 +3198,10 @@ static void show_hidden_changed(void)
  * overscan. The menu is drawn undimmed so the real layout and edges are visible; only a small hint strip is added. */
 static void screen_position(void)
 {
+    static const char hint[] = "D-PAD MOVE    A DONE";   /* the live offset shows on the SCREEN POSITION row itself */
+    int32 hw = (int32)(sizeof(hint) - 1) * 8, hx = (SCR_W - hw) / 2;
     uint32 ev, held;
     int32 done = 0;
-    char hint[40];
 
     input_flush();
     while (!done) {
@@ -3210,9 +3211,8 @@ static void screen_position(void)
         bar_color();                /* re-applies the theme and the live nudge for this frame */
         begin_frame(0);             /* 0 = not dimmed: the menu stays clear while positioning */
         draw_screen(1);
-        sprintf(hint, "NUDGE %+d,%+d   D-PAD MOVE   A DONE", (int)g_set.nudgex, (int)g_set.nudgey);
-        gfx_rect(0, FOOT_Y - 1, SCR_W, 10, P_PANEL);
-        gfx_text(16, FOOT_Y, hint, 38, P_ACCENT);
+        gfx_rect(hx - 6, FOOT_Y - 1, hw + 12, 10, P_PANEL);     /* a snug, centred hint that stays within the panel */
+        gfx_text(hx, FOOT_Y, hint, 40, P_ACCENT);
         gfx_frame_end();
         ev = input_poll(&held);
         if ((ev & BTN_LEFT)  && g_set.nudgex > -12) g_set.nudgex--;
