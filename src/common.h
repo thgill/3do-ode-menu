@@ -274,6 +274,7 @@ uint32 gfx_vbl_count(void);                     /* video fields waited for so fa
 void   gfx_delay(int32 frames);
 #define THEME_COUNT 5
 void   gfx_set_theme(int32 t);                  /* Options > THEME: recolours every role */
+void   gfx_set_nudge(int32 x, int32 y);         /* Options > SCREEN POSITION: shift the whole menu, -12..+12 */
 int32  gfx_theme_bar(void);
 const char *gfx_theme_name(int32 t);
 void   gfx_rect_rgb(int32 x, int32 y, int32 w, int32 h, int32 rgb);
@@ -342,6 +343,9 @@ typedef struct Settings {
     int32 sound;        /* menu sound effects */
     int32 saver;        /* screensaver: 0 off, 1 = 1 min, 2 = 5 min, 3 = 30 min */
     int32 showhid;      /* show hidden games (dimmed) */
+    int32 boottab;      /* which tab to start on: 0 = Games, 1 = Favorites */
+    int32 nudgex;       /* screen position nudge, -12..+12 pixels (CRT overscan) */
+    int32 nudgey;
     int32 dirty;
 } Settings;
 extern Settings g_set;

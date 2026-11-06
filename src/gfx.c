@@ -30,6 +30,21 @@ static int32  bg_pending = -1;
  * changes there. */
 static int32  yoff;
 static int32  pal;
+static int32  nudgex, nudgey;   /* user screen-position nudge (Options > SCREEN POSITION), -NUDGE_MAX..+NUDGE_MAX */
+#define NUDGE_MAX 12
+
+/* Options > SCREEN POSITION: shift the whole menu to fit the TV's overscan. Applied to every cel in queue(); the
+ * cached still parts were drawn at the old offset, so drop them. */
+void gfx_set_nudge(int32 x, int32 y)
+{
+    if (x < -NUDGE_MAX) x = -NUDGE_MAX; else if (x > NUDGE_MAX) x = NUDGE_MAX;
+    if (y < -NUDGE_MAX) y = -NUDGE_MAX; else if (y > NUDGE_MAX) y = NUDGE_MAX;
+    if (x == nudgex && y == nudgey)
+        return;
+    nudgex = x;
+    nudgey = y;
+    bg_key = -1;
+}
 
 #define NCCB        448
 #define NTXT        128
@@ -174,7 +189,8 @@ static CCB *new_ccb(void)
 
 static void queue(CCB *c)
 {
-    c->ccb_YPos += yoff << 16;
+    c->ccb_XPos += nudgex << 16;
+    c->ccb_YPos += (yoff + nudgey) << 16;
     c->ccb_NextPtr = 0;
     c->ccb_Flags |= CCB_LAST;
     if (tail) {
@@ -352,7 +368,9 @@ int32 gfx_frame_begin_bg(int32 key)
         return 0;
     }
     gfx_wait_vbl();
-    rect_rgb(0, -yoff, SCR_W, SCR_H + 2 * yoff, colors[0][P_BG]);   /* (on PAL the bands above and below too) */
+    /* clear a margin wider than the nudge so a shifted frame never leaves an uncleared strip at an edge */
+    rect_rgb(-NUDGE_MAX, -yoff - NUDGE_MAX, SCR_W + 2 * NUDGE_MAX, SCR_H + 2 * yoff + 2 * NUDGE_MAX,
+             colors[0][P_BG]);   /* (on PAL the bands above and below too) */
     if (key >= 0 && bgbuf)
         bg_pending = key;
     return 1;

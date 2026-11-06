@@ -16,7 +16,7 @@
 #endif
 
 enum { T_GAMES, T_FAVS, T_RECENT, T_TOOLS, T_OPTIONS, T_COUNT };
-enum { O_PANE, O_THEME, O_BAR, O_SHINE, O_SOUND, O_SAVER, O_HIDDEN, O_INDEX, O_ABOUT, O_COUNT };   /* OPTIONS rows */
+enum { O_PANE, O_THEME, O_BAR, O_SHINE, O_SOUND, O_SAVER, O_HIDDEN, O_INDEX, O_START, O_SCREEN, O_ABOUT, O_COUNT };   /* OPTIONS rows */
 
 /* layout, in cells and pixels (mock3do.py / mock_synth.py) */
 /* Vertical layout. LOGO_Y and TAB_Y place the logo and the tab strip; everything below follows from TAB_Y and
@@ -309,6 +309,7 @@ static void bar_color(void)
                 memcpy(logo_orig, logo->pix, n * 2);
         }
     }
+    gfx_set_nudge(g_set.nudgex, g_set.nudgey);      /* applies the saved screen-position nudge (self-guards) */
     if (g_set.bar == 0) {
         gfx_set_bar(gfx_theme_bar());
         return;
@@ -790,6 +791,7 @@ static const char *opt_label(int32 i, const char **value)
 {
     static const char *bars[4] = { "OFF", "SLOW", "MED", "FAST" };
     static const char *savers[4] = { "OFF", "1 MIN", "5 MIN", "30 MIN" };
+    static char screenval[12];
 
     switch (i) {
     case O_PANE:   *value = g_set.pane ? "ON" : "OFF"; return "INFO PANE";
@@ -800,6 +802,9 @@ static const char *opt_label(int32 i, const char **value)
     case O_SAVER:  *value = savers[g_set.saver & 3]; return "SCREENSAVER";
     case O_HIDDEN: *value = g_set.showhid ? "ON" : "OFF"; return "SHOW HIDDEN GAMES";
     case O_INDEX:  *value = g_set.index ? "ON" : "OFF"; return "FOLDER INDEX";
+    case O_START:  *value = g_set.boottab ? "FAVORITES" : "GAMES"; return "START ON";
+    case O_SCREEN: sprintf(screenval, "%+d,%+d", (int)g_set.nudgex, (int)g_set.nudgey); *value = screenval;
+                   return "SCREEN POSITION";
     default:       *value = 0; return "ABOUT";
     }
 }
@@ -3189,6 +3194,40 @@ static void show_hidden_changed(void)
     after_load(keep);
 }
 
+/* Options > SCREEN POSITION: the D-pad shifts the whole menu live (gfx_set_nudge), to fit the TV's overscan. */
+static void screen_position(void)
+{
+    Dialog d;
+    uint32 ev, held;
+    int32 done = 0;
+
+    dialog_init(&d, "SCREEN POSITION");
+    strcpy(d.lines[0], "D-PAD MOVES THE WHOLE MENU");
+    strcpy(d.lines[1], "TO FIT YOUR TV.");
+    d.nlines = 2;
+    d.opts[0] = "DONE";
+    d.nopts = 1;
+    d.hint_a = "DONE";
+    d.msg_only = 1;
+    input_flush();
+    while (!done) {
+        gfx_set_nudge(g_set.nudgex, g_set.nudgey);      /* apply this frame's offset before the box is drawn */
+        frame_with_box(&d);
+        ev = input_poll(&held);
+        if ((ev & BTN_LEFT)  && g_set.nudgex > -12) g_set.nudgex--;
+        if ((ev & BTN_RIGHT) && g_set.nudgex <  12) g_set.nudgex++;
+        if ((ev & BTN_UP)    && g_set.nudgey > -12) g_set.nudgey--;
+        if ((ev & BTN_DOWN)  && g_set.nudgey <  12) g_set.nudgey++;
+        if (ev & (BTN_A | BTN_B))
+            done = 1;
+    }
+    input_flush();
+    gfx_set_nudge(g_set.nudgex, g_set.nudgey);
+    g_set.dirty = 1;
+    lists_save(0);
+    dirty = 1;
+}
+
 static void option_change(int32 dir)
 {
     switch (cur[T_OPTIONS]) {
@@ -3200,6 +3239,11 @@ static void option_change(int32 dir)
     case O_SAVER:  g_set.saver = (g_set.saver + (dir > 0 ? 1 : 3)) & 3; break;
     case O_HIDDEN: g_set.showhid = !g_set.showhid; show_hidden_changed(); break;
     case O_INDEX:  g_set.index = !g_set.index; g_dir.use_cache = g_set.index; break;
+    case O_START:  g_set.boottab = !g_set.boottab; break;
+    case O_SCREEN:
+        if (dir > 0)
+            screen_position();      /* enters the live nudge screen; it saves itself */
+        return;
     default:
         if (dir > 0)
             about();
@@ -3526,6 +3570,7 @@ void ui_start(void)
     DIAG_STEP(0x7e1c, 0);                       /* pink: folder listed; next is the first menu frame */
     sync_lists();
     after_load(sel);
+    tab = g_set.boottab ? T_FAVS : T_GAMES;     /* Options > START ON */
     if (load_err < 0)
         ui_toast("Could not read the card");
     else if (at_root && !g_dir.both_drives && !g_set.scanned)

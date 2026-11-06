@@ -51,6 +51,9 @@ void lists_init(void)
     g_set.sound = 1;
     g_set.saver = 2;            /* 5 minutes */
     g_set.showhid = 0;
+    g_set.boottab = 0;          /* start on Games */
+    g_set.nudgex = 0;
+    g_set.nudgey = 0;
 }
 
 const char *path_base(const char *path)
@@ -262,6 +265,9 @@ void lists_load(void)
         g_set.sound = opt_value(fbuf, "sound", 1, 1);
         g_set.saver = opt_value(fbuf, "saver", 2, 3);
         g_set.showhid = opt_value(fbuf, "showhid", 0, 1);
+        g_set.boottab = opt_value(fbuf, "boottab", 0, 1);
+        g_set.nudgex = opt_value(fbuf, "nudgex", 12, 24) - 12;   /* stored 0..24 (unsigned), used as -12..+12 */
+        g_set.nudgey = opt_value(fbuf, "nudgey", 12, 24) - 12;
     }
     dir_root_end();
     g_dir.use_cache = g_set.index;
@@ -300,9 +306,10 @@ void lists_save(int32 at_root)
         g_hidden.dirty = 0;
     if (g_set.dirty) {
         sprintf(fbuf, "OMO1\npane=%d\nbar=%d\nshine=%d\nindex=%d\nremember=%d\nscanned=%d\ntheme=%d\nsound=%d\n"
-                "saver=%d\nshowhid=%d\n", (int)g_set.pane, (int)g_set.bar, (int)g_set.shine, (int)g_set.index,
-                (int)g_set.remember, (int)g_set.scanned, (int)g_set.theme, (int)g_set.sound, (int)g_set.saver,
-                (int)g_set.showhid);
+                "saver=%d\nshowhid=%d\nboottab=%d\nnudgex=%d\nnudgey=%d\n", (int)g_set.pane, (int)g_set.bar,
+                (int)g_set.shine, (int)g_set.index, (int)g_set.remember, (int)g_set.scanned, (int)g_set.theme,
+                (int)g_set.sound, (int)g_set.saver, (int)g_set.showhid, (int)g_set.boottab,
+                (int)(g_set.nudgex + 12), (int)(g_set.nudgey + 12));
         if (write_file(OPT_FILE, fbuf, strlen(fbuf)) == 0)
             g_set.dirty = 0;
     }
