@@ -1321,11 +1321,9 @@ static void draw_folder_pane(Row *w, int32 games)
     const char *p;
 
     gfx_rrect(ART_X - 2, ART_Y - 2, ART_W + 4, ART_H + 4, P_PANEL, P_EDGE, 2, RR_ALL);
-    /* a sheet peeking out behind the folder (contents), then the folder: a tab and its front */
-    gfx_rrect(fx + 5, fy + 3, fw - 6, fh, P_DIM, P_EDGE, 2, RR_ALL);
-    gfx_rrect(fx, fy, 26, 10, P_FOLDER, P_EDGE, 2, RR_TOP);
-    gfx_rrect(fx, fy + 8, fw, fh, P_FOLDER, P_EDGE, 2, RR_ALL);
-    gfx_rect(fx + 4, fy + 14, fw - 8, 1, P_EDGE);            /* a seam, for the folder's lip */
+    /* a folder that matches the list's folder icon: a hollow tab-and-body outline in P_FOLDER */
+    gfx_rrect(fx, fy, 24, 11, P_PANEL, P_FOLDER, 2, RR_TOP);
+    gfx_rrect(fx, fy + 9, fw, fh, P_PANEL, P_FOLDER, 2, RR_ALL);
     /* the name, centred under the folder */
     gfx_fold(w->text, tmp, sizeof(tmp));
     y = fy + fh + 16;
