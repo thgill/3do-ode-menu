@@ -150,8 +150,7 @@ button.sm.alt { background: var(--gold); }
   <p>
     <label><input type="checkbox" id="redo"> Remake covers that already exist</label><br>
     <label><input type="checkbox" id="idxOn" checked> Make folder indexes, so folders open at once on the console</label><br>
-    <label><input type="checkbox" id="infoOn" checked> Write game info (year, publisher&hellip;) for the info side</label><br>
-    <label><input type="checkbox" id="folderOn" checked> Make folder cover stacks</label>
+    <label><input type="checkbox" id="infoOn" checked> Write game info (year, publisher&hellip;) for the info side</label>
   </p>
   <button class="go" id="make">MAKE COVERS</button>
   <button id="again">CHOOSE ANOTHER CARD</button>
@@ -618,51 +617,11 @@ function encode8(cv) {
   for (const c of px) out[o++] = map[c];
   return out;
 }
-/* a folder's pane art (as folder_montage in tools/covermaker.py): a full-size front cover with the edges of up
-   to two more peeking behind, on the panel colour. Returns a canvas for cover()/encode8() to shrink to 88x122. */
-function folderMontage(pics) {
-  const bw = 176, bh = 244, cw = 148, ch = 204;
-  const c = document.createElement("canvas"); c.width = bw; c.height = bh;
-  const g = c.getContext("2d");
-  g.fillStyle = "rgb(32,8,65)"; g.fillRect(0, 0, bw, bh);
-  const card = (pic, x, y, w) => {
-    g.drawImage(pic, x, y, cw, ch);
-    g.strokeStyle = "rgb(15,15,25)"; g.lineWidth = w;
-    g.strokeRect(x + w / 2, y + w / 2, cw - w, ch - w);
-  };
-  const edges = pics.slice(1, 3);
-  edges.slice().reverse().forEach((pic, i) => {           /* furthest first */
-    const off = 14 * (edges.length - i);
-    card(pic, off, Math.round(off * 1.4), 3);
-  });
-  card(pics[0], 0, 0, 2);
-  return c;
-}
 async function readText(dir, name) {
   try { return await (await (await dir.getFileHandle(name)).getFile()).text(); } catch (e) { return null; }
 }
-/* a cover .img the menu wrote (OAR8 256-colour, or OART 15-bit) back to a canvas, so a folder stack can be built
-   from the covers already on the card, not only ones (re)made this run. Null if it isn't one of those. */
-function decodeImg(b) {
-  const tag = String.fromCharCode(b[0], b[1], b[2], b[3]);
-  const w = (b[4] << 8) | b[5], h = (b[6] << 8) | b[7];
-  if (w < 1 || h < 1 || w > 256 || h > 256) return null;
-  const c = document.createElement("canvas"); c.width = w; c.height = h;
-  const g = c.getContext("2d"), im = g.createImageData(w, h);
-  const put = (i, v) => { im.data[i * 4] = ((v >> 10) & 31) * 255 / 31; im.data[i * 4 + 1] = ((v >> 5) & 31) * 255 / 31;
-                          im.data[i * 4 + 2] = (v & 31) * 255 / 31; im.data[i * 4 + 3] = 255; };
-  if (tag === "OAR8") {
-    const n = (b[8] << 8) | b[9], pal = []; let o = 10;
-    for (let i = 0; i < n; i++, o += 2) pal.push((b[o] << 8) | b[o + 1]);
-    for (let i = 0; i < w * h; i++) put(i, pal[b[o + i]] || 0);
-  } else if (tag === "OART") {
-    let o = 8;
-    for (let i = 0; i < w * h; i++, o += 2) put(i, (b[o] << 8) | b[o + 1]);
-  } else {
-    return null;
-  }
-  g.putImageData(im, 0, 0);
-  return c;
+async function removeFile(dir, name) {
+  try { await dir.removeEntry(name); return true; } catch (e) { return false; }
 }
 function drawPx(c, cv) {
   const px = cv.px; c.width = cv.w; c.height = cv.h;
@@ -712,43 +671,19 @@ async function make() {
       let blob;
       if (j.what === "own") blob = await (await j.own.dir.getFileHandle(j.own.name)).getFile();
       else blob = await download(j.src);
-      const bmp = await toBitmap(blob);
-      const px = cover(bmp);
+      const px = cover(await toBitmap(blob));
       await writeCover(j, px);
-      if ($("folderOn").checked) j._pic = bmp;      /* kept for the folder cover-stack below */
       thumb(px); made++;
     } catch (e) { j.what = "miss"; j.why = e.message; failed.push(j); }
   }
-  /* the folder cover-stacks: one _folder.img per folder of games. Built from the covers already on the card
-     (decoded back) as well as ones (re)made this run, so a card that already had its covers still gets stacks. */
-  let folderMade = 0, folderFailed = 0;
-  if ($("folderOn").checked) {
-    const groups = new Map();                     /* folder handle -> the game jobs whose stack it holds */
-    for (const j of jobs) {
-      if (!j.pdir || j.pdir === root) continue;   /* the card root isn't a folder you select */
-      if (!groups.has(j.pdir)) groups.set(j.pdir, []);
-      groups.get(j.pdir).push(j);
-    }
-    let gi = 0;
-    for (const [pdir, gjobs] of groups) {
-      $("now").textContent = "Folder art " + (++gi) + " of " + groups.size;
-      const changed = gjobs.some(j => j._pic);
-      if (!changed && await hasData(pdir, "_folder.img")) continue;   /* up to date already */
-      const pics = [];
-      for (const j of gjobs) {
-        if (pics.length >= 3) break;
-        let bmp = j._pic;
-        if (!bmp) {                               /* no fresh cover: read the one already on the card */
-          const dir = j.art ? await j.dir.getDirectoryHandle("_art").catch(() => null) : j.dir;
-          const bytes = dir ? await readBytes(dir, j.dst) : null;
-          if (bytes) bmp = decodeImg(bytes);
-        }
-        if (bmp) pics.push(bmp);
-      }
-      if (!pics.length) continue;
-      try { await writeFile(pdir, "_folder.img", encode8(cover(folderMontage(pics)))); folderMade++; }
-      catch (e) { folderFailed++; }
-    }
+  /* folders show a plain graphic now, not cover art; remove any _folder.img an older run left behind */
+  let folderGone = 0;
+  const cleaned = new Set();
+  for (const j of jobs) {
+    const d = j.pdir;
+    if (!d || d === root || cleaned.has(d)) continue;
+    cleaned.add(d);
+    if (await removeFile(d, "_folder.img")) folderGone++;
   }
   /* the info-side sidecars: one _info.txt per game we have metadata for, beside its cover */
   let infoMade = 0;
@@ -779,7 +714,7 @@ async function make() {
                             (miss.length ? " " + n(miss.length, "game has", "games have") + " no picture yet." : "") +
                             ($("infoOn").checked ? (Object.keys(meta).length ? " " + n(infoMade, "info file", "info files") + " written."
                                                                              : " (No 3do_meta.json found, so no info files.)") : "") +
-                            ($("folderOn").checked && folderMade ? " " + n(folderMade, "folder stack", "folder stacks") + " made." : "");
+                            (folderGone ? " Removed " + n(folderGone, "old folder image", "old folder images") + "." : "");
   const same = idxJobs.filter(x => x.state === "same").length, kept = idxJobs.filter(x => x.state === "kept");
   $("idxSummary").textContent = !$("idxOn").checked ? "Folder indexes: not made." :
     "Folder indexes: " + idxMade + " written" + (idxFailed ? ", " + idxFailed + " failed" : "") +
