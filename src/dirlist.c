@@ -498,6 +498,29 @@ static int32 detect_folder(int32 i)
     return 0;
 }
 
+/* Eager whole-listing detection runs only during a card scan (dir_set_detect(1)), never on a normal boot or browse.
+ * Walking into every sub-folder to classify it is what let a huge, delete-churned directory hang the console and
+ * boot-loop the menu (issue #2): at startup the menu would list the root and immediately walk into a bad folder
+ * before it ever appeared. Normal listings now leave folders GT_UNKNOWN and classify one the first time it is
+ * opened (dir_classify). Cover-Maker / scanned cards are unaffected: their index already carries each folder's
+ * gtype, so the listing is read from cache and never detected. */
+static int32 detect_eager;
+
+void dir_set_detect(int32 on)
+{
+    detect_eager = on;
+}
+
+/* classify one folder on demand: detect it if it is an as-yet-unknown directory, then say whether it is a game
+ * folder. The one folder being opened is read either way, so this adds no walk a normal browse did not already do. */
+int32 dir_classify(int32 i)
+{
+    if (!g_dir.devlist && i >= 0 && i < g_dir.count && (g_dir.ent[i].flags & TF_DIR) &&
+        g_dir.ent[i].gtype == GT_UNKNOWN)
+        detect_folder(i);
+    return dir_is_game_folder(i);
+}
+
 /* every folder of the listing; 1 if canceled (the rest stay GT_UNKNOWN and nothing is cached) */
 static int32 detect_all(DirProgress progress)
 {
@@ -970,7 +993,7 @@ static int32 load_listing(DirProgress progress, int32 force_scan)
     if (err < 0)
         return err;
     probe_calibrate();
-    if (!g_dir.devlist && err == 0 && detect_all(progress))
+    if (detect_eager && !g_dir.devlist && err == 0 && detect_all(progress))
         err = 1;                /* canceled: shown, not cached */
     if (!g_dir.devlist)
         sort_entries();

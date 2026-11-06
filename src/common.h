@@ -203,6 +203,8 @@ int32       dir_open_path(int32 drive, const char *path, DirProgress progress); 
 int32       name_is_game(const char *name);     /* .iso or .cue */
 int32       dir_is_game(int32 i);               /* a game file, or a game folder */
 int32       dir_is_game_folder(int32 i);
+int32       dir_classify(int32 i);              /* classify a folder on demand (first open); 1 if it is a game folder */
+void        dir_set_detect(int32 on);           /* 1 only around a card scan: classify every folder of each listing */
 const char *dir_inner(int32 i);                 /* a game folder's game file */
 int32       dir_game_enter(int32 i, uint32 *toc);   /* firmware into game folder i; *toc = its game. 0 or < 0 */
 void        dir_game_leave(void);               /* and back out */

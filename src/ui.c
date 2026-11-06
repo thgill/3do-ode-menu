@@ -2733,6 +2733,8 @@ static void games_a(void)
         return;
     }
     f = g_dir.ent[i].flags;
+    if (f & TF_DIR)
+        dir_classify(i);                /* lazy: a folder is classified the first time it is opened, not at boot */
     if (dir_is_game_folder(i)) {
         game_dialog(i);
     } else if (f & TF_DIR) {
@@ -3033,6 +3035,7 @@ static void scan_card(void)
     }
     input_flush();
     scan_show();
+    dir_set_detect(1);          /* the scan deliberately classifies every folder and writes it into each index */
     if (dir_to_root(scan_progress) < 0)
         scan_stop = 1;
     nexti[0] = 0;
@@ -3060,6 +3063,7 @@ static void scan_card(void)
                 nexti[d + 1] = 0;
         }
     }
+    dir_set_detect(0);          /* back to lazy classification for normal browsing */
     if (g_dir.depth > 0)
         dir_to_root(load_progress);
     if (all_buf) {
