@@ -15,6 +15,7 @@ artwork are mine and not for reuse in other projects; see [NOTICE.md](NOTICE.md)
 
 - Tabs for **Games**, **Favs**, **Recent**, **Tools** and **Options**
 - Box art or screenshots for each game (see [Cover art](#cover-art))
+- An info side on the art: press **C** to flip a game's cover to its details — title, year, publisher, developer, genre and number of players (from a small sidecar the Cover Maker writes)
 - Folders and games sorted the way you'd expect, with `Disc 2` before `Disc 10`
 - A game kept in its own folder (`Doom/Doom.cue` + `.bin`) shows up as the game itself, no need to open the folder
 - Multi-disc games: start disc 1 and the menu offers to queue the rest (see [Multi-disc games](#multi-disc-games))
@@ -22,7 +23,7 @@ artwork are mine and not for reuse in other projects; see [NOTICE.md](NOTICE.md)
 - X picks a random game (from the whole card after TOOLS > SCAN CARD, otherwise from the folder you're in)
 - Hide games you don't want in the list (demos, duplicates) without deleting them; Options > Show Hidden Games
   brings them back
-- Five colour themes (Synth, Navy, Moss, Wine, Grey), sound effects and a screensaver, all in Options
+- Options for five colour themes (Synth, Navy, Moss, Wine, Grey), sound effects, a screensaver, which tab to start on, a screen-position nudge to fit the picture to your TV, and clearing the queue or the recent list
 - Big folders open quickly after the first visit
 - Hold up/down to scroll (it speeds up), L/R to switch tabs, left/right to jump by letter
 - All the original tools: NVRAM save and load, ROM and RAM dumps, ODE firmware update, Storage Manager
@@ -61,7 +62,7 @@ To go back, copy the original `boot.iso` back.
 |---|---|
 | A | Open a folder, or open the game menu (start, favorite, queue, hide) |
 | B | Up a folder, or back to Games from the other tabs |
-| C | Show or hide the info pane |
+| C | Flip the cover and the game's info (the info pane is turned on/off in Options) |
 | P | Start the queue, or the selected game if the queue is empty |
 | X | A random game |
 | L / R | Previous / next tab |
