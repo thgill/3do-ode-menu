@@ -119,7 +119,7 @@ static ArtSlot art[ART_SLOTS];
 static int32   art_clock;
 static int32   pane_face;        /* the info pane's face: 0 cover (art), 1 info (specs) */
 static int32   flip_left;        /* fields left in the pane transition (0 = at rest) */
-static int32   g_infofont = 1;   /* info-side font: 0 = 5x7, 1 = main 8x8, 2 = Press Start 2P 6px */
+static int32   g_infofont = 0;   /* info-side font: 0 = Spleen 5x8 (default), 1 = 8x8, 2 = PS2P 6px, 3 = 5x7 */
 #define FLIP_LEN  12             /* the transition's length, in video fields */
 
 /* logo and its shine */
@@ -1156,6 +1156,8 @@ static void info_load(const char *path)
 }
 
 /* the info side of the pane: the game's name (8x8) over its metadata (the info font, so it fits the column). */
+#define INFO_BOTTOM (ART_Y + ART_H - 3)     /* keep the last line off the pane's bottom edge */
+
 static void info_field(void (*put)(int32, int32, const char *, int32, int32),
                        int32 *ty, int32 pw, int32 lh, const char *s, int32 role, int32 gap)
 {
@@ -1163,6 +1165,8 @@ static void info_field(void (*put)(int32, int32, const char *, int32, int32),
     const char *p;
 
     for (p = s; *p; *ty += lh) {
+        if (*ty + lh > INFO_BOTTOM)     /* out of room: drop the rest rather than spill past the border */
+            return;
         p = pane_line(p, pw, line);
         put(ART_X, *ty, line, pw, role);
     }
@@ -1176,9 +1180,12 @@ static void draw_info_side(Row *w)
     char line[40];
     const char *p;
 
-    if (g_infofont == 1)      { put = gfx_text;  pw = ART_W / 8; lh = 10; }
-    else if (g_infofont == 2) { put = gfx_text6; pw = ART_W / 8; lh = 8;  }
-    else                      { put = gfx_text5; pw = ART_W / 6; lh = 8;  }
+    switch (g_infofont) {
+    case 1:  put = gfx_text;    pw = ART_W / 8; lh = 10; break;  /* the 8x8 main face */
+    case 2:  put = gfx_text6;   pw = ART_W / 8; lh = 8;  break;  /* Press Start 2P, 6 px */
+    case 3:  put = gfx_text5;   pw = ART_W / 6; lh = 8;  break;  /* the 5x7 hand face */
+    default: put = gfx_text_sp; pw = ART_W / 5; lh = 9;  break;  /* Spleen 5x8 (default) */
+    }
 
     gfx_rrect(ART_X - 2, ART_Y - 2, ART_W + 4, ART_H + 4, P_PANEL, P_EDGE, 2, RR_ALL);
     gfx_fold(w->text, tmp, sizeof(tmp));

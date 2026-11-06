@@ -17,6 +17,7 @@
 #include "uiart.h"
 #include "font5.h"
 #include "font6.h"
+#include "font_sp.h"
 
 static void rect_rgb(int32 x, int32 y, int32 w, int32 h, int32 c);
 static uint32 vbl_count;
@@ -788,6 +789,47 @@ void gfx_text5(int32 x, int32 y, const char *s, int32 maxch, int32 role)
             for (col = 0; col < 5; col++)
                 if (g & (0x80 >> col)) {
                     p = k * 6 + col;                        /* pixel column in the packed cel */
+                    row[p >> 3] |= 0x80 >> (p & 7);
+                }
+        }
+    }
+    c->ccb_SourcePtr = (CelData *)buf;
+    c->ccb_PLUTPtr = pluts + (dim * P_COUNT + role) * 4;
+    c->ccb_XPos = x << 16;
+    c->ccb_YPos = y << 16;
+    queue(c);
+}
+
+/* Spleen 5x8 (BSD-2-Clause): a crisp proportional-feeling body face for the info pane. 5-wide glyphs packed at a
+ * 5 px pitch, so a line holds far more than the 8x8 and the metadata fits without overflowing. */
+void gfx_text_sp(int32 x, int32 y, const char *s, int32 maxch, int32 role)
+{
+    char t[TXT_CHARS + 1];
+    int32 n, rb, r, k, col, p;
+    uint8 *buf, *row, g;
+    CCB *c;
+
+    if (maxch <= 0 || maxch > TXT_CHARS)
+        maxch = TXT_CHARS;
+    n = gfx_fold(s, t, maxch + 1);
+    while (n > 0 && t[n - 1] == ' ')
+        n--;
+    if (n == 0)
+        return;
+    if (ntxt >= NTXT)
+        flush();
+    c = new_ccb();
+    buf = tbufs + (ntxt++) * TXT_BYTES;
+    rb = InitCel(c, n * 5, FONTSP_H, 1, INITCEL_CODED) / FONTSP_H;
+    for (r = 0; r < FONTSP_H; r++) {
+        row = buf + r * rb;
+        for (k = 0; k < rb; k++)
+            row[k] = 0;
+        for (k = 0; k < n; k++) {
+            g = font_sp[(uint8)t[k] - FONTSP_FIRST][r];     /* 5 bits, left-aligned at bit 7 */
+            for (col = 0; col < 5; col++)
+                if (g & (0x80 >> col)) {
+                    p = k * 5 + col;                        /* pixel column in the packed cel */
                     row[p >> 3] |= 0x80 >> (p & 7);
                 }
         }

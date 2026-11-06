@@ -37,6 +37,7 @@ open(p, 'wb').write(b'\r'.join(keep))
 PY
 cp assets_gen/logo.img "$TMP/disc/assets/"
 cp assets_gen/OFL.txt "$TMP/disc/OFL.txt"
+cp assets_gen/SPLEEN-LICENSE.txt "$TMP/disc/SPLEEN-LICENSE.txt"   # BSD-2 license for the Spleen info-pane font
 mkdir -p "$(dirname "$OUT")"
 3dt pack "$TMP/disc" -o "$OUT" --volume-label xpboot --billstuff-romtag 2>&1 | grep -v "development signature" || true
 3dt verify "$OUT"
