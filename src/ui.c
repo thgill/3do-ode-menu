@@ -571,11 +571,11 @@ static int32 art_where(const char *path, ArtWhere *w)
     w->root = 1;
     memcpy(w->prefix, path, dl);
     w->prefix[dl] = 0;
-    /* the menu's own folder, or a game folder in it: no trip to the root */
+    /* note a local game folder's own game file (for the card scan). The picture read itself always anchors at the
+     * drive root: the only folder this shortcut ever matched was the root, and on some ODEs a cover read relative
+     * to the current folder (no trip to the root) fails there while the same read from the root works (issue #3). */
     if (list_path_of(-1, here, sizeof(here)) == 0 && strncmp(here, w->prefix, strlen(here)) == 0 &&
         (path_is_folder(path) ? (int32)strlen(here) + (int32)strlen(w->folder) + 1 == dl : (int32)strlen(here) == dl)) {
-        memmove(w->prefix, w->prefix + strlen(here), dl - strlen(here) + 1);
-        w->root = 0;
         if (w->folder[0]) {
             i = dir_find(w->folder);
             if (dir_is_game_folder(i))
