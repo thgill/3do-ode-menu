@@ -3264,7 +3264,7 @@ static void screen_position(void)
         bar_color();                /* re-applies the theme and the live nudge for this frame */
         begin_frame(0);             /* 0 = not dimmed: the menu stays clear while positioning */
         draw_screen(1);
-        gfx_rect(hx - 6, FOOT_Y - 1, hw + 12, 10, P_PANEL);     /* a snug, centred hint that stays within the panel */
+        gfx_rect(9, FOOT_Y - 1, 302, 10, P_PANEL);     /* clear the whole footer line so the normal footer doesn't show through */
         gfx_text(hx, FOOT_Y, hint, 40, P_ACCENT);
         gfx_frame_end();
         ev = input_poll(&held);
