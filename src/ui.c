@@ -522,7 +522,8 @@ typedef struct ArtWhere {
     char prefix[LIST_PATH_MAX];     /* the folder of the pictures, as the firmware will be asked ("" or "x/y/") */
     char folder[DIR_NAME_MAX];      /* a game folder's name, "" for a game file */
     char inner[DIR_NAME_MAX];       /* the game file's name without its extension */
-    char made[ART_NAME_MAX];        /* where the .img goes */
+    char made[ART_NAME_MAX];        /* where the .img goes (the full path from the drive root) */
+    char madelocal[ART_NAME_MAX];   /* the same cover relative to the current folder, "" if the game isn't in it */
     int32 root;                     /* 1: the firmware must be taken to the drive root first */
     int32 scan;                     /* 1: the card scan: look for pictures to convert too */
 } ArtWhere;
@@ -556,7 +557,7 @@ static int32 art_candidate(const ArtWhere *w, int32 n)
 static int32 art_where(const char *path, ArtWhere *w)
 {
     char here[LIST_PATH_MAX];
-    int32 dl, i;
+    int32 dl, i, herelen = 0;
     const char *base;
 
     memset(w, 0, sizeof(*w));
@@ -573,11 +574,13 @@ static int32 art_where(const char *path, ArtWhere *w)
     w->root = 1;
     memcpy(w->prefix, path, dl);
     w->prefix[dl] = 0;
-    /* note a local game folder's own game file (for the card scan). The picture read itself always anchors at the
-     * drive root: the only folder this shortcut ever matched was the root, and on some ODEs a cover read relative
-     * to the current folder (no trip to the root) fails there while the same read from the root works (issue #3). */
+    /* Note when the game sits in the folder the menu is showing, and remember that folder's length. art_load reads
+     * the cover relative to it first (fast, no trip to the drive root); only if that finds nothing does it fall
+     * back to the root-anchored read, because some ODEs serve a cover from the root but not relative to the current
+     * folder (issue #3). The card scan and FAVS/RECENT (not in the current listing) always use the root path. */
     if (list_path_of(-1, here, sizeof(here)) == 0 && strncmp(here, w->prefix, strlen(here)) == 0 &&
         (path_is_folder(path) ? (int32)strlen(here) + (int32)strlen(w->folder) + 1 == dl : (int32)strlen(here) == dl)) {
+        herelen = (int32)strlen(here);
         if (w->folder[0]) {
             i = dir_find(w->folder);
             if (dir_is_game_folder(i))
@@ -598,6 +601,12 @@ static int32 art_where(const char *path, ArtWhere *w)
             sprintf(w->made, "%s_cover.img", w->prefix);     /* a game folder: its own cover */
     } else {
         sprintf(w->made, "%s_art/%s.img", w->prefix, w->inner);
+    }
+    /* the cover relative to the current folder (w->made with the current-folder prefix stripped), for the fast
+     * first read; left empty when the game isn't in the current listing (FAVS/RECENT). Only art_load reads it. */
+    if (herelen > 0 && herelen <= (int32)strlen(w->made)) {
+        strncpy(w->madelocal, w->made + herelen, sizeof(w->madelocal) - 1);
+        w->madelocal[sizeof(w->madelocal) - 1] = 0;
     }
     return 0;
 }
@@ -729,19 +738,32 @@ static ArtSlot *art_load(const char *key)
 
     if (g_dir.devlist || art_where(strchr(key, '|') + 1, &w) < 0)
         return 0;
-    if (w.root && dir_root_begin() < 0)
-        return 0;
     for (i = 1; i < ART_SLOTS; i++)
         if (art[i].age < s->age)
             s = &art[i];
     if (s->img == 0)
         s->img = gfx_image_new(ART_W, ART_H);
-    if (s->img)
-        rc = art_fetch(&w, s->img->pix, s->img->stride, input_interrupt, &made, &pw, &ph);
+    if (s->img) {
+        /* Read the cover relative to the folder the menu is showing first: no trip to the drive root, so stepping
+         * through a sub-folder's games doesn't walk up and back for every picture. */
+        if (w.madelocal[0]) {
+            char full[ART_NAME_MAX];
+            strcpy(full, w.made);
+            strcpy(w.made, w.madelocal);
+            rc = art_fetch(&w, s->img->pix, s->img->stride, input_interrupt, &made, &pw, &ph);
+            strcpy(w.made, full);
+        }
+        /* The game isn't in the current folder (FAVS/RECENT), or nothing was there relative to it (some ODEs serve
+         * a cover only from the root): read it anchored at the drive root. */
+        if (rc == ART_MISSING && w.root) {
+            if (dir_root_begin() < 0)
+                return 0;
+            rc = art_fetch(&w, s->img->pix, s->img->stride, input_interrupt, &made, &pw, &ph);
+            dir_root_end();
+        }
+    }
     if (rc == ART_OK)
         art_compose(s, pw, ph);
-    if (w.root)
-        dir_root_end();
     if (rc == ART_ABORTED) {
         s->state = 0;
         s->key[0] = 0;
