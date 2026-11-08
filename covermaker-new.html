@@ -658,12 +658,20 @@ async function make() {
   $("step2").hidden = true; $("step3").hidden = false; $("thumbs").innerHTML = "";
   const todo = jobs.filter(j => j.what === "box" || j.what === "dl" || j.what === "title" || j.what === "own");
   const idxTodo = $("idxOn").checked ? idxJobs.filter(x => x.state === "new" || x.state === "changed") : [];
-  const steps = todo.length + idxTodo.length || 1;
-  let made = 0, failed = [], idxMade = 0, idxFailed = 0;
-  for (let i = 0; i < todo.length; i++) {
+  /* every folder a game sits in and its parent -- where an earlier version's covers may need sweeping */
+  const cleaned = new Set(), dirs = [];
+  for (const j of jobs) for (const d of [j.dir, j.pdir]) if (d && !cleaned.has(d)) { cleaned.add(d); dirs.push(d); }
+  const doInfo = $("infoOn").checked && Object.keys(meta).length > 0;
+  const infoJobs = doInfo ? jobs.filter(j => infoSidecar(j.game)) : [];
+  /* all four phases drive one progress bar, so it keeps moving through the clean-up and info/index work after the
+     slow download phase (otherwise it looks finished while there is still a minute of tidying to do) */
+  const steps = (todo.length + dirs.length + infoJobs.length + idxTodo.length) || 1;
+  let step = 0, made = 0, failed = [], folderGone = 0, infoMade = 0, idxMade = 0, idxFailed = 0;
+  const show = (text) => { $("prog").style.width = (100 * step / steps) + "%"; $("now").textContent = text; };
+
+  for (let i = 0; i < todo.length; i++, step++) {
     const j = todo[i];
-    $("prog").style.width = (100 * i / steps) + "%";
-    $("now").textContent = (i + 1) + " of " + todo.length + ": " + j.label;
+    show("Making covers — " + (i + 1) + " of " + todo.length + ": " + j.label);
     try {
       let blob;
       if (j.what === "own") blob = await (await j.own.dir.getFileHandle(j.own.name)).getFile();
@@ -676,10 +684,9 @@ async function make() {
   /* Covers now live beside each game. Sweep away what earlier versions left in the old places (an "_art" folder of
      covers, a "_cover.img"/"_cover.txt", a "_folder.img") in every folder a game sits in and its parent. The new
      covers are beside the games, so this never touches them. */
-  let folderGone = 0;
-  const cleaned = new Set(), dirs = [];
-  for (const j of jobs) for (const d of [j.dir, j.pdir]) if (d && !cleaned.has(d)) { cleaned.add(d); dirs.push(d); }
-  for (const d of dirs) {
+  for (let k = 0; k < dirs.length; k++, step++) {
+    const d = dirs[k];
+    show("Removing old cover files — folder " + (k + 1) + " of " + dirs.length);
     for (const name of ["_cover.img", "_cover.txt", "_folder.img"]) if (await removeFile(d, name)) folderGone++;
     try {
       const art = await d.getDirectoryHandle("_art"), gone = [];
@@ -689,23 +696,20 @@ async function make() {
     } catch (e) { /* no _art here */ }
   }
   /* the info-side sidecars: one "<game>.txt" per game we have metadata for, beside its cover */
-  let infoMade = 0;
-  if ($("infoOn").checked && Object.keys(meta).length) {
-    for (const j of jobs) {
-      const text = infoSidecar(j.game);
-      if (!text) continue;
-      try {
-        const name = j.dst.replace(/\.img$/i, ".txt");
-        if (await readText(j.dir, name) !== text) { await writeFile(j.dir, name, text); infoMade++; }
-      } catch (e) { /* skip this one */ }
-    }
+  for (let i = 0; i < infoJobs.length; i++, step++) {
+    const j = infoJobs[i];
+    show("Writing game info — " + (i + 1) + " of " + infoJobs.length);
+    try {
+      const text = infoSidecar(j.game), name = j.dst.replace(/\.img$/i, ".txt");
+      if (await readText(j.dir, name) !== text) { await writeFile(j.dir, name, text); infoMade++; }
+    } catch (e) { /* skip this one */ }
   }
   /* indexes last: the covers above only add names starting with "_", which the firmware skips */
-  for (let i = 0; i < idxTodo.length; i++) {
-    $("prog").style.width = (100 * (todo.length + i) / steps) + "%";
-    $("now").textContent = "Folder index " + (i + 1) + " of " + idxTodo.length + ": " + idxTodo[i].path;
+  for (let i = 0; i < idxTodo.length; i++, step++) {
+    show("Writing folder indexes — " + (i + 1) + " of " + idxTodo.length + ": " + idxTodo[i].path);
     try { await writeFile(idxTodo[i].dir, IDX, idxTodo[i].bytes); idxMade++; } catch (e) { idxFailed++; }
   }
+  show("Finishing …");
   /* a whole card with every folder indexed: the console needn't offer its own scan at the first start */
   if (wholeCard && $("idxOn").checked && !idxFailed) { try { await markScanned(); } catch (e) { /* the console just offers its scan */ } }
   $("prog").style.width = "100%";
