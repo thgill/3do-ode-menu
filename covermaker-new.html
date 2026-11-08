@@ -19,8 +19,10 @@
 
   It also writes each folder's index (_odemenu.idx) exactly as the menu would, from the order the browser lists the
   folder in (tests/web_index_test.sh checks it byte for byte against the menu's own), and for a whole card marks the
-  console's first-start scan as done. Games with no picture can then be given one by hand: another name in libretro's
-  collection (FIND), a picture from the computer (PICTURE, or drop one), or an image search in a new tab (WEB).
+  console's first-start scan as done and updates the FAVS/RECENT lists (_odemenu.fav, _odemenu.rec) so a game
+  favorited in its own folder on an older build keeps its heart and cover. Games with no picture can then be given one
+  by hand: another name in libretro's collection (FIND), a picture from the computer (PICTURE, or drop one), or an
+  image search in a new tab (WEB).
 
   Needs a browser that can write to a folder you choose: Chrome, Edge, Opera, Vivaldi on a computer (Brave after
   turning on brave://flags/#file-system-access-api). Not Firefox, Safari, or phones and tablets.
@@ -125,8 +127,9 @@ button.sm.alt { background: var(--gold); }
   on it instead, such as the one holding your games, and run it once for each such folder.</p>
   <p class="muted">Nothing is changed until you press MAKE COVERS. The page only ever writes the menu's own files:
   a cover (<code>&lt;game&gt;.img</code>) and info sidecar (<code>&lt;game&gt;.txt</code>) beside each game,
-  folder indexes (<code>_odemenu.idx</code>) and, for a whole card, one line in <code>_odemenu.opt</code>. It also
-  removes covers earlier versions left in an <code>_art</code> folder or as <code>_cover.img</code>/<code>_folder.img</code>.</p>
+  folder indexes (<code>_odemenu.idx</code>) and, for a whole card, one line in <code>_odemenu.opt</code> and the
+  favorites/recents lists (<code>_odemenu.fav</code>, <code>_odemenu.rec</code>). It also removes covers earlier
+  versions left in an <code>_art</code> folder or as <code>_cover.img</code>/<code>_folder.img</code>.</p>
 </section>
 
 <section class="panel" id="step2" hidden>
@@ -208,7 +211,7 @@ const W = 88, H = 146;             /* the most a cover can be: the menu's info p
 const BAD = "&*/:`<>?\\|\"";
 const $ = id => document.getElementById(id);
 
-let root = null, wholeCard = false, jobs = [], idxJobs = [], server = null, meta = {};
+let root = null, wholeCard = false, jobs = [], idxJobs = [], favMap = {}, server = null, meta = {};
 
 if (!window.showDirectoryPicker) {
   $("unsupported").hidden = false;
@@ -389,7 +392,7 @@ async function readBytes(dir, name) {
   try { return new Uint8Array(await (await (await dir.getFileHandle(name)).getFile()).arrayBuffer()); } catch (e) { return null; }
 }
 /* one folder and everything below it: its games go to out (covers), its index to idx; returns its listing */
-async function walk(dir, isRoot, path, out, idx, parentDir) {
+async function walk(dir, isRoot, path, out, idx, parentDir, fmap) {
   $("now").textContent = "Looking at " + (path || "the card") + " ...";
   const files = new Map(), listed = [], handles = new Map();
   for await (const [name, h] of dir.entries()) {                 /* in the order they sit on the card */
@@ -399,12 +402,13 @@ async function walk(dir, isRoot, path, out, idx, parentDir) {
   }
   const at = out.length;
   for (const e of listed.filter(x => x.isDir).sort((a, b) => nameCompare(a.bytes, b.bytes)))
-    setFolder(e, await walk(handles.get(e), false, (path ? path + "/" : "") + e.name, out, idx, dir));
+    setFolder(e, await walk(handles.get(e), false, (path ? path + "/" : "") + e.name, out, idx, dir, fmap));
   const mine = [], folder = path ? path.split("/").pop() : dir.name;
   const game = isRoot ? null : detectGame(listed);
   if (game) {
     /* a game in its own folder: its cover sits beside the game file, "<game>.img" */
     const g = stem(game.name);
+    if (path) fmap[path + "/"] = path + "/" + game.name;    /* FAVS/RECENT: old "<folder>/" -> "<folder>/<game file>" */
     mine.push({ game: g, folder, label: path || folder, dir, dst: g + ".img", pdir: dir,
                 have: await hasData(dir, g + ".img"), own: await findPic(dir, files, [g, folder]) });
   } else {
@@ -642,6 +646,33 @@ async function writeCover(j, px) {
   await writeFile(j.dir, j.dst, encode8(px));          /* "<game>.img" beside the game */
 }
 
+async function migrateLists(fmap) {
+  /* Rewrite the menu's FAVS/RECENT lists (_odemenu.fav, _odemenu.rec) at the card root: an earlier build stored a
+     game in its own folder by its folder path ("Doom/"); the game is now identified by the file inside it
+     ("Doom/Doom (USA).iso"). fmap holds each such folder->file path, so a game folder favorited on an older build
+     keeps its heart and cover without being re-added. Returns how many entries were rewritten. */
+  let changed = 0;
+  for (const fn of ["_odemenu.fav", "_odemenu.rec"]) {
+    const text = await readText(root, fn);
+    if (text === null) continue;
+    const lines = text.split("\n");
+    if (!lines.length || lines[0] !== "OML1") continue;      /* not a list file we understand: leave it alone */
+    const out = [], seen = new Set();
+    let rewritten = 0;
+    for (const ln of lines.slice(1)) {
+      if (ln === "-END-" || ln.slice(0, 2) === "OM") break;  /* the end mark (or the file repeating) */
+      if (!ln) continue;
+      const p = fmap[ln] || ln;                              /* folder form -> file form, if this is a game folder */
+      if (p !== ln) rewritten++;
+      if (!seen.has(p)) { seen.add(p); out.push(p); }        /* keep each path once, as the menu does on load */
+    }
+    if (!rewritten) continue;
+    try { await writeFile(root, fn, "OML1\n" + out.map(p => p + "\n").join("") + "-END-\n"); changed += rewritten; }
+    catch (e) { /* leave it */ }
+  }
+  return changed;
+}
+
 async function download(path) {
   const url = RAW + path.split("/").map(encodeURIComponent).join("/");
   let r = await fetch(url);
@@ -709,6 +740,9 @@ async function make() {
     show("Writing folder indexes — " + (i + 1) + " of " + idxTodo.length + ": " + idxTodo[i].path);
     try { await writeFile(idxTodo[i].dir, IDX, idxTodo[i].bytes); idxMade++; } catch (e) { idxFailed++; }
   }
+  /* bring old favorites/recents up to date (the lists live at the card root, so only for a whole-card run) */
+  let favsMoved = 0;
+  if (wholeCard) { show("Updating favorites …"); favsMoved = await migrateLists(favMap); }
   show("Finishing …");
   /* a whole card with every folder indexed: the console needn't offer its own scan at the first start */
   if (wholeCard && $("idxOn").checked && !idxFailed) { try { await markScanned(); } catch (e) { /* the console just offers its scan */ } }
@@ -720,7 +754,8 @@ async function make() {
                             (miss.length ? " " + n(miss.length, "game has", "games have") + " no picture yet." : "") +
                             ($("infoOn").checked ? (Object.keys(meta).length ? " " + n(infoMade, "info file", "info files") + " written."
                                                                              : " (No 3do_meta.json found, so no info files.)") : "") +
-                            (folderGone ? " Removed " + n(folderGone, "old cover file", "old cover files") + "." : "");
+                            (folderGone ? " Removed " + n(folderGone, "old cover file", "old cover files") + "." : "") +
+                            (favsMoved ? " Updated " + n(favsMoved, "favorite/recent", "favorites/recents") + "." : "");
   const same = idxJobs.filter(x => x.state === "same").length, kept = idxJobs.filter(x => x.state === "kept");
   $("idxSummary").textContent = !$("idxOn").checked ? "Folder indexes: not made." :
     "Folder indexes: " + idxMade + " written" + (idxFailed ? ", " + idxFailed + " failed" : "") +
@@ -822,8 +857,8 @@ async function pick() {
   $("prog").style.width = "0";
   try {
     wholeCard = await exists(root, "boot.iso");
-    jobs = []; idxJobs = [];
-    await walk(root, wholeCard, "", jobs, idxJobs, null);
+    jobs = []; idxJobs = []; favMap = {};
+    await walk(root, wholeCard, "", jobs, idxJobs, null, favMap);
     $("where").textContent = wholeCard ? "The whole card (" + root.name + ")." : "The folder \u201c" + root.name + "\u201d and everything in it.";
     await loadServer();
     meta = await loadMeta();
