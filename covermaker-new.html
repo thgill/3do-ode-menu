@@ -629,17 +629,22 @@ async function removeFile(dir, name) {
   try { await dir.removeEntry(name); return true; } catch (e) { return false; }
 }
 async function promoteCover(dir, g) {
-  /* rename a cover/sidecar an earlier build wrote without the '_' ("<game>.img"/"<game>.txt") to the hidden name,
-     so a card scraped by that build is fixed in place without fetching the art again (no rename in the file API, so
-     copy then delete) */
+  /* get rid of a cover/sidecar an earlier build wrote without the '_' ("<game>.img"/"<game>.txt"): a clone lists it,
+     which breaks the folder, so it must not stay. Rename it to the hidden name (fixes the card without fetching the
+     art again; no rename in the file API, so copy then delete); if the hidden one is already there, just delete the
+     stale listed one. */
   for (const ext of [".img", ".txt"]) {
+    let oldH;
+    try { oldH = await dir.getFileHandle(g + ext); } catch (e) { continue; }   /* nothing to clean up */
     try {
-      const oldH = await dir.getFileHandle(g + ext);        /* throws if there is none */
-      try { await dir.getFileHandle("_" + g + ext); continue; } catch (e) { /* new name is free */ }
-      const data = await (await oldH.getFile()).arrayBuffer();
-      await writeFile(dir, "_" + g + ext, data);
+      let haveNew = true;
+      try { await dir.getFileHandle("_" + g + ext); } catch (e) { haveNew = false; }
+      if (!haveNew) {
+        const data = await (await oldH.getFile()).arrayBuffer();
+        await writeFile(dir, "_" + g + ext, data);
+      }
       await removeFile(dir, g + ext);
-    } catch (e) { /* nothing to promote, or it failed: leave it */ }
+    } catch (e) { /* leave it */ }
   }
 }
 function drawPx(c, cv) {
