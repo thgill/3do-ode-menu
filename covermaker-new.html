@@ -14,7 +14,8 @@
   title screen; screenshots first if chosen) from
   libretro's thumbnail collection on GitHub (libretro-thumbnails/The_3DO_Company_-_3DO). Each picture is shrunk
   whole to fit 88x146 (the menu's info pane), lightly sharpened, reduced to its own 256 colors and written as the menu's .img (OAR8)
-  beside the game: "Doom (USA).img" for "Doom (USA).iso", or "Doom/doom.img" for a game in its own folder. Same rules and output
+  beside the game: "_Doom (USA).img" for "Doom (USA).iso", or "Doom/_doom.img" for a game in its own folder (the leading '_' makes
+  the firmware hide the cover, so a clone does not list it and break the folder). Same rules and output
   as tools/covermaker.py, including removing covers earlier versions left in an "_art" folder or as "_cover.img"/"_folder.img".
 
   It also writes each folder's index (_odemenu.idx) exactly as the menu would, from the order the browser lists the
@@ -126,7 +127,7 @@ button.sm.alt { background: var(--gold); }
   <p class="muted">If the browser won't let you choose the whole card ("contains system files"), choose a folder
   on it instead, such as the one holding your games, and run it once for each such folder.</p>
   <p class="muted">Nothing is changed until you press MAKE COVERS. The page only ever writes the menu's own files:
-  a cover (<code>&lt;game&gt;.img</code>) and info sidecar (<code>&lt;game&gt;.txt</code>) beside each game,
+  a cover (<code>_&lt;game&gt;.img</code>) and info sidecar (<code>_&lt;game&gt;.txt</code>) beside each game,
   folder indexes (<code>_odemenu.idx</code>) and, for a whole card, one line in <code>_odemenu.opt</code> and the
   favorites/recents lists (<code>_odemenu.fav</code>, <code>_odemenu.rec</code>). It also removes covers earlier
   versions left in an <code>_art</code> folder or as <code>_cover.img</code>/<code>_folder.img</code>.</p>
@@ -406,19 +407,22 @@ async function walk(dir, isRoot, path, out, idx, parentDir, fmap) {
   const mine = [], folder = path ? path.split("/").pop() : dir.name;
   const game = isRoot ? null : detectGame(listed);
   if (game) {
-    /* a game in its own folder: its cover sits beside the game file, "<game>.img" */
+    /* a game in its own folder: its cover sits beside the game file, "_<game>.img" (the '_' makes the firmware
+       hide it, so a clone that lists any other file does not list the cover and break the folder's index) */
     const g = stem(game.name);
+    await promoteCover(dir, g);                             /* fix a card scraped by a build that left the '_' off */
     if (path) fmap[path + "/"] = path + "/" + game.name;    /* FAVS/RECENT: old "<folder>/" -> "<folder>/<game file>" */
-    mine.push({ game: g, folder, label: path || folder, dir, dst: g + ".img", pdir: dir,
-                have: await hasData(dir, g + ".img"), own: await findPic(dir, files, [g, folder]) });
+    mine.push({ game: g, folder, label: path || folder, dir, dst: "_" + g + ".img", pdir: dir,
+                have: await hasData(dir, "_" + g + ".img"), own: await findPic(dir, files, [g, folder]) });
   } else {
     const games = listed.filter(e => !e.isDir && !(e.flags & 0x18) && isGameBytes(e.bytes) &&
                                      !(isRoot && e.name.toLowerCase() === "boot.iso")).map(e => e.name).sort();
     for (const f of games) {
-      /* a loose game: its cover sits beside it, "<game>.img" */
+      /* a loose game: its cover sits beside it, "_<game>.img" (hidden from the listing by the '_') */
       const g = stem(f);
-      mine.push({ game: g, folder: null, label: (path ? path + "/" : "") + g, dir, dst: g + ".img", pdir: dir,
-                  have: await hasData(dir, g + ".img"), own: await findPic(dir, files, [g]) });
+      await promoteCover(dir, g);                           /* fix a card scraped by a build that left the '_' off */
+      mine.push({ game: g, folder: null, label: (path ? path + "/" : "") + g, dir, dst: "_" + g + ".img", pdir: dir,
+                  have: await hasData(dir, "_" + g + ".img"), own: await findPic(dir, files, [g]) });
     }
   }
   out.splice(at, 0, ...mine);
@@ -623,6 +627,20 @@ async function readText(dir, name) {
 }
 async function removeFile(dir, name) {
   try { await dir.removeEntry(name); return true; } catch (e) { return false; }
+}
+async function promoteCover(dir, g) {
+  /* rename a cover/sidecar an earlier build wrote without the '_' ("<game>.img"/"<game>.txt") to the hidden name,
+     so a card scraped by that build is fixed in place without fetching the art again (no rename in the file API, so
+     copy then delete) */
+  for (const ext of [".img", ".txt"]) {
+    try {
+      const oldH = await dir.getFileHandle(g + ext);        /* throws if there is none */
+      try { await dir.getFileHandle("_" + g + ext); continue; } catch (e) { /* new name is free */ }
+      const data = await (await oldH.getFile()).arrayBuffer();
+      await writeFile(dir, "_" + g + ext, data);
+      await removeFile(dir, g + ext);
+    } catch (e) { /* nothing to promote, or it failed: leave it */ }
+  }
 }
 function drawPx(c, cv) {
   const px = cv.px; c.width = cv.w; c.height = cv.h;
